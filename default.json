@@ -8,12 +8,12 @@
     "username": "bob",
     "password": "pass",
     
-    "host": "http://141.84.42.103/",
+    "host": "141.84.42.103",
     "port": 8003,
     "prefix": "",
     "prefixData": "neo",
 
-    "apiDefinition": "",
+    "apiDefinition": "./requirements.json",
 
     "caching" : "MEMORY",
     "db": ""
