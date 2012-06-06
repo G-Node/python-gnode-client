@@ -32,4 +32,4 @@ __author__ = 'Michael Pereira (michael.fsp@gmail.com), Andrey Sobolev \
 __copyright__ = 'Copyright 2012 by German Neuroinformatics Node \
  (www.g-node.org)'
 
-from . import exceptions
+import errors
