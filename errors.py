@@ -8,16 +8,12 @@ This module contains the set of Gnode Client's exceptions.
 
 """
 
+#TODO: offer more explanatory error messages by incorporating the object ids
+# in the error message
+
 class Error(Exception):
 	"""Base class for Gnode Client's exceptions."""
 	pass
-
-class NotSupportedError(Error):
-	"""Exception raised for a 405 "Not Supported" server status code."""
-	def __init__(self):
-		pass
-	def __str__(self):
-		return "Request is not supported at this URL"
 
 class BadRequestError(Error):
 	"""Exception raised for a 400 "Bad request" server status code."""
@@ -48,3 +44,13 @@ class NotFoundError(Error):
 	def __str__(self):
 		return "An object with the provided id does not exist or URL is \
 		wrong and not supported"
+
+class NotSupportedError(Error):
+	"""Exception raised for a 405 "Not Supported" server status code."""
+	def __init__(self):
+		pass
+	def __str__(self):
+		return "Request is not supported at this URL"
+
+error_codes = {400:BadRequestError, 401:UnauthorizedError, 403:ForbiddenError,
+404:NotFoundError, 405:NotSupportedError}
