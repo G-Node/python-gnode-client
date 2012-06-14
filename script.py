@@ -6,3 +6,5 @@ auth_cookie = authenticate(url, username, password)
 
 list_data = requests.get(url+'/electrophysiology/analogsignal/6/',
 	cookies=auth_cookie)
+
+list_files = requests.get(url+'datafiles/', cookies=auth_cookie)
