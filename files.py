@@ -3,6 +3,8 @@
 Methods operating on the files stored at the data store.
 """
 
+import requests
+
 def list_datafiles(auth_cookie, lookup_str=''):
 	#TODO: confirm that the ?params defined in the API are only the ones
 	#defined in the lookup string definition

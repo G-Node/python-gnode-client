@@ -10,26 +10,52 @@ except ImportError: import json
 
 import requests
 
-import exceptions
+import errors
 
 def load_profile(profile='default'):
 	"""Initialize session using data specified on profile profile.json
 	"""
-	profile_data = json.load(open(str(profile)+'.json'))
-	
-	url = (profile_data['host'].strip('/')+':'+str(profile_data['port'])+'/'+
+	try:
+		config_file = open(str(profile)+'.json', 'r')
+	#Python3: this is the way exceptions are raised in Python 3!
+	except IOError as err:
+		config_file.close()
+		raise errors.AbsentConfigurationFileError err
+
+	try:
+		profile_data = json.load(config_file)
+		url = (profile_data['host'].strip('/')+':'+str(profile_data['port'])+'/'+
 	       profile_data['prefix']+'/')
-	url = url.replace('//','/') #substitute // for / in case of no prefixData
-	#avoid double 'http://' in case user has already typed it in json file
-	url = 'http://'+url.lstrip('http://')
-	username = profile_data['username']
-	password = profile_data['password']
-	
+
+		#substitute // for / in case no prefixData in the configuration file
+		url = url.replace('//','/')
+		
+		#avoid double 'http://' in case user has already typed it in json file
+		url = 'http://'+url.lstrip('http://')
+		
+		username = profile_data['username']
+		password = profile_data['password']
+	except json.JSONDecodeError as err:
+		raise errors.MisformattedConfigurationFileError, err
+
 	return url, username, password
 
-def authenticate(url, username, password):
+def authenticate(username=None, password=None):
 	"""Returns authentication cookie given username and password"""
 	#TODO: ask for user input
+
+	#get the username if the user hasn't already specified one either by
+	#directly calling the authenticate() function or by reading the username
+	#and password from a configuration file (usually default.json) where these
+	#have not been specified
+	if not username:
+		username = raw_input('username: ')
+
+	#get the password if the user hasn't already specified one
+	if not password:
+		import getpass
+		password = getpass.getpass('password: ')	
+
 	auth = requests.post(url, {'username': username, 'password': password})
 	return auth.cookies
 
@@ -43,7 +69,10 @@ def shutdown(auth_cookie):
 	#feature all together
 	#s = requests.session()
 	#s.config['keep_alive'] = False
+	#
+	#Should the shutdown method delete the cookie?
 	requests.get(url+'account/logout/', cookies=auth_cookie)
+	del(auth_cookie)
 
 
 def lookup_str(owner=None, safety_level=None, offset=None,
@@ -68,3 +97,5 @@ def lookup_str(owner=None, safety_level=None, offset=None,
 		if argvalue:
 			pieces.append(arg+'='+str(argvalue))
 	return '?'+'&'.join(pieces) if pieces else ''
+
+url, username, password = load_profile()

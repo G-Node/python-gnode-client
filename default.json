@@ -6,7 +6,7 @@
 		 "apiVersion", "caching", "db"],
     
     "username": "bob",
-    "password": "pass",
+    "password": ,
     
     "host": "141.84.42.103",
     "port": 8003,
