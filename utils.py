@@ -19,8 +19,7 @@ def load_profile(profile='default'):
 		config_file = open(str(profile)+'.json', 'r')
 	#Python3: this is the way exceptions are raised in Python 3!
 	except IOError as err:
-		config_file.close()
-		raise errors.AbsentConfigurationFileError err
+		raise errors.AbsentConfigurationFileError(err)
 
 	try:
 		profile_data = json.load(config_file)
@@ -36,7 +35,9 @@ def load_profile(profile='default'):
 		username = profile_data['username']
 		password = profile_data['password']
 	except json.JSONDecodeError as err:
-		raise errors.MisformattedConfigurationFileError, err
+		raise errors.MisformattedConfigurationFileError
+	finally:
+		config_file.close()
 
 	return url, username, password
 
