@@ -10,7 +10,7 @@ class BaseObject( object ):
         return self._session.rel_mode == 'lazy'
 
     def _is_data_lazy(self):
-        """ indicates whether object relations should be lazy loaded """
+        """ indicates whether object data should be lazy loaded """
         return self._session.data_mode == 'lazy'
 
     def save(self):
@@ -27,7 +27,7 @@ class Block( neo.core.Block, BaseObject ):
         self._session = kwargs.pop('session')
 
     @property
-    def segments
+    def segments(self):
         """ Extends basic NEO property to enable lazy mode """
 
         def fget(self):
