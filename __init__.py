@@ -40,3 +40,6 @@ import errors, utils, files, permissions
 #	requirement since json doesn't have that error!!!
 #	TODO: whether there are other functionalities that json doesn't have or
 #		simply decide that simplejson can be a requirement!
+
+#TODO: Move the authentication here authentication method here.
+#TODO: the global parameters like URL should obviously also come here.

@@ -12,17 +12,17 @@ import requests
 
 import errors
 
-def load_profile(profile='default'):
-	"""Initialize session using data specified on profile profile.json
+def load_profile(config_file='default.json'):
+	"""Initialize session using data specified in a JSON configuration file
+
+	Args:
+		config_file: name of the configuration file in which the profile
+			to be loaded is contained the standard profile is located at
+			default.json
 	"""
 	try:
-		config_file = open(str(profile)+'.json', 'r')
-	#Python3: this is the way exceptions are raised in Python 3!
-	except IOError as err:
-		raise errors.AbsentConfigurationFileError(err)
-
-	try:
-		profile_data = json.load(config_file)
+		with open(str(config_file, 'r') as config_file:
+			profile_data = json.load(config_file)
 		url = (profile_data['host'].strip('/')+':'+str(profile_data['port'])+'/'+
 	       profile_data['prefix']+'/')
 
@@ -34,10 +34,11 @@ def load_profile(profile='default'):
 		
 		username = profile_data['username']
 		password = profile_data['password']
+	#Python3: this is the way exceptions are raised in Python 3!
+	except IOError as err:
+		raise errors.AbsentConfigurationFileError(err)
 	except json.JSONDecodeError as err:
-		raise errors.MisformattedConfigurationFileError
-	finally:
-		config_file.close()
+		raise errors.MisformattedConfigurationFileError(err)
 
 	return url, username, password
 
