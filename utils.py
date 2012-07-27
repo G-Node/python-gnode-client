@@ -39,8 +39,6 @@ def load_profile(config_file='default.json'):
 		raise errors.AbsentConfigurationFileError(err)
 	except json.JSONDecodeError as err:
 		raise errors.MisformattedConfigurationFileError(err)
-	finally:
-		config_file.close()
 
 	return url, username, password
 

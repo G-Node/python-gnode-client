@@ -44,7 +44,7 @@ def get_object(auth_cookie, object_type, object_id, verbosity=None):
 			'?q='+str(verbosity)+'/', cookies=auth_cookie)
 
 def get_object_parts(auth_cookie, object_type, object_id, verbosity=None,
-	cascade=False):
+	cascade=False, start_time=None, end_time=None, duration=None):
 	"""Get a NEO data object with its attributes.
 
 	Args:
