@@ -23,18 +23,15 @@ def load_profile(config_file='default.json'):
 			default.json
 	"""
 	#TODO: parse prefixData, apiDefinition, caching, DB
-	#TODO?: Can one assume that when protocol is https the default port is
-	#	8080?
 	try:
 		with open(str(config_file), 'r') as config_file:
 			profile_data = json.load(config_file)
 		
-		#set port to 8080 in case https protocol is True and no port specified
-		if profile_data['https'] and not profile_data['port']:
-			profile_data['port'] = '8080'
-
-		url = (profile_data['host'].strip('/')+':'+str(profile_data['port'])+'/'+
-	       profile_data['prefix']+'/')
+		if profile_data['port']:
+			url = (profile_data['host'].strip('/')+':'+str(
+				profile_data['port'])+'/'+profile_data['prefix']+'/')
+		else:
+			url = (profile_data['host'].strip('/')+'/'+profile_data['prefix']+'/')
 
 		#substitute // for / in case no prefixData in the configuration file
 		url = url.replace('//','/')
@@ -75,7 +72,7 @@ def authenticate(url, username=None, password=None):
 		import getpass
 		password = getpass.getpass('password: ')	
 
-	auth = requests.post(url, {'username': username, 'password': password})
+	auth = requests.post(url+'account/authenticate/', {'username': username, 'password': password})
 	return auth.cookies
 
 def shutdown(auth_cookie):
