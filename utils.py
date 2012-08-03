@@ -31,14 +31,13 @@ def load_profile(config_file='default.json'):
 
 		#substitute // for / in case no prefixData in the configuration file
 		url = url.replace('//','/')
-		print url
 
 		#avoid double 'http://' in case user has already typed it in json file
 		url = 'http://'+re.sub('http://', '', url)
 		
 		username = profile_data['username']
 		password = profile_data['password']
-		
+
 	#Python3: this is the way exceptions are raised in Python 3!
 	except IOError as err:
 		raise errors.AbsentConfigurationFileError(err)
