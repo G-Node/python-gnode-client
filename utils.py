@@ -5,6 +5,8 @@
 # 	vrequests.models.Response
 # http://docs.python-requests.org/en/latest/user/install/
 
+import re
+
 try: import simplejson as json
 except ImportError: import json
 
@@ -20,20 +22,23 @@ def load_profile(config_file='default.json'):
 			to be loaded is contained the standard profile is located at
 			default.json
 	"""
+	#TODO: parse prefixData, apiDefinition, caching, DB
 	try:
-		with open(str(config_file, 'r') as config_file:
+		with open(str(config_file), 'r') as config_file:
 			profile_data = json.load(config_file)
 		url = (profile_data['host'].strip('/')+':'+str(profile_data['port'])+'/'+
 	       profile_data['prefix']+'/')
 
 		#substitute // for / in case no prefixData in the configuration file
 		url = url.replace('//','/')
-		
+		print url
+
 		#avoid double 'http://' in case user has already typed it in json file
-		url = 'http://'+url.lstrip('http://')
+		url = 'http://'+re.sub('http://', '', url)
 		
 		username = profile_data['username']
 		password = profile_data['password']
+		
 	#Python3: this is the way exceptions are raised in Python 3!
 	except IOError as err:
 		raise errors.AbsentConfigurationFileError(err)
@@ -42,7 +47,7 @@ def load_profile(config_file='default.json'):
 
 	return url, username, password
 
-def authenticate(username=None, password=None):
+def authenticate(url, username=None, password=None):
 	"""Returns authentication cookie given username and password"""
 	#TODO: ask for user input
 
