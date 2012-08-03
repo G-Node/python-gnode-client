@@ -57,7 +57,7 @@ def load_profile(config_file='default.json'):
 	return url, username, password
 
 def authenticate(url, username=None, password=None):
-	"""Returns authentication cookie given username and password"""
+	"""Returns authentication cookie jar given username and password"""
 	#TODO: ask for user input
 
 	#get the username if the user hasn't already specified one either by
