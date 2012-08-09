@@ -39,7 +39,7 @@ def get_permissions(auth_cookie, resource_type, resource_id):
 	if perms_resp.status_code != 200:
 		raise errors.error_codes[perms_resp.status_code]
 	else:
-		perms_data = perms_response.json
+		perms_data = perms_resp.json
 		return perms_data['logged_in_as'],
 		perms_data['safety_level'], perms_data['shared_with']
 
