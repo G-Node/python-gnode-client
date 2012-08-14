@@ -16,6 +16,8 @@
 
     "apiDefinition": "./requirements.json",
 
+    "lazyData": false,
+    "lazyRelations": false,
     "caching" : "MEMORY",
     "db": ""
     

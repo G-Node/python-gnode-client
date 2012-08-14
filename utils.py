@@ -14,47 +14,6 @@ import requests
 
 import errors
 
-def load_profile(config_file='default.json'):
-	"""Initialize session using data specified in a JSON configuration file
-
-	Args:
-		config_file: name of the configuration file in which the profile
-			to be loaded is contained the standard profile is located at
-			default.json
-	"""
-	#TODO: parse prefixData, apiDefinition, caching, DB
-	try:
-		with open(str(config_file), 'r') as config_file:
-			profile_data = json.load(config_file)
-		
-		if profile_data['port']:
-			url = (profile_data['host'].strip('/')+':'+str(
-				profile_data['port'])+'/'+profile_data['prefix']+'/')
-		else:
-			url = (profile_data['host'].strip('/')+'/'+profile_data['prefix']+'/')
-
-		#substitute // for / in case no prefixData in the configuration file
-		url = url.replace('//','/')
-
-		#avoid double 'http://' in case user has already typed it in json file
-		if profile_data['https']:
-			# in case user has already typed https
-			url = re.sub('https://', '', url)
-			url = 'https://'+re.sub('http://', '', url)
-		
-		else:
-			url = 'http://'+re.sub('http://', '', url)
-		
-		username = profile_data['username']
-		password = profile_data['password']
-
-	#Python3: this is the way exceptions are raised in Python 3!
-	except IOError as err:
-		raise errors.AbsentConfigurationFileError(err)
-	except json.JSONDecodeError as err:
-		raise errors.MisformattedConfigurationFileError(err)
-
-	return url, username, password
 
 def authenticate(url, username=None, password=None):
 	"""Returns authentication cookie jar given username and password"""
@@ -115,3 +74,47 @@ def lookup_str(owner=None, safety_level=None, offset=None,
 	return '?'+'&'.join(pieces) if pieces else ''
 
 url, username, password = load_profile()
+
+#=========================Deprecated=======================================
+def load_profile(config_file='default.json'):
+	"""Initialize session using data specified in a JSON configuration file
+
+	Args:
+		config_file: name of the configuration file in which the profile
+			to be loaded is contained the standard profile is located at
+			default.json
+	"""
+	#TODO: parse prefixData, apiDefinition, caching, DB
+	try:
+		with open(str(config_file), 'r') as config_file:
+			profile_data = json.load(config_file)
+		
+		if profile_data['port']:
+			url = (profile_data['host'].strip('/')+':'+str(
+				profile_data['port'])+'/'+profile_data['prefix']+'/')
+		else:
+			url = (profile_data['host'].strip('/')+'/'+profile_data['prefix']+'/')
+
+		#substitute // for / in case no prefixData in the configuration file
+		url = url.replace('//','/')
+
+		#avoid double 'http://' in case user has already typed it in json file
+		if profile_data['https']:
+			# in case user has already typed https
+			url = re.sub('https://', '', url)
+			url = 'https://'+re.sub('http://', '', url)
+		
+		else:
+			url = 'http://'+re.sub('http://', '', url)
+		
+		username = profile_data['username']
+		password = profile_data['password']
+
+
+	#Python3: this is the way exceptions are raised in Python 3!
+	except IOError as err:
+		raise errors.AbsentConfigurationFileError(err)
+	except json.JSONDecodeError as err:
+		raise errors.MisformattedConfigurationFileError(err)
+
+	return url, username, password

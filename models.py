@@ -5,12 +5,14 @@ from errors import *
 class BaseObject( object ):
     """ Absract class """
 
+    @property
     def _is_rel_lazy(self):
         """ indicates whether object relations should be lazy loaded """
         return self._session.rel_mode == 'lazy'
 
+    @property
     def _is_data_lazy(self):
-        """ indicates whether object relations should be lazy loaded """
+        """ indicates whether object data should be lazy loaded """
         return self._session.data_mode == 'lazy'
 
     def save(self):
