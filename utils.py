@@ -73,8 +73,6 @@ def lookup_str(owner=None, safety_level=None, offset=None,
 			pieces.append(arg+'='+str(argvalue))
 	return '?'+'&'.join(pieces) if pieces else ''
 
-url, username, password = load_profile()
-
 #=========================Deprecated=======================================
 def load_profile(config_file='default.json'):
 	"""Initialize session using data specified in a JSON configuration file

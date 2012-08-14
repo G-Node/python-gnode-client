@@ -40,26 +40,33 @@ def init(config_file='default.json', *args, **kwargs ):
         password = profile_data['password']
         
 
+
     #Python3: this is the way exceptions are raised in Python 3!
     except IOError as err:
         raise errors.AbsentConfigurationFileError(err)
     except json.JSONDecodeError as err:
         raise errors.MisformattedConfigurationFileError(err)
 
-    return Session(url, username, password, *args, **kwargs )
-    
+    _is_rel_lazy = profile_data[lazyRelations]
+    _is_data_lazy = profile_data[lazyData]
+
+    return Session(url, username, password, lazy_relations=_is_rel_lazy, 
+        lazy_data=_is_data_lazy, *args, **kwargs )
+
 class Session(object):
     """ Object to handle connection and client-server data transfer """
 
-    def __init__(self, url, username, password, *args, **kwargs ):
+    def __init__(self, url, username, password, lazy_relations=False,
+        lazy_data=False, *args, **kwargs ):
         self.url = url
         self.username = username
         self.password = password
         self.cookie_jar = authenticate(self.url, self.username,
             self.password)
         self.auth_cookie = self.cookie_jar['sessionid']
+        self._is_rel_lazy = lazy_relations
+        self._is_data_lazy = lazy_data
         # TODO of course make it more flexible
-
 
     def get(self, obj_type, obj_id=None, verbosity=None):
         """Get one or several objects from the server of a given object type.
