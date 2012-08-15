@@ -1,9 +1,10 @@
 #!/usr/bin/env python
-import requests
+import re
 
+import requests
 import simplejson as json
 
-from utils import load_profile, authenticate
+from utils import load_profile, authenticate, lookup_str
 
 
 def init(config_file='default.json', *args, **kwargs ):
@@ -47,11 +48,20 @@ def init(config_file='default.json', *args, **kwargs ):
     except json.JSONDecodeError as err:
         raise errors.MisformattedConfigurationFileError(err)
 
-    _is_rel_lazy = profile_data[lazyRelations]
-    _is_data_lazy = profile_data[lazyData]
+    _is_rel_lazy = profile_data['lazyRelations']
+    _is_data_lazy = profile_data['lazyData']
 
     return Session(url, username, password, lazy_relations=_is_rel_lazy, 
         lazy_data=_is_data_lazy, *args, **kwargs )
+
+def load_saved_session(pickle_file):
+    """Load a previously saved session
+    """
+    import pickle
+
+
+    with open(filename, 'rb') as pkl_file:
+        auth_cookie = pickle.load(pkl_file)
 
 class Session(object):
     """ Object to handle connection and client-server data transfer """
@@ -63,10 +73,24 @@ class Session(object):
         self.password = password
         self.cookie_jar = authenticate(self.url, self.username,
             self.password)
-        self.auth_cookie = self.cookie_jar['sessionid']
+        #the auth cookie is actually not necessary; the cookie jar should be
+        #sent instead
+        #self.auth_cookie = self.cookie_jar['sessionid']
         self._is_rel_lazy = lazy_relations
         self._is_data_lazy = lazy_data
         # TODO of course make it more flexible
+
+    def list_objects(self, object_type, params_str):
+        """Get a list of objects
+
+        Args:
+            object_type: the type of NEO objects to query for (e.g.'analogsignal')
+            params_str: string with search criteria constructed using function
+                utils.lookup_str
+        """
+        #TODO: parse the JSON object received and display it in a pretty way?
+        return requests.get(self.url+'electrophysiology/'+str(
+            object_type)+'/'+params_str, cookies=self.cookie_jar)
 
     def get(self, obj_type, obj_id=None, verbosity=None):
         """Get one or several objects from the server of a given object type.
@@ -128,3 +152,8 @@ class Session(object):
     def delete(self, obj_type, obj_id=None, *kwargs):
         """ delete (archive) one or several objects on the server """
         pass
+
+    def save_session(self, filename):
+        """Save the data necessary to restart current session (cookies, etc..)
+        """
+        import pickle
