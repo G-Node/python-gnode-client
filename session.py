@@ -127,7 +127,7 @@ class Session(object):
             for obj in obj_id:
                 resp = requests.get(self.url+str(obejct_type)+'/'+str(
                     object_id)+'/'+'?q='+str(verbosity)+'/',
-                    cookies=self.auth_cookie)
+                    cookies=self.cookie_jar)
                 json_obj = resp.json
                 objects.append(json.loads(json_obj))
 
