@@ -119,7 +119,7 @@ class Session(object):
         if not verbosity:
         #TODO check that I am reading JSON from the right object
             for obj in obj_id:
-                resp = requests.get(self.url+str(obejct_type)+'/'+str(
+                resp = requests.get(self.url+str(object_type)+'/'+str(
                     object_id)+'/', cookies=self.auth_cookie)
                 json_obj = resp.json
                 objects.append(json.loads(json_obj))
