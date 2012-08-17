@@ -40,8 +40,6 @@ def init(config_file='default.json', *args, **kwargs ):
         username = profile_data['username']
         password = profile_data['password']
         
-
-
     #Python3: this is the way exceptions are raised in Python 3!
     except IOError as err:
         raise errors.AbsentConfigurationFileError(err)
@@ -54,14 +52,17 @@ def init(config_file='default.json', *args, **kwargs ):
     return Session(url, username, password, lazy_relations=_is_rel_lazy, 
         lazy_data=_is_data_lazy, *args, **kwargs )
 
+
 def load_saved_session(pickle_file):
     """Load a previously saved session
     """
+    #TODO: finish this
     import pickle
 
 
     with open(filename, 'rb') as pkl_file:
         auth_cookie = pickle.load(pkl_file)
+
 
 class Session(object):
     """ Object to handle connection and client-server data transfer """
@@ -79,6 +80,9 @@ class Session(object):
         self._is_rel_lazy = lazy_relations
         self._is_data_lazy = lazy_data
         # TODO of course make it more flexible
+        #TODO: figure out an elegant way to set URL stems that are often used
+        # such as .../electrophysiology/, .../metadata/, etc...
+        self.data_url = self.url+'electrophysiology/'
 
     def list_objects(self, object_type, params_str):
         """Get a list of objects
@@ -89,10 +93,10 @@ class Session(object):
                 utils.lookup_str
         """
         #TODO: parse the JSON object received and display it in a pretty way?
-        return requests.get(self.url+'electrophysiology/'+str(
-            object_type)+'/'+params_str, cookies=self.cookie_jar)
+        return requests.get(self.data_url+str(object_type)+'/'+params_str,
+         cookies=self.cookie_jar)
 
-    def get(self, obj_type, obj_id=None, verbosity=None):
+    def get(self, obj_type, obj_id=None, q=None):
         """Get one or several objects from the server of a given object type.
 
         Args:
@@ -103,7 +107,7 @@ class Session(object):
 
             obj_id: the id of the objects to retrieve as an integer or a list
 
-            verbosity: controls the amount of information about the received objects
+            q: controls the amount of information about the received objects
             'link' -- just permalink
             'info' -- object with local attributes
             'beard' -- object with local attributes AND foreign keys resolved
@@ -116,28 +120,29 @@ class Session(object):
 
         objects = []
 
-        if not verbosity:
+        if not q:
         #TODO check that I am reading JSON from the right object
             for obj in obj_id:
-                resp = requests.get(self.url+str(object_type)+'/'+str(
-                    object_id)+'/', cookies=self.auth_cookie)
+                resp = requests.get(self.data_url+str(obj_type)+'/'+str(
+                    obj)+'/', cookies=self.cookie_jar)
                 json_obj = resp.json
-                objects.append(json.loads(json_obj))
+                objects.append(json_obj)
         else:
             for obj in obj_id:
-                resp = requests.get(self.url+str(obejct_type)+'/'+str(
-                    object_id)+'/'+'?q='+str(verbosity)+'/',
+                resp = requests.get(self.data_url+str(obj_type)+'/'+str(
+                    obj)+'/'+'?q='+str(q),
                     cookies=self.cookie_jar)
                 json_obj = resp.json
-                objects.append(json.loads(json_obj))
+                objects.append(json_obj)
 
         # deserialize received JSON object
+        if len(objects) == 1:
+            objects = objects[0]
         return objects
 
 
     def create(self, obj, *kwargs):
         """Saves new object to the server """
-
         # serialize to JSON
 
         # send POST to create using API
@@ -157,3 +162,16 @@ class Session(object):
         """Save the data necessary to restart current session (cookies, etc..)
         """
         import pickle
+
+    def shutdown(self):
+        """Log out.
+        """
+        #TODO: which other actions should be accomplished?
+        #Notes: does not seem to be necessary to GC, close sockets, etc...
+        #Requests keeps connections alive for performance increase but doesn't
+        #seem to have a method to close a connection other than disabling this
+        #feature all together
+        #s = requests.session()
+        #s.config['keep_alive'] = False
+        requests.get(self.url+'account/logout/', cookies=self.cookie_jar)
+        del(self.cookie_jar)

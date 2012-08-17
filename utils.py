@@ -34,22 +34,6 @@ def authenticate(url, username=None, password=None):
 	auth = requests.post(url+'account/authenticate/', {'username': username, 'password': password})
 	return auth.cookies
 
-def shutdown(auth_cookie):
-	"""Logs the user out
-	"""
-	#TODO: which other actions should be accomplished?
-	#Notes: does not seem to be necessary to GC, close sockets, etc...
-	#Requests keeps connections alive for performance increase but doesn't
-	#seem to have a method to close a connection other than disabling this
-	#feature all together
-	#s = requests.session()
-	#s.config['keep_alive'] = False
-	#
-	#Should the shutdown method delete the cookie?
-	requests.get(url+'account/logout/', cookies=auth_cookie)
-	del(auth_cookie)
-
-
 def lookup_str(owner=None, safety_level=None, offset=None,
 	max_results=None, q=None, **kwargs):
 	"""Construct lookup strings for list requests based on user requirements.
@@ -116,3 +100,18 @@ def load_profile(config_file='default.json'):
 		raise errors.MisformattedConfigurationFileError(err)
 
 	return url, username, password
+
+def shutdown(auth_cookie):
+	"""Logs the user out
+	"""
+	#TODO: which other actions should be accomplished?
+	#Notes: does not seem to be necessary to GC, close sockets, etc...
+	#Requests keeps connections alive for performance increase but doesn't
+	#seem to have a method to close a connection other than disabling this
+	#feature all together
+	#s = requests.session()
+	#s.config['keep_alive'] = False
+	#
+	#Should the shutdown method delete the cookie?
+	requests.get(url+'account/logout/', cookies=auth_cookie)
+	del(auth_cookie)
