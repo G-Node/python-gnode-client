@@ -14,6 +14,8 @@ import requests
 
 import errors
 
+def Property(func):
+    return property(**func())
 
 def authenticate(url, username=None, password=None):
 	"""Returns authentication cookie jar given username and password"""

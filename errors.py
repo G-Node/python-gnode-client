@@ -99,3 +99,12 @@ class NotSupportedError(Error):
 
 error_codes = {400:BadRequestError, 401:UnauthorizedError, 403:ForbiddenError,
 404:NotFoundError, 405:NotSupportedError}
+
+class NotBoundToSession(Error):
+	"""Error raised when a method or property of a server session is accessed
+	when the client is being used in offline mode"""
+	def __init__(self):
+		pass
+	def __str__(self):
+		return "Method or property not available. Object is not bound to \
+		session."

@@ -7,7 +7,7 @@ from quantities import mV, ms, Hz
 
 units_dict = {'mv':mV, 'ms':ms, 'hz':Hz}
 
-def from_full_to_analogsignal(json_dict):
+def from_json_full_to_analogsignal(json_dict):
 	"""Rebuild the analogsignal object from a JSON python dictionary.
 	"""
 	analogsignals = []
@@ -33,15 +33,20 @@ def from_full_to_analogsignal(json_dict):
 		sampling_rate = sig_fields['sampling_rate']
 		sampling_rate_units = units_dict[sig_fields]['sampling_rate']['units']]
 		
-		neo_sig = AnalogSignal(sig_data*sig_units, t_start=t_start*t_start_units,
+		gnode_sig = AnalogSignal(sig_data*sig_units, t_start=t_start*t_start_units,
 			sampling_rate=sampling_rate*sampling_rate_units)
 		
+		gnode_sig.name = sig_fields['name']
+		gnode_sig._safety_level = sig_fields['_safety_level']
+
 
 		analogsignals.append(neo_sig)
 		
 
 		sig.permalink = sig['permalink']
 
+
+		#?TODO: What to do with 'file_origin', 'metadata', 
 	if len(analogsignals) == 1:
 		analogsignals = analogsignals[0]
 	return analogsignals
