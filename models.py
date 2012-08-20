@@ -13,6 +13,11 @@ class BaseObject(object):
         #load to the object the data fields used by the Gnode repo but not by
         # the NEO format
 
+    def _is_instant_change(self):
+        """ update object properties immediately
+        """
+        return
+
     def _is_rel_lazy(self):
         """ indicates whether object relations should be lazy loaded """
         return self._session.rel_mode == 'lazy'
@@ -29,6 +34,8 @@ class BaseObject(object):
     def safety_level(self):
         doc = "Object's safety level"
 
+        #TODO: 
+
         def fget(self):
             if self._session:
                 return self._safety_level
@@ -36,7 +43,7 @@ class BaseObject(object):
                 raise NotBoundToSession
 
         def fset(self, value):
-            requests.post(url+str(resource_type)+'/'+str(resource_id)+'/acl/?'+
+            requests.post(self._session.data_url+str(resource_type)+'/'+str(resource_id)+'/acl/?'+
         'cascade='+str(recursive).lower()+'&notify='+int(notify), cookies=auth_cookie))
 
     @Property

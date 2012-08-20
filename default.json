@@ -10,7 +10,7 @@
     
     "host": "141.84.42.103",
     "port": 8003,
-    "https": true,
+    "https": false,
     "prefix": "",
     "prefixData": "neo",
 
