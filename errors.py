@@ -108,3 +108,12 @@ class NotBoundToSession(Error):
 	def __str__(self):
 		return "Method or property not available. Object is not bound to \
 		session."
+
+class NotInDataStorage(Error):
+	"""Error raised when methods that operate on server objects and the object
+	has not yet been saved to the server"""
+	def __init__(self):
+		pass
+	def __str__(self):
+		return "Object has not yet been saved to the Gnode datastore. Please \
+		save object to the datastore before using this method."
