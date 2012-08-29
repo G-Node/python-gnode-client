@@ -67,8 +67,8 @@ def load_saved_session(pickle_file):
 class Session(object):
     """ Object to handle connection and client-server data transfer """
 
-    def __init__(self, url, username, password, lazy_relations=False,
-        lazy_data=False, *args, **kwargs ):
+    def __init__(self, url, username, password, lazy_updates=False,
+        lazy_relations=False, lazy_data=False, *args, **kwargs ):
         self.url = url
         self.username = username
         self.password = password
@@ -77,6 +77,7 @@ class Session(object):
         #the auth cookie is actually not necessary; the cookie jar should be
         #sent instead
         #self.auth_cookie = self.cookie_jar['sessionid']
+        self._is_update_lazy = lazy_updates
         self._is_rel_lazy = lazy_relations
         self._is_data_lazy = lazy_data
         # TODO of course make it more flexible
@@ -141,13 +142,19 @@ class Session(object):
         return objects
 
 
-    def create(self, obj, *kwargs):
-        """Saves new object to the server """
+    def save(self, obj, *kwargs):
+        """ Saves or updates object to the server """
         # serialize to JSON
 
-        # send POST to create using API
-        pass
+        if obj.permalink:
+            url = obj.permalink +'/'
 
+        else:
+            url = self.data_url+obj.obj_type+'/'
+
+        json_dict = None
+        #TODO: serialize object
+        requests.post(url, data=json.dump(json_dict), cookies=self.cookie_jar)
 
     def bulk_update(self, obj_type, *kwargs):
         """ update several homogenious objects on the server """
