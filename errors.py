@@ -117,3 +117,11 @@ class NotInDataStorage(Error):
 	def __str__(self):
 		return "Object has not yet been saved to the Gnode datastore. Please \
 		save object to the datastore before using this method."
+
+class EmptyRequest(Error):
+	"""Error raised when a method is called without the necessary parameters"""
+	def __init__(self):
+		pass
+	def __str__(self):
+		return "Please review the method call and check if necessary \
+		arguments were passed."
