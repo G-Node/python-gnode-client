@@ -11,15 +11,13 @@ from utils import Property
 class BaseObject(object):
     """ Class containing base methods used by Gnode but not present in NEO """
     
-    def __init__(self, *args, **kwargs):
+    def __init__(self, permalink=None, *args, **kwargs):
         #load to the object the data fields used by the Gnode repo but not by
         # the NEO format
-        
-        #property from which to derive permalink, used in some of gnode responses
-        self._gnode_neo_id = None
-        self.permalink = None
-        #permalink to access/update object permissions
-        self._permalink_perms = self.permalink + '/acl/'
+        if permalink:
+            self.permalink = permalink
+            #permalink to access/update object permissions
+            self._permalink_perms = self.permalink + '/acl/'
 
     #This bit is not really necessary because now these properties assume
     #boolean values; only later on for more sophisticated automatic behavior
