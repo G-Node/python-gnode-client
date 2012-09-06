@@ -5,6 +5,7 @@ import requests
 import simplejson as json
 
 from utils import load_profile, authenticate, lookup_str
+import errors
 
 
 def init(config_file='default.json', *args, **kwargs ):
@@ -85,17 +86,31 @@ class Session(object):
         # such as .../electrophysiology/, .../metadata/, etc...
         self.data_url = self.url+'electrophysiology/'
 
-    def list_objects(self, object_type, params_str):
+    def list_objects(self, object_type, params=None):
         """Get a list of objects
 
         Args:
             object_type: the type of NEO objects to query for (e.g.'analogsignal')
-            params_str: string with search criteria constructed using function
-                utils.lookup_str
+            params: a dictionary containing parameters to restrict the search
+                safety_level (1,3): 3 for private or 1 for public items
+                offset (int): useful for cases when more than 1000 results are listed
+                q (str): controls the amount of information about the received objects
+                    'link' -- just permalink
+                    'info' -- object with local attributes
+                    'beard' -- object with local attributes AND foreign keys resolved
+                    'data' -- data-arrays or any high-volume data associated
+                    'full' -- everything mentioned above
+
+        Example call: list_objects('analogsignal', {'safety_level': '3','q': 'link'})
         """
         #TODO: parse the JSON object received and display it in a pretty way?
-        return requests.get(self.data_url+str(object_type)+'/'+params_str,
+        resp = requests.get(self.data_url+str(object_type)+'/', params=params,
          cookies=self.cookie_jar)
+
+        if resp.status_code == 200:
+            return resp.json
+        else:
+            raise errors.error_codes[perms_resp.status_code]
 
     def get(self, obj_type, obj_id=None, q=None):
         """Get one or several objects from the server of a given object type.
@@ -139,6 +154,8 @@ class Session(object):
         # deserialize received JSON object
         if len(objects) == 1:
             objects = objects[0]
+        
+
         return objects
 
 

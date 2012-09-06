@@ -2,6 +2,9 @@
 
 import requests
 import simplejson as json
+
+import numpy as np
+import quantities as pq
 import neo
 
 from errors import NotInDataStorage, NotBoundToSession, error_codes
@@ -10,14 +13,16 @@ from utils import Property
 
 class BaseObject(object):
     """ Class containing base methods used by Gnode but not present in NEO """
-    
-    def __init__(self, permalink=None, *args, **kwargs):
-        #load to the object the data fields used by the Gnode repo but not by
-        # the NEO format
+
+    def __init__(self, permalink=None, session=None):
+        """Init BaseObject, setting attributes necessary for Gnode methods"""
         if permalink:
             self.permalink = permalink
             #permalink to access/update object permissions
             self._permalink_perms = self.permalink + '/acl/'
+        
+        if session:
+            self._session = session
 
     #This bit is not really necessary because now these properties assume
     #boolean values; only later on for more sophisticated automatic behavior
@@ -33,33 +38,38 @@ class BaseObject(object):
     # def _is_data_lazy(self):
     #     """ indicates whether object data should be lazy loaded """
     #     return self._session.data_mode == 'lazy'
-
+    
     def save(self):
         """ a convenience method to save object from itself """
-        self._session.save( obj=self )
+        self._session.save(obj=self)
 
-    def _fget_permissions(self, perm_type):
-        """Common getter for attributes safety_level, shared_with, logged_in_as"""
-        if self.perm_type:
-            return self.perm_type
-        elif self.permalink and self._session:
-            perms_resp = requests.get(self._permalink_perms, cookies=self._session.cookie_jar)
-            if perms_resp.status_code != 200:
-                raise error_codes[perms_resp.status_code]
-            else:
-                perms_data = perms_resp.json
-                self._logged_in_as = perms_data['logged_in_as']
-                self._safety_level = perms_data['safety_level']
-                self._shared_with = perms_data['shared_with']
-            return self.perm_type
-        elif self._session:
-            raise NotInDataStorage
-        else:
-            raise NotBoundToSession
+    def _fget_permissions(attr):
+        def get_any(self):
+            """Common getter for attributes safety_level, shared_with, logged_in_as"""
+            try:
+                return getattr(self, attr)
+            except AttributeError:
+                try:
+                    perms_resp = requests.get(self._permalink_perms, cookies=self._session.cookie_jar)
+                    if perms_resp.status_code != 200:
+                        raise error_codes[perms_resp.status_code]
+                    else:
+                        perms_data = perms_resp.json
+                        self._logged_in_as = perms_data['logged_in_as']
+                        self._safety_level = perms_data['safety_level']
+                        self._shared_with = perms_data['shared_with']
+                    return getattr(self, attr)
+                except AttributeError:
+                    if self._session:
+                        raise NotInDataStorage
+                    else:
+                        raise NotBoundToSession
+        return get_any
 
     safety_level = property(fget=_fget_permissions('_safety_level'))
     shared_with = property(fget=_fget_permissions('_shared_with'))
     logged_in_as = property(fget=_fget_permissions('_logged_in_as'))
+    
 
 
     def set_permissions(self, safety_level=None, shared_with=None, recursive=False,
@@ -93,10 +103,10 @@ class BaseObject(object):
             resp = requests.post(self._permalink_perms, params=perm_params,
                 data=json.dumps(perms_data), cookies=self._session.cookie_jar)
 
-            if perms_resp.status_code != 200:
-                raise error_codes[perms_resp.status_code]
+            if resp.status_code != 200:
+                raise error_codes[resp.status_code]
             else:
-                perms_data = perms_resp.json
+                perms_data = resp.json
                 self._logged_in_as = perms_data['logged_in_as']
                 self._safety_level = perms_data['safety_level']
                 self._shared_with = perms_data['shared_with']
@@ -110,14 +120,19 @@ class BaseObject(object):
 class AnalogSignal(neo.core.AnalogSignal, BaseObject):
     """ G-Node Client class for managing Block object """
 
-    self.obj_type = 'analogsignal'
+    def __init__(self, signal, units=None, dtype=None, copy=True,
+        t_start=np.array(0.0) * pq.s, sampling_rate=None, sampling_period=None,
+        name=None, file_origin=None, description=None, permalink=None,
+        session=None):
+        super(neo.core.AnalogSignal, self).__init__(signal, units=None,
+            dtype=None, copy=True, t_start=np.array(0.0) * pq.s,
+            sampling_rate=None, sampling_period=None, name=None,
+            file_origin=None, description=None)
+        BaseObject.__init__(self, permalink=permalink, session=session)
 
-    def __init__(self, *args, **kwargs):
-        super(AnalogSignal, self).__init__(*args, **kwargs)
-
-        # assign the session object
-        #TODO!: self._session = kwargs.pop('session')
-
+        self._obj_type = 'analogsignal'
+        
+        
     def __todict__(self):
         """Convert the object into a dictionary that can be passed on to
         the JSON library.

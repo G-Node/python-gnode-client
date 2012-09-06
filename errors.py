@@ -125,3 +125,12 @@ class EmptyRequest(Error):
 	def __str__(self):
 		return "Please review the method call and check if necessary \
 		arguments were passed."
+
+class ObjectTypeNotYetSupported(Error):
+	"""Error raised when requesting object type not yet supported by the
+	clien"""
+	def __init__(self):
+		pass
+	def __str__(self):
+		return "The object type you have requested is not yet supported by \
+		this client. Stay tunned!"
