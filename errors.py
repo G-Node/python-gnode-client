@@ -36,7 +36,7 @@ class AbsentConfigurationFileError(IOError):
 		return self.upstream_error_str + "\n Please check whether configuration file \
 		exists and is stored in the right directory"
 
-class MisformattedConfigurationFileError(json.JSONDecodeError):
+class MisformattedConfigurationFileError(ValueError):
 	"""Exception raised when the configuration data cannot be read from the
 	JSON configuration file due to a misformatted file.
 
