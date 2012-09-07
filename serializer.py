@@ -6,7 +6,7 @@ from quantities import mV, ms, Hz
 import errors
 from models import AnalogSignal
 
-import ipdb
+
 
 units_dict = {'mv':mV, 'ms':ms, 'hz':Hz}
 
@@ -16,7 +16,6 @@ class DataSerializer(object):
 	@classmethod
 	def deserialize(cls, json_dict, session):
 		"""Meta function to deserialize any NEO data object"""
-		#ipdb.set_trace()
 		s = json_dict['selected'][0]
 		model = s['model']
 		if model == 'neo_api.analogsignal':
