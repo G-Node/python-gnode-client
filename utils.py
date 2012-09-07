@@ -5,6 +5,8 @@
 # 	vrequests.models.Response
 # http://docs.python-requests.org/en/latest/user/install/
 
+import re
+
 try: import simplejson as json
 except ImportError: import json
 
@@ -12,38 +14,17 @@ import requests
 
 import errors
 
-def load_profile(config_file='default.json'):
-	"""Initialize session using data specified in a JSON configuration file
 
-	Args:
-		config_file: name of the configuration file in which the profile
-			to be loaded is contained the standard profile is located at
-			default.json
-	"""
-	try:
-		with open(str(config_file, 'r') as config_file:
-			profile_data = json.load(config_file)
-		url = (profile_data['host'].strip('/')+':'+str(profile_data['port'])+'/'+
-	       profile_data['prefix']+'/')
+# 'bidirectional dictionary to convert between the two nomenclatures used
+#	for methos using permissions
+safety_level_dict = {1: 'public', 2:'friendly', 3:'private'}
 
-		#substitute // for / in case no prefixData in the configuration file
-		url = url.replace('//','/')
-		
-		#avoid double 'http://' in case user has already typed it in json file
-		url = 'http://'+url.lstrip('http://')
-		
-		username = profile_data['username']
-		password = profile_data['password']
-	#Python3: this is the way exceptions are raised in Python 3!
-	except IOError as err:
-		raise errors.AbsentConfigurationFileError(err)
-	except json.JSONDecodeError as err:
-		raise errors.MisformattedConfigurationFileError(err)
 
-	return url, username, password
+def Property(func):
+    return property(**func())
 
-def authenticate(username=None, password=None):
-	"""Returns authentication cookie given username and password"""
+def authenticate(url, username=None, password=None):
+	"""Returns authentication cookie jar given username and password"""
 	#TODO: ask for user input
 
 	#get the username if the user hasn't already specified one either by
@@ -58,25 +39,10 @@ def authenticate(username=None, password=None):
 		import getpass
 		password = getpass.getpass('password: ')	
 
-	auth = requests.post(url, {'username': username, 'password': password})
+	auth = requests.post(url+'account/authenticate/', {'username': username, 'password': password})
 	return auth.cookies
 
-def shutdown(auth_cookie):
-	"""Logs the user out
-	"""
-	#TODO: which other actions should be accomplished?
-	#Notes: does not seem to be necessary to GC, close sockets, etc...
-	#Requests keeps connections alive for performance increase but doesn't
-	#seem to have a method to close a connection other than disabling this
-	#feature all together
-	#s = requests.session()
-	#s.config['keep_alive'] = False
-	#
-	#Should the shutdown method delete the cookie?
-	requests.get(url+'account/logout/', cookies=auth_cookie)
-	del(auth_cookie)
-
-
+#=========================Deprecated=======================================
 def lookup_str(owner=None, safety_level=None, offset=None,
 	max_results=None, q=None, **kwargs):
 	"""Construct lookup strings for list requests based on user requirements.
@@ -100,4 +66,60 @@ def lookup_str(owner=None, safety_level=None, offset=None,
 			pieces.append(arg+'='+str(argvalue))
 	return '?'+'&'.join(pieces) if pieces else ''
 
-url, username, password = load_profile()
+def load_profile(config_file='default.json'):
+	"""Initialize session using data specified in a JSON configuration file
+
+	Args:
+		config_file: name of the configuration file in which the profile
+			to be loaded is contained the standard profile is located at
+			default.json
+	"""
+	#TODO: parse prefixData, apiDefinition, caching, DB
+	try:
+		with open(str(config_file), 'r') as config_file:
+			profile_data = json.load(config_file)
+		
+		if profile_data['port']:
+			url = (profile_data['host'].strip('/')+':'+str(
+				profile_data['port'])+'/'+profile_data['prefix']+'/')
+		else:
+			url = (profile_data['host'].strip('/')+'/'+profile_data['prefix']+'/')
+
+		#substitute // for / in case no prefixData in the configuration file
+		url = url.replace('//','/')
+
+		#avoid double 'http://' in case user has already typed it in json file
+		if profile_data['https']:
+			# in case user has already typed https
+			url = re.sub('https://', '', url)
+			url = 'https://'+re.sub('http://', '', url)
+		
+		else:
+			url = 'http://'+re.sub('http://', '', url)
+		
+		username = profile_data['username']
+		password = profile_data['password']
+
+
+	#Python3: this is the way exceptions are raised in Python 3!
+	except IOError as err:
+		raise errors.AbsentConfigurationFileError(err)
+	except json.JSONDecodeError as err:
+		raise errors.MisformattedConfigurationFileError(err)
+
+	return url, username, password
+
+def shutdown(auth_cookie):
+	"""Logs the user out
+	"""
+	#TODO: which other actions should be accomplished?
+	#Notes: does not seem to be necessary to GC, close sockets, etc...
+	#Requests keeps connections alive for performance increase but doesn't
+	#seem to have a method to close a connection other than disabling this
+	#feature all together
+	#s = requests.session()
+	#s.config['keep_alive'] = False
+	#
+	#Should the shutdown method delete the cookie?
+	requests.get(url+'account/logout/', cookies=auth_cookie)
+	del(auth_cookie)

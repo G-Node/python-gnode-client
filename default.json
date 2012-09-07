@@ -10,11 +10,14 @@
     
     "host": "141.84.42.103",
     "port": 8003,
+    "https": false,
     "prefix": "",
     "prefixData": "neo",
 
     "apiDefinition": "./requirements.json",
 
+    "lazyData": false,
+    "lazyRelations": false,
     "caching" : "MEMORY",
     "db": ""
     
