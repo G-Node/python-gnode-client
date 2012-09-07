@@ -42,6 +42,7 @@ def authenticate(url, username=None, password=None):
 	auth = requests.post(url+'account/authenticate/', {'username': username, 'password': password})
 	return auth.cookies
 
+#=========================Deprecated=======================================
 def lookup_str(owner=None, safety_level=None, offset=None,
 	max_results=None, q=None, **kwargs):
 	"""Construct lookup strings for list requests based on user requirements.
@@ -65,7 +66,6 @@ def lookup_str(owner=None, safety_level=None, offset=None,
 			pieces.append(arg+'='+str(argvalue))
 	return '?'+'&'.join(pieces) if pieces else ''
 
-#=========================Deprecated=======================================
 def load_profile(config_file='default.json'):
 	"""Initialize session using data specified in a JSON configuration file
 

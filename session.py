@@ -6,7 +6,7 @@ import simplejson as json
 
 from utils import load_profile, authenticate, lookup_str
 import errors
-
+from serializer import DataSerializer
 
 def init(config_file='default.json', *args, **kwargs ):
     """Initialize session using data specified in a JSON configuration file
@@ -112,7 +112,7 @@ class Session(object):
         else:
             raise errors.error_codes[perms_resp.status_code]
 
-    def get(self, obj_type, obj_id=None, q=None):
+    def get(self, obj_type, obj_id, signal_params={}):
         """Get one or several objects from the server of a given object type.
 
         Args:
@@ -123,12 +123,29 @@ class Session(object):
 
             obj_id: the id of the objects to retrieve as an integer or a list
 
-            q: controls the amount of information about the received objects
-            'link' -- just permalink
-            'info' -- object with local attributes
-            'beard' -- object with local attributes AND foreign keys resolved
-            'data' -- data-arrays or any high-volume data associated
-            'full' -- everything mentioned above
+            signal_params: dictionary containing parameter values used to get
+                only parts of the original object. These only work for the
+                signal-based objects 'analogsignal' and 'irsaanalogsignal'.
+
+                start_time - start time of the required range (calculated
+                    using the same time unit as the t_start of the signal)
+                end_time - end time of the required range (calculated using
+                    the same time unit as the t_start of the signal)
+                duration - duration of the required range (calculated using
+                    the same time unit as the t_start of the signal)
+                start_index - start index of the required datarange (an index
+                    of the starting datapoint)
+                end_index - end index of the required range (an index of the
+                    end datapoint)
+                samples_count - number of points of the required range (an
+                    index of the end datapoint)
+                downsample - number of datapoints. This parameter is used to
+                    indicate whether downsampling is needed. The downsampling
+                    is applied on top of the selected data range using other
+                    parameters (if specified)
+
+        Example:
+            get('analogsignal', 1, {'downsample': 100})
         """
         #accept obj_id as a single element or list (or tuple)
         if type(obj_id) is not list and type(obj_id) is not tuple:
@@ -136,25 +153,23 @@ class Session(object):
 
         objects = []
 
-        if not q:
-        #TODO check that I am reading JSON from the right object
-            for obj in obj_id:
-                resp = requests.get(self.data_url+str(obj_type)+'/'+str(
-                    obj)+'/', cookies=self.cookie_jar)
-                json_obj = resp.json
-                objects.append(json_obj)
-        else:
-            for obj in obj_id:
-                resp = requests.get(self.data_url+str(obj_type)+'/'+str(
-                    obj)+'/'+'?q='+str(q),
-                    cookies=self.cookie_jar)
-                json_obj = resp.json
-                objects.append(json_obj)
+        params = signal_params
 
-        # deserialize received JSON object
+        params['q'] = 'full'
+
+        for obj in obj_id:
+            resp = requests.get(self.data_url+str(obj_type)+'/'+str(
+                obj)+'/', params=params, cookies=self.cookie_jar)
+            json_dict = resp.json
+            
+            data_obj = DataSerializer.deserialize(json_dict, session=self)
+
+            objects.append(data_obj)
+
+        #else here is the case multiple obj_ids have been requested, in which
+        # case we return a list
         if len(objects) == 1:
             objects = objects[0]
-        
 
         return objects
 

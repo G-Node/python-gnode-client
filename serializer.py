@@ -6,7 +6,7 @@ from quantities import mV, ms, Hz
 import errors
 from models import AnalogSignal
 
-
+import ipdb
 
 units_dict = {'mv':mV, 'ms':ms, 'hz':Hz}
 
@@ -14,19 +14,20 @@ class DataSerializer(object):
 	"""Class of NEO data serializers"""
 
 	@classmethod
-	def deserialize(cls, json_dict):
+	def deserialize(cls, json_dict, session):
 		"""Meta function to deserialize any NEO data object"""
-		signals = []
-		for s in json_dict['selected']:
-			model = s['model']
-			if model == 'neo_api.analogsignal':
-				signals.append(cls.full_analogsignal(s))
-			else:
-				raise ObjectTypeNotYetSupported
-		return signals
+		#ipdb.set_trace()
+		s = json_dict['selected'][0]
+		model = s['model']
+		if model == 'neo_api.analogsignal':
+			obj = cls.full_analogsignal(s, session=session)
+		else:
+			raise ObjectTypeNotYetSupported
+
+		return obj
 
 	@staticmethod
-	def full_analogsignal(json_selected):
+	def full_analogsignal(json_selected, session):
 		"""Rebuild the analogsignal object from a JSON python dictionary.
 		"""
 		permalink = json_selected['permalink']
@@ -53,7 +54,8 @@ class DataSerializer(object):
 		
 		asig = AnalogSignal(signal*signal__units, t_start=t_start*
 			t_start__units, sampling_rate=sampling_rate*sampling_rate__units,
-			name=name, file_origin=file_origin)
+			name=name, file_origin=file_origin, permalink=permalink,
+			session=session)
 		
 		asig._safety_level = fields['safety_level']
 		
@@ -63,4 +65,4 @@ class DataSerializer(object):
 		for a in ('analogsignalarray', 'segment', 'recordingchannel'):
 			setattr(asig, '_'+a+'_ids', fields[a])
 			
-		return asig	#TODO?: 'metadata', 
+		return asig

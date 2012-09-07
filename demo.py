@@ -11,12 +11,31 @@ import quantities as pq
 
 #initialize session
 session = init()
-#type password
+#type password for bob account 'pass'
 
-asig = models.AnalogSignal([1,2,3]*pq.mV, sampling_rate=1000*pq.Hz)
-setattr(asig, '_permalink_perms', 'http://141.84.42.103:8003/electrophysiology/analogsignal/1/acl/')
-setattr(asig, 'permalink', 'http://141.84.42.103:8003/electrophysiology/analogsignal/1/')
-setattr(asig, '_session', session)
+#get a complete analogsignal
+asig = session.get('analogsignal', 1)
+
+#do something cool with the signal (plot, ...)
+
+import pylab as pl
+import numpy as np
+
+pl.plot(asig.times, asig)
+#TODO: how to display units without leading '1.0' ??
+
+pl.xlabel(asig.times.units)
+pl.ylabel(asig.units)
+
+pl.show()
+
+#show that these signals are compatible with methods operating on NEO signals
+# e.g. NeuroTools
+
+#Andrey: how to actually plot one of these new NEO signals with quantities?
+# the quantity always gets on my way
+
+
 
 #get safety level
 asig.safety_level
