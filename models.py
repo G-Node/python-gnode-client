@@ -6,7 +6,7 @@ import simplejson as json
 import numpy as np
 import quantities as pq
 import neo
-
+file
 from errors import NotInDataStorage, NotBoundToSession, error_codes
 from utils import Property
 
@@ -14,7 +14,7 @@ from utils import Property
 class BaseObject(object):
     """ Class containing base methods used by Gnode but not present in NEO """
 
-    def __init__(self, permalink=None, session=None):
+    def __init__(self, permalink=None, session=None, file_origin_id=None):
         """Init BaseObject, setting attributes necessary for Gnode methods"""
         if permalink:
             self.permalink = permalink
@@ -23,6 +23,12 @@ class BaseObject(object):
         
         if session:
             self._session = session
+
+        self._file_origin_id = file_origin_id
+
+        if file_origin_id and session:
+            self._file_origin_id = file_origin_id
+            self._file_origin = session.files_url+str(file_origin_id)+'/download/'
 
     #This bit is not really necessary because now these properties assume
     #boolean values; only later on for more sophisticated automatic behavior
@@ -116,23 +122,39 @@ class BaseObject(object):
         else:
             raise NotBoundToSession
 
+    def download_original_file(self, file_name):
+        """Download original data file where object was extracted from.
+
+        Args:
+            file_name: string containing name of the file to save
+        """
+        try:
+            resp = requests.get(self.file_origin,
+                cookies=self._session.cookie_jar)
+        except AttributeError:
+            raise errors.NotBoundToSession
+
+        with open(file_name, 'wb') as file:
+            file.write(resp.content)
+
 
 class AnalogSignal(neo.core.AnalogSignal, BaseObject):
     """ G-Node Client class for managing Block object """
-
     def __init__(self, signal, units=None, dtype=None, copy=True,
-        t_start=np.array(0.0) * pq.s, sampling_rate=None, sampling_period=None,
+        t_start=0 * pq.s, sampling_rate=None, sampling_period=None,
         name=None, file_origin=None, description=None, permalink=None,
-        session=None):
-        super(neo.core.AnalogSignal, self).__init__(signal, units=None,
-            dtype=None, copy=True, t_start=np.array(0.0) * pq.s,
-            sampling_rate=None, sampling_period=None, name=None,
-            file_origin=None, description=None)
-        BaseObject.__init__(self, permalink=permalink, session=session)
+        session=None, file_origin_id=None):
+        super(neo.core.AnalogSignal, self).__init__(signal, units=units,
+            dtype=dtype, copy=copy, t_start=t_start,
+            sampling_rate=sampling_rate, sampling_period=sampling_period,
+            name=name, file_origin=file_origin, description=description)
+        BaseObject.__init__(self, permalink=permalink, session=session,
+            file_origin_id=file_origin_id)
 
+        self.file_origin = self._file_origin
         self._obj_type = 'analogsignal'
         
-        
+
     def __todict__(self):
         """Convert the object into a dictionary that can be passed on to
         the JSON library.
@@ -210,6 +232,49 @@ class Block(neo.core.Block, BaseObject):
 class SpikeTrain(neo.core.SpikeTrain, BaseObject):
     """ G-node Client class for managing a SpikeTrain object """
 
-    def __init__(self, *args, **kwargs):
-        super(Block, self).__init__(*args, **kwargs)
-        self._session = kwargs.pop('session')
+    def __init__(self, times, t_stop, units=None, copy=True,
+        sampling_rate=1.0 * pq.Hz, t_start=0.0 * pq.s, waveforms=None,
+        left_sweep=None, name=None, file_origin=None, description=None,
+        permalink=None, session=None, file_origin_id=None):
+        super(neo.core.SpikeTrain, self).__init__(times=times, t_stop=t_stop,
+            units=units, copy=copy, sampling_rate=sampling_rate,
+            t_start=t_start, waveforms=waveforms, left_sweep=left_sweep,
+            name=name, file_origin=file_origin, description=description)
+        BaseObject.__init__(self, permalink=permalink, session=session,
+            file_origin_id=file_origin_id)
+
+        self._obj_type = 'spiketrain'
+        
+
+    def __todict__(self):
+        """Convert the object into a dictionary that can be passed on to
+        the JSON library.
+        """
+        pass
+
+    @Property
+    def segments():
+        doc = 'Extends basic NEO property to enable lazy mode'
+
+        def fget(self):
+            if self._segments: # segments already loaded
+                return self._segments
+            elif self.id:
+                segments = self._session.get('segment', { 'block': self.id })
+            else:
+                return None
+
+        def fset(self, segments):
+            try:
+                # make an update as one transaction
+                self._session.bulk_update('segment', id__in = \
+                    [s.id for s in segments] )
+                self._segments = segments
+
+            except IOError: # connection error 
+                raise ConnectionError # TBD
+
+        def fdel(self):
+            del self._segments
+
+        return locals()

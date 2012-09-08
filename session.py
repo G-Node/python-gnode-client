@@ -6,7 +6,7 @@ import simplejson as json
 
 from utils import load_profile, authenticate, lookup_str
 import errors
-from serializer import DataSerializer
+from serializer import DataDeserializer
 
 def init(config_file='default.json', *args, **kwargs ):
     """Initialize session using data specified in a JSON configuration file
@@ -85,6 +85,7 @@ class Session(object):
         #TODO: figure out an elegant way to set URL stems that are often used
         # such as .../electrophysiology/, .../metadata/, etc...
         self.data_url = self.url+'electrophysiology/'
+        self.files_url = self.url+'datafiles/'
 
     def list_objects(self, object_type, params=None):
         """Get a list of objects
@@ -105,12 +106,12 @@ class Session(object):
         """
         #TODO: parse the JSON object received and display it in a pretty way?
         resp = requests.get(self.data_url+str(object_type)+'/', params=params,
-         cookies=self.cookie_jar)
+            cookies=self.cookie_jar)
 
         if resp.status_code == 200:
             return resp.json
         else:
-            raise errors.error_codes[perms_resp.status_code]
+            raise errors.error_codes[resp.status_code]
 
     def get(self, obj_type, obj_id, signal_params={}):
         """Get one or several objects from the server of a given object type.
@@ -160,9 +161,13 @@ class Session(object):
         for obj in obj_id:
             resp = requests.get(self.data_url+str(obj_type)+'/'+str(
                 obj)+'/', params=params, cookies=self.cookie_jar)
-            json_dict = resp.json
             
-            data_obj = DataSerializer.deserialize(json_dict, session=self)
+            if resp.status_code == 200:
+                json_dict = resp.json
+            else:
+                raise errors.error_codes[resp.status_code]
+
+            data_obj = DataDeserializer.deserialize(json_dict, session=self)
 
             objects.append(data_obj)
 
