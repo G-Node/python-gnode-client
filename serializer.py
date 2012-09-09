@@ -9,7 +9,8 @@ from models import AnalogSignal, SpikeTrain
 
 
 
-units_dict = {'mv':pq.mV, 'mV':pq.mV, 'ms':pq.ms, 's':pq.s, 'hz':pq.Hz}
+units_dict = {'mv':pq.mV, 'mV':pq.mV, 'ms':pq.ms, 's':pq.s, 'hz':pq.Hz,
+'Hz':pq.Hz}
 
 class DataDeserializer(object):
 	"""Class of NEO data serializers"""

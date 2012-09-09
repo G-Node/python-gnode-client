@@ -151,7 +151,6 @@ class AnalogSignal(neo.core.AnalogSignal, BaseObject):
         BaseObject.__init__(self, permalink=permalink, session=session,
             file_origin_id=file_origin_id)
 
-        self.file_origin = self._file_origin
         self._obj_type = 'analogsignal'
         
 

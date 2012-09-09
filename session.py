@@ -156,7 +156,7 @@ class Session(object):
 
         params = signal_params
 
-        params['q'] = 'full'
+        params['q']='full'
 
         for obj in obj_id:
             resp = requests.get(self.data_url+str(obj_type)+'/'+str(
