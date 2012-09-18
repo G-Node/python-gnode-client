@@ -3,13 +3,13 @@
 import simplejson as json
 import odml
 
-from .metadata.models import Value, Section, Property
+from .models import Value, Section, Property
 
-class odMLDeserializer(object):
+class odMLSerializer(object):
 	"""Class of odML deserialzers"""
 	
 	@classmethod
-	def deserialize(cls, json_dict):
+	def deserialize(cls, json_dict, session):
 		"""Meta function to deserialize any metadata object"""
 		#TODO: handle lists as well
 		try:
@@ -25,7 +25,7 @@ class odMLDeserializer(object):
 			return cls.section(json_dict)
 
 	@staticmethod
-	def value(json_dict):
+	def value(json_dict, session):
 		permalink = json_dict['selected']
 		fields = json_dict['selected']['fields']
 
@@ -37,7 +37,7 @@ class odMLDeserializer(object):
 		return obj
 
 	@staticmethod
-	def section(json_dict):
+	def section(json_dict, session):
 		permalink = json_dict['selected']
 		fields = json_dict['selected']['fields']
 
@@ -59,6 +59,6 @@ class odMLDeserializer(object):
 		return obj
 
 	@staticmethod
-	def property(json_dict):
-		#TODO!
+	def property(json_dict, session):
+		
 		pass
