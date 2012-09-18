@@ -36,7 +36,7 @@ class AbsentConfigurationFileError(IOError):
 		return self.upstream_error_str + "\n Please check whether configuration file \
 		exists and is stored in the right directory"
 
-class MisformattedConfigurationFileError(json.JSONDecodeError):
+class MisformattedConfigurationFileError(ValueError):
 	"""Exception raised when the configuration data cannot be read from the
 	JSON configuration file due to a misformatted file.
 
@@ -99,3 +99,38 @@ class NotSupportedError(Error):
 
 error_codes = {400:BadRequestError, 401:UnauthorizedError, 403:ForbiddenError,
 404:NotFoundError, 405:NotSupportedError}
+
+class NotBoundToSession(Error):
+	"""Error raised when a method or property of a server session is accessed
+	when the client is being used in offline mode"""
+	def __init__(self):
+		pass
+	def __str__(self):
+		return "Method or property not available. Object is not bound to \
+		session."
+
+class NotInDataStorage(Error):
+	"""Error raised when methods that operate on server objects and the object
+	has not yet been saved to the server"""
+	def __init__(self):
+		pass
+	def __str__(self):
+		return "Object has not yet been saved to the Gnode datastore. Please \
+		save object to the datastore before using this method."
+
+class EmptyRequest(Error):
+	"""Error raised when a method is called without the necessary parameters"""
+	def __init__(self):
+		pass
+	def __str__(self):
+		return "Please review the method call and check if necessary \
+		arguments were passed."
+
+class ObjectTypeNotYetSupported(Error):
+	"""Error raised when requesting object type not yet supported by the
+	clien"""
+	def __init__(self):
+		pass
+	def __str__(self):
+		return "The object type you have requested is not yet supported by \
+		this client. Stay tunned!"
