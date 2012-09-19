@@ -137,6 +137,30 @@ class BaseObject(object):
         with open(file_name, 'wb') as file:
             file.write(resp.content)
 
+class BaseDataObject(object):
+    """ Base Object to be inherited by the objects containing data so that
+    they can implement lazy loading and correct representations"""
+
+    def __call__(self):
+        #we want to support lazy loading here
+        if self == [0.0]*pq.mV:
+            # request data from the server
+            file = self._session.get('datafile', {id=<xxx>})
+            f = tables.openFile( file )
+            array = f.list_nodes('/')[0] * self.units
+            return array
+        else:
+            return self
+        pass
+
+    def __repr__(self):
+        #we want a correct representation of the file
+        pass
+
+    def __len__(self):
+        #we want to get the right length for that object
+        pass
+
 
 class AnalogSignal(neo.core.AnalogSignal, BaseObject):
     """ G-Node Client class for managing Block object """
