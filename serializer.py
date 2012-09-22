@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 """Method(s) to reconstruct GNODE objects from JSON python dictionaries."""
+import os
 
 import numpy as np
 import quantities as pq
+import tables
+import requests
 
 import errors
 from models import AnalogSignal, SpikeTrain
@@ -32,7 +35,40 @@ class DataDeserializer(object):
 		return obj
 
 	@staticmethod
-	def full_analogsignal(json_selected, session):
+	def __get_data_array__(datafile_url, session):
+		"""Method to retrieve a NumPy array containing the signal data.
+
+		It first checks for the existance of the file in the cache directory.
+		"""
+		file_req = request_file = requests.get(datafile_url+'/download/',
+			cookies=session.cookie_jar, prefetch=False)
+		
+		headers = file_req.headers
+		content_disposition = headers['content-disposition']
+		filename = content_disposition.split('filename=')[-1]
+		
+		#do the same trick browsers do to resolve filenames with
+		# a forward slash
+		filename = filename.replace('/', '_')
+		
+		try:
+			hdf5_file = tables.openFile(os.path.join(session.cache_dir,
+				filename), 'r')
+			array = np.array(hdf5_file.listNodes('/')[0])
+		except:
+			filepath = os.path.join(session.cache_dir, filename)
+			with open(filepath, 'wb') as f:
+				f.write(file_req.content)
+			hdf5_file = tables.openFile(os.path.join(session.cache_dir,
+				filename), 'r')
+			array = np.array(hdf5_file.listNodes('/')[0])
+		finally:
+			hdf5_file.close()
+
+		return array
+
+	@classmethod
+	def full_analogsignal(cls, json_selected, session):
 		"""Rebuild the analogsignal object from a JSON python dictionary.
 		"""
 		permalink = json_selected['permalink']
