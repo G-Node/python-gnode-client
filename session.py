@@ -159,8 +159,8 @@ class Session(object):
         params['q']='full'
 
         for obj in obj_id:
-            resp = requests.get(self.data_url+str(obj_type)+'/'+str(
-                obj)+'/', params=params, cookies=self.cookie_jar)
+            resp = requests.get(self.data_url+str(obj_type)+'/'+str(obj)+'/',
+                params=params, cookies=self.cookie_jar)
             
             if resp.status_code == 200:
                 json_dict = resp.json
