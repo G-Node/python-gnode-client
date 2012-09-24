@@ -12,12 +12,12 @@
     "port": 8015,
     "https": false,
     "prefix": "",
-    "prefixData": "neo",
+    "prefixData": "electrophysiology",
 
     "apiDefinition": "./requirements.json",
 
-    "lazyData": false,
-    "lazyRelations": false,
+    "cacheDir": "./cache/",
+
     "caching" : "MEMORY",
     "db": ""
     
