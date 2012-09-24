@@ -68,19 +68,18 @@ def load_saved_session(pickle_file):
 class Session(object):
     """ Object to handle connection and client-server data transfer """
 
-    def __init__(self, url, username, password, lazy_updates=False,
-        lazy_relations=False, lazy_data=False, *args, **kwargs ):
+    def __init__(self, url, username, password, cache_dir=None):
+
         self.url = url
         self.username = username
         self.password = password
+        #TODO: Turn this into an absolute path
+        self.cache_dir = os.path.abspath(cache_dir)
         self.cookie_jar = authenticate(self.url, self.username,
             self.password)
         #the auth cookie is actually not necessary; the cookie jar should be
         #sent instead
         #self.auth_cookie = self.cookie_jar['sessionid']
-        self._is_update_lazy = lazy_updates
-        self._is_rel_lazy = lazy_relations
-        self._is_data_lazy = lazy_data
         # TODO of course make it more flexible
         #TODO: figure out an elegant way to set URL stems that are often used
         # such as .../electrophysiology/, .../metadata/, etc...

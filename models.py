@@ -140,44 +140,85 @@ class BaseObject(object):
 class BaseDataObject(object):
     """ Base Object to be inherited by the objects containing data so that
     they can implement lazy loading and correct representations"""
+    
+    def __init__(self, datafile_url=None, signal_size=None):
+        self._datafile_url = datafile_url
 
     def __call__(self):
         #we want to support lazy loading here
-        if self == [0.0]*pq.mV:
-            # request data from the server
-            file = self._session.get('datafile', {id=<xxx>})
-            f = tables.openFile( file )
-            array = f.list_nodes('/')[0] * self.units
-            return array
+        if not self:
+            data_array = self._get_data_array()
+            #this bit was adapted from the NEO way of for example rescaling
+            #   arrays
+            new = self.__class__(signal=data_array, units=self.units,
+                sampling_rate=self.sampling_rate)
+            new._copy_data_complement(self)
+            new.annotations.update(self.annotations)
+            self = new
+            return self
         else:
             return self
-        pass
 
-    def __repr__(self):
-        #we want a correct representation of the file
-        pass
 
     def __len__(self):
         #we want to get the right length for that object
         pass
 
+    def _get_data_array(self):
+        """Method to retrieve a NumPy array containing the signal data.
 
-class AnalogSignal(neo.core.AnalogSignal, BaseObject):
+        It first checks for the existance of the file in the cache directory.
+        """
+        file_req = request_file = requests.get(self.datafile_url,
+            cookies=session.cookie_jar, prefetch=False)
+        
+        headers = file_req.headers
+        content_disposition = headers['content-disposition']
+        filename = content_disposition.split('filename=')[-1]
+        
+        #do the same trick browsers do to resolve filenames with
+        # a forward slash
+        filename = filename.replace('/', '_')
+        
+        try:
+            hdf5_file = tables.openFile(os.path.join(session.cache_dir,
+                filename), 'r')
+            array = np.array(hdf5_file.listNodes('/')[0])
+        except:
+            filepath = os.path.join(session.cache_dir, filename)
+            with open(filepath, 'wb') as f:
+                f.write(file_req.content)
+            hdf5_file = tables.openFile(os.path.join(session.cache_dir,
+                filename), 'r')
+            array = np.array(hdf5_file.listNodes('/')[0])
+        finally:
+            hdf5_file.close()
+
+        return array
+
+
+
+class AnalogSignal(neo.core.AnalogSignal, BaseObject, BaseDataObject):
     """ G-Node Client class for managing Block object """
     def __init__(self, signal, units=None, dtype=None, copy=True,
         t_start=0 * pq.s, sampling_rate=None, sampling_period=None,
         name=None, file_origin=None, description=None, permalink=None,
-        session=None, file_origin_id=None):
-        super(neo.core.AnalogSignal, self).__init__(signal, units=units,
+        session=None, file_origin_id=None, datafile_url=None,
+        signal__units=None):
+        super(AnalogSignal, self).__init__(signal, units=units,
             dtype=dtype, copy=copy, t_start=t_start,
             sampling_rate=sampling_rate, sampling_period=sampling_period,
             name=name, file_origin=file_origin, description=description)
         BaseObject.__init__(self, permalink=permalink, session=session,
             file_origin_id=file_origin_id)
-
+        BaseDataObject.__init__(self, datafile_url=datafile_url,
+            signal__units=signal__units)
         self._obj_type = 'analogsignal'
         
-
+    def __repr__(self):
+        #TODO have a pretty print here
+        return super(AnalogSignal, self).__repr__(self)
+    
     def __todict__(self):
         """Convert the object into a dictionary that can be passed on to
         the JSON library.
