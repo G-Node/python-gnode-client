@@ -1,57 +1,44 @@
 #!/usr/bin/env python
+import os
 import re
 
 import requests
 import simplejson as json
 
-from utils import load_profile, authenticate, lookup_str
+from utils import load_profile, authenticate
 import errors
 from serializer import DataDeserializer
 
-def init(config_file='default.json', *args, **kwargs ):
+
+def init(config_file='default.json'):
     """Initialize session using data specified in a JSON configuration file
 
     Args:
         config_file: name of the configuration file in which the profile
             to be loaded is contained the standard profile is located at
             default.json"""
-    #TODO: parse prefixData, apiDefinition, caching, DB
-    try:
-        with open(str(config_file), 'r') as config_file:
-            profile_data = json.load(config_file)
-        
-        if profile_data['port']:
-            url = (profile_data['host'].strip('/')+':'+str(
-                profile_data['port'])+'/'+profile_data['prefix']+'/')
-        else:
-            url = (profile_data['host'].strip('/')+'/'+profile_data['prefix']+'/')
 
-        #substitute // for / in case no prefixData in the configuration file
-        url = url.replace('//','/')
+    host, port, https, prefix, username, password, cache_dir = load_profile(
+        config_file)
 
-        #avoid double 'http://' in case user has already typed it in json file
-        if profile_data['https']:
-            # in case user has already typed https
-            url = re.sub('https://', '', url)
-            url = 'https://'+re.sub('http://', '', url)
-        
-        else:
-            url = 'http://'+re.sub('http://', '', url)
-        
-        username = profile_data['username']
-        password = profile_data['password']
-        
-    #Python3: this is the way exceptions are raised in Python 3!
-    except IOError as err:
-        raise errors.AbsentConfigurationFileError(err)
-    except json.JSONDecodeError as err:
-        raise errors.MisformattedConfigurationFileError(err)
+    if port:
+        url = (host.strip('/')+':'+str(port)+'/'+prefix+'/')
+    else:
+        url = (host.strip('/')+'/'+prefix+'/')
 
-    _is_rel_lazy = profile_data['lazyRelations']
-    _is_data_lazy = profile_data['lazyData']
+    #substitute // for / in case no prefixData in the configuration file
+    url = url.replace('//','/')
 
-    return Session(url, username, password, lazy_relations=_is_rel_lazy, 
-        lazy_data=_is_data_lazy, *args, **kwargs )
+    #avoid double 'http://' in case user has already typed it in json file
+    if https:
+        # in case user has already typed https
+        url = re.sub('https://', '', url)
+        url = 'https://'+re.sub('http://', '', url)
+    
+    else:
+        url = 'http://'+re.sub('http://', '', url)
+
+    return Session(url, username, password, cache_dir)
 
 
 def load_saved_session(pickle_file):

@@ -23,6 +23,35 @@ safety_level_dict = {1: 'public', 2:'friendly', 3:'private'}
 def Property(func):
     return property(**func())
 
+def load_profile(config_file='default.json'):
+    """Load Profile parameters"""
+        #TODO: parse prefixData, apiDefinition, caching, DB
+    try:
+        with open(str(config_file), 'r') as config_file:
+            profile_data = json.load(config_file)
+        
+        host = profile_data['host']
+        port = profile_data['port']
+        https = profile_data['https']
+        prefix = profile_data['prefix']
+
+        username = profile_data['username']
+        password = profile_data['password']
+
+        cache_dir = profile_data['cacheDir']
+        
+    #Python3: this is the way exceptions are raised in Python 3!
+    except IOError as err:
+        raise errors.AbsentConfigurationFileError(err)
+    except json.JSONDecodeError as err:
+        raise errors.MisformattedConfigurationFileError(err)
+
+    """
+    return {'host':host, 'port':port, 'https':https, 'username':username,
+    'password':password, 'cache_dir':cache_dir}
+    """
+    return host, port, https, prefix, username, password, cache_dir
+
 def authenticate(url, username=None, password=None):
 	"""Returns authentication cookie jar given username and password"""
 	#TODO: ask for user input
