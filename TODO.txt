@@ -1,0 +1,1 @@
+Remove signal__units from serializer and models. They are not needed any more cause I can get them from the old object when loading the data, unlike I thought.
