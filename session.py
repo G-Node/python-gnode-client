@@ -1,57 +1,44 @@
 #!/usr/bin/env python
+import os
 import re
 
 import requests
 import simplejson as json
 
-from utils import load_profile, authenticate, lookup_str
+from utils import load_profile, authenticate
 import errors
-from serializer import DataSerializer
+from serializer import DataDeserializer
 
-def init(config_file='default.json', *args, **kwargs ):
+
+def init(config_file='default.json'):
     """Initialize session using data specified in a JSON configuration file
 
     Args:
         config_file: name of the configuration file in which the profile
             to be loaded is contained the standard profile is located at
             default.json"""
-    #TODO: parse prefixData, apiDefinition, caching, DB
-    try:
-        with open(str(config_file), 'r') as config_file:
-            profile_data = json.load(config_file)
-        
-        if profile_data['port']:
-            url = (profile_data['host'].strip('/')+':'+str(
-                profile_data['port'])+'/'+profile_data['prefix']+'/')
-        else:
-            url = (profile_data['host'].strip('/')+'/'+profile_data['prefix']+'/')
 
-        #substitute // for / in case no prefixData in the configuration file
-        url = url.replace('//','/')
+    host, port, https, prefix, username, password, cache_dir = load_profile(
+        config_file)
 
-        #avoid double 'http://' in case user has already typed it in json file
-        if profile_data['https']:
-            # in case user has already typed https
-            url = re.sub('https://', '', url)
-            url = 'https://'+re.sub('http://', '', url)
-        
-        else:
-            url = 'http://'+re.sub('http://', '', url)
-        
-        username = profile_data['username']
-        password = profile_data['password']
-        
-    #Python3: this is the way exceptions are raised in Python 3!
-    except IOError as err:
-        raise errors.AbsentConfigurationFileError(err)
-    except json.JSONDecodeError as err:
-        raise errors.MisformattedConfigurationFileError(err)
+    if port:
+        url = (host.strip('/')+':'+str(port)+'/'+prefix+'/')
+    else:
+        url = (host.strip('/')+'/'+prefix+'/')
 
-    _is_rel_lazy = profile_data['lazyRelations']
-    _is_data_lazy = profile_data['lazyData']
+    #substitute // for / in case no prefixData in the configuration file
+    url = url.replace('//','/')
 
-    return Session(url, username, password, lazy_relations=_is_rel_lazy, 
-        lazy_data=_is_data_lazy, *args, **kwargs )
+    #avoid double 'http://' in case user has already typed it in json file
+    if https:
+        # in case user has already typed https
+        url = re.sub('https://', '', url)
+        url = 'https://'+re.sub('http://', '', url)
+    
+    else:
+        url = 'http://'+re.sub('http://', '', url)
+
+    return Session(url, username, password, cache_dir)
 
 
 def load_saved_session(pickle_file):
@@ -68,23 +55,23 @@ def load_saved_session(pickle_file):
 class Session(object):
     """ Object to handle connection and client-server data transfer """
 
-    def __init__(self, url, username, password, lazy_updates=False,
-        lazy_relations=False, lazy_data=False, *args, **kwargs ):
+    def __init__(self, url, username, password, cache_dir=None):
+
         self.url = url
         self.username = username
         self.password = password
+        #TODO: Turn this into an absolute path
+        self.cache_dir = os.path.abspath(cache_dir)
         self.cookie_jar = authenticate(self.url, self.username,
             self.password)
         #the auth cookie is actually not necessary; the cookie jar should be
         #sent instead
         #self.auth_cookie = self.cookie_jar['sessionid']
-        self._is_update_lazy = lazy_updates
-        self._is_rel_lazy = lazy_relations
-        self._is_data_lazy = lazy_data
         # TODO of course make it more flexible
         #TODO: figure out an elegant way to set URL stems that are often used
         # such as .../electrophysiology/, .../metadata/, etc...
         self.data_url = self.url+'electrophysiology/'
+        self.files_url = self.url+'datafiles/'
 
     def list_objects(self, object_type, params=None):
         """Get a list of objects
@@ -105,12 +92,12 @@ class Session(object):
         """
         #TODO: parse the JSON object received and display it in a pretty way?
         resp = requests.get(self.data_url+str(object_type)+'/', params=params,
-         cookies=self.cookie_jar)
+            cookies=self.cookie_jar)
 
         if resp.status_code == 200:
             return resp.json
         else:
-            raise errors.error_codes[perms_resp.status_code]
+            raise errors.error_codes[resp.status_code]
 
     def get(self, obj_type, obj_id, signal_params={}):
         """Get one or several objects from the server of a given object type.
@@ -155,14 +142,18 @@ class Session(object):
 
         params = signal_params
 
-        params['q'] = 'full'
+        params['q']='full'
 
         for obj in obj_id:
-            resp = requests.get(self.data_url+str(obj_type)+'/'+str(
-                obj)+'/', params=params, cookies=self.cookie_jar)
-            json_dict = resp.json
+            resp = requests.get(self.data_url+str(obj_type)+'/'+str(obj)+'/',
+                params=params, cookies=self.cookie_jar)
             
-            data_obj = DataSerializer.deserialize(json_dict, session=self)
+            if resp.status_code == 200:
+                json_dict = resp.json
+            else:
+                raise errors.error_codes[resp.status_code]
+
+            data_obj = DataDeserializer.deserialize(json_dict, session=self)
 
             objects.append(data_obj)
 

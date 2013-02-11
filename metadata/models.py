@@ -6,23 +6,22 @@ import odml
 
 class BaseObject(object):
 	"""Base Object class for G-node odML classes."""
-
 	global_attr = ('permalink', 'safety_level', 'owner',
 		'last_modified', 'date_created')
 
-	def __init__(self, permalink=None, safety_level=None,
-		parent_property=None):
-        #TODO: What to do with datecreated, lastmodified, owner?
-        for a in ('permalink', 'safety_level', 'parent_property'):
-        	setattr(self, a, eval(a))
+	def __init__(self, permalink=None, safety_level=None, parent_property=None):
+		"""Init method"""
+		for a in ('permalink', 'safety_level'):
+			setattr(self, a, eval(a))
+    	#TODO: What to do with datecreated, lastmodified, owner?
 
-    def save(self):
-    	"""Method to save the Metadata Object"""
-    	pass
+	def save(self):
+		"""Method to save the Metadata Object"""
+		pass
 
 
 
-class Value(odml.Value, BaseObject):
+class Value(odml.value.BaseValue, BaseObject):
 	"""G-node implementation of the odML Value class
 	"""
 	_local_attr = ('data', 'parent_property')
@@ -35,7 +34,7 @@ class Value(odml.Value, BaseObject):
 
 
 
-class Property(odml.Property, BaseObject):
+class Property(odml.property.BaseProperty, BaseObject):
 	"""G-node implementation of the odML Property class
 	"""
 	_local_attr = ('name', 'definition', 'dependency', 'dependency_value',
@@ -55,7 +54,7 @@ class Property(odml.Property, BaseObject):
 		#Where does comment come from? It is not implemented by python-odML
 		self._comment = comment
 
-class Section(odml.Value, BaseObject):
+class Section(odml.section.BaseSection, BaseObject):
 	"""G-node implementation of the odML Property class
 	"""
 	_local_attr = ('name', 'description', 'odml_type', 'parent_section',
@@ -73,7 +72,7 @@ class Section(odml.Value, BaseObject):
 
 		#TODO!: Get, parent, deserialize it and pass it as an argument
 		#to  super(odml.Section, self).__init__()
-		super(odml.Section, self).__init__(name=name, type=type
+		super(odml.Section, self).__init__(name=name, type=type,
 			mapping=mapping)
 		super(BaseObject, self).__init__(permalink=permalink)
 
@@ -83,7 +82,7 @@ class Section(odml.Value, BaseObject):
 		self._tree_position = tree_position
 
 
-class Document(odml.Document, BaseObject):
+class Document(odml.doc.BaseDocument, BaseObject):
 	"""G-node implementation of the odML Document class
 	"""
 

@@ -5,7 +5,17 @@ Methods operating on the data stored at the data stored
 Valid NEO object types are:'block', 'segment', 'event', 'eventarray', 'epoch',
 	'epocharray', 'unit', 'spiketrain', 'analogsignal', 'analogsignalarray',
 	'irsaanalogsignal', 'spike', 'recordingchannelgroup', 'recordingchannel
+
+q: controls the amount of information about the received objects
+	'link' -- just permalink
+	'info' -- object with local attributes
+	'beard' -- object with local attributes AND foreign keys resolved
+	'data' -- data-arrays or any high-volume data associated
+	'full' -- everything mentioned above
+
 '"""
+
+
 
 import requests
 

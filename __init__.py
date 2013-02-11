@@ -34,7 +34,7 @@ __copyright__ = 'Copyright 2012 by German Neuroinformatics Node \
 
 import requests
 
-import errors, utils, files, permissions
+import errors #utils, files, permissions
 
 #NOTE!!!!: using simplejson.JSONDecodeError makes simplejson a mandatory
 #	requirement since json doesn't have that error!!!

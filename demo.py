@@ -10,11 +10,11 @@ import models
 import quantities as pq
 
 #initialize session
-session = init()
+session = init('jeff.json')
 #type password for bob account 'pass'
 
 #get a complete analogsignal
-asig = session.get('analogsignal', 1)
+asig = session.get('analogsignal', 19462, signal_params={'downsample':1000})
 
 #do something cool with the signal (plot, ...)
 
@@ -27,7 +27,6 @@ pl.plot(asig.times, asig)
 pl.xlabel(asig.times.units)
 pl.ylabel(asig.units)
 
-pl.show()
 
 #show that these signals are compatible with methods operating on NEO signals
 # e.g. NeuroTools
@@ -35,18 +34,23 @@ pl.show()
 #Andrey: how to actually plot one of these new NEO signals with quantities?
 # the quantity always gets on my way
 
+spiketr = session.get('spiketrain', 18)
 
+#pl.plot(spiketr.times, -1.*np.ones_like(spiketr.times), marker='|',
+#	linewidth=0)
 
 #get safety level
-asig.safety_level
+#asig.safety_level
 
 #see with whom I have shared this data
-asig.shared_with
+#asig.shared_with
 
 #change safety_level
-asig.set_permissions(safety_level=2)
+#asig.set_permissions(safety_level=2)
 #check permissions were changed
-asig.safety_level
+#asig.safety_level
 
 #log out and delete cookies
 #session.shutdown()
+
+pl.show()

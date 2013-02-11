@@ -5,19 +5,19 @@
     "required": ["username", "password", "host", "port", "path",
 		 "apiVersion", "caching", "db"],
     
-    "username": "bob",
-    "password": "",
+    "username": "wdat2",
+    "password": "pass",
     
     "host": "141.84.42.103",
-    "port": 8003,
+    "port": 8015,
     "https": false,
     "prefix": "",
-    "prefixData": "neo",
+    "prefixData": "electrophysiology",
 
     "apiDefinition": "./requirements.json",
 
-    "lazyData": false,
-    "lazyRelations": false,
+    "cacheDir": "./cache/",
+
     "caching" : "MEMORY",
     "db": ""
     
