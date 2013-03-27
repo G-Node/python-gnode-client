@@ -15,6 +15,42 @@ from models import AnalogSignal, SpikeTrain
 units_dict = {'mv':pq.mV, 'mV':pq.mV, 'ms':pq.ms, 's':pq.s, 'hz':pq.Hz,
 'Hz':pq.Hz}
 
+models_map = {
+    'metadata': {
+        'section': odmlSection,
+        'property': odmlProperty,
+        'value': odmlValue
+    },
+    'neo_api': {
+        'block': Block,
+        'segment': Segment,
+        'event': Event,
+        'eventarray': EventArray,
+        'epoch': Epoch,
+        'epocharray': EpochArray,
+        'unit': Unit,
+        'spiketrain': SpikeTrain,
+        'analogsignal': AnalogSignal,
+        'analogsignalarray': AnalogSignalArray,
+        'irsaanalogsignal': IrSaAnalogSignal,
+        'spike': Spike,
+        'recordingchannelgroup': RecordingChannelGroup,
+        'recordingchannel': RecordingChannel
+    }
+}
+
+
+class Deserializer(object):
+
+	@classmethod
+	def deserialize(cls, json_dict, session):
+
+
+
+
+
+
+
 class DataDeserializer(object):
 	"""Class of NEO data serializers"""
 

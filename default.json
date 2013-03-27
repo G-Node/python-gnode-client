@@ -17,6 +17,7 @@
     "apiDefinition": "./requirements.json",
 
     "cacheDir": "./cache/",
+    "tempDir": "/tmp/",
 
     "caching" : "MEMORY",
     "db": ""
