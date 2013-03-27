@@ -10,7 +10,11 @@ import requests
 import errors
 from models import AnalogSignal, SpikeTrain
 
-
+# core classes imports
+from neo.core import *
+from odml.models import Section as odmlSection
+from odml.models import Property as odmlProperty
+from odml.models import Value as odmlValue
 
 units_dict = {'mv':pq.mV, 'mV':pq.mV, 'ms':pq.ms, 's':pq.s, 'hz':pq.Hz,
 'Hz':pq.Hz}
@@ -43,11 +47,21 @@ models_map = {
 class Deserializer(object):
 
 	@classmethod
-	def deserialize(cls, json_dict, session):
+	def deserialize(json_obj, data={}, session):
 
+        # 1. define a model
+        model_base = json_obj['model']
+        app_name = model_base[ : model_base.find('.') ]
+        model_name = model_base[ model_base.find('.') + 1 : ]
+        model = models_map[ app_name ][ model_name ]
 
+        # 2. parse attrs into dict
 
+        # 3. resolve data fields
 
+        # 4. parse special fields
+
+        # 5. assign self and parents ids
 
 
 
