@@ -5,9 +5,9 @@ import re
 import requests
 import simplejson as json
 
-from utils import has_data, is_permalink, load_profile, load_app_definitions, authenticate
+from utils import *
 import errors
-from serializer import DataDeserializer
+from serializer import Deserializer
 
 
 
@@ -127,15 +127,21 @@ class Session(object):
         if id: # get single obj, add id to the URL
             url += str( int( id ) )
 
-        resp = requests.get(url, params=params, cookies=self.cookie_jar)
+        # convert all values to string for a correct GET behavior (encoding??)
+        get_params = dict( [(k, str(v)) for k, v in params.items()] )
+
+        resp = requests.get(url, params=get_params, cookies=self.cookie_jar)
         raw_json = resp.json
         if not resp.status_code == 200:
             raise errors.error_codes[resp.status_code](raw_json['message'])
 
+        if not raw_json['selected']: # if no objects exist return empty result
+            return []
+
         for json_obj in raw_json['selected']:
 
             # 1. download attached data if needed
-            data = {} # collects downloaded datafile on-disk references 
+            data_refs = {} # collects downloaded datafile on-disk references 
             if has_data( self.app_definitions, obj_type ):
                 for attr in self.app_definitions[obj_type]['data_fields']:
                     attr_value = json_obj['fields'][ attr ]['data']
@@ -143,28 +149,28 @@ class Session(object):
                         # download related datafile
                         r = requests.get(attr_value, cookies=self.cookie_jar)
 
-                        temp_name = attr_value.replace(self.url, '')
+                        temp_name = str(get_id_from_permalink(self.url, attr_value)) + '.h5'
                         with open( self.temp_dir + temp_name, "w" ) as f:
                             f.write( r.content )
 
                         # collect path to the downloaded datafile
-                        data[ attr ] = self.temp_dir + temp_name
+                        data_refs[ attr ] = self.temp_dir + temp_name
 
             # 2. parse json (+data) into python object
-            obj = Deserializer.deserialize(json_obj, data=data, session=self)
+            obj = Deserializer.deserialize(json_obj, self, data_refs)
 
             objects.append(obj)
 
         children = self.app_definitions[obj_type]['children'] # child object types
         if cascade and self.app_definitions[obj_type]['children']:
-            parent_ids = [obj._gnode_id for obj in objects]
+            parent_ids = [obj._gnode['id'] for obj in objects]
 
             for child in children: # 'child' is like 'segment', 'event' etc.
 
                 # filter to fetch objects of type child for ALL parents
-                filt = { obj_type + '__id__in': ids }
+                filt = { obj_type + '__id__in': parent_ids }
                 if params.has_key('at_time'): # proxy time if requested
-                    filt = dict(filt, **{"at_time": params['at_time'])
+                    filt = dict(filt, **{"at_time": params['at_time']})
 
                 # fetching *child*-type objects
                 rel_objs = self.get( child, params=filt )
@@ -172,7 +178,7 @@ class Session(object):
                 if rel_objs:
                     for obj in objects: # parse children into parent attrs
                         setattr(obj, child + 's', [x for x in rel_objs if \
-                            getattr(x, '_' + child + '_id') == obj._gnode_id])
+                            getattr(x, '_gnode')[obj_type + '_id'] == obj._gnode['id']])
                 else:
                     for obj in objects: # no objects have children of that type
                         setattr(obj, child + 's', [])

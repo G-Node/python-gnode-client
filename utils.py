@@ -6,13 +6,13 @@
 # http://docs.python-requests.org/en/latest/user/install/
 
 import re
-
-try: import simplejson as json
-except ImportError: import json
-
 import requests
-
 import errors
+
+try: 
+    import simplejson as json
+except ImportError: 
+    import json
 
 
 # 'bidirectional dictionary to convert between the two nomenclatures used
@@ -23,6 +23,7 @@ safety_level_dict = {1: 'public', 2:'friendly', 3:'private'}
 def Property(func): # FIXME why do we need it here for?
     return property(**func())
 
+
 def has_data(app_definitions, model_name):
     """ checks the given model_name has data fields as per given app_definition """
     if app_definitions[ model_name ].has_key('data_fields') and \
@@ -30,10 +31,20 @@ def has_data(app_definitions, model_name):
         return True
     return False
 
+
 def is_permalink( link ):
     """ validates if a given link is *some* permalink """
     # add more validation here? every URL is valid..
     return str(link).find("http://") > -1
+
+
+def get_id_from_permalink(host_url, permalink):
+    """ parses permalink and extracts ID of the object """
+    if not permalink:
+        return None
+    base_url = permalink.replace(host_url, '')
+    return re.search("(?P<id>[\d]+)", base_url).group()
+
 
 def load_profile(config_file='default.json'):
     """Load Profile parameters"""

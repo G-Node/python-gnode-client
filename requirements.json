@@ -1,4 +1,37 @@
 {
+  "section": {
+    "attributes": [
+      "name",
+      "tree_position",
+      "odml_type",
+      "description"
+    ],
+    "reserved": [
+      "safety_level",
+      "owner",
+      "shared_with",
+      "date_created",
+      "guid",
+      "is_template",
+      "user_custom"
+    ],
+    "data_fields": [
+
+    ],
+    "init_args": [
+      "name"
+    ],
+    "required": [
+      "name"
+    ],
+    "parents": [
+      "parent_section"
+    ],
+    "children": [
+      "section",
+      "property"
+    ]
+  },
   "property": {
     "attributes": [
       "name",
@@ -7,47 +40,59 @@
       "uncertainty",
       "mapping",
       "dependency",
-      "safety_level",
       "unit",
       "comment",
       "dtype"
     ],
+    "reserved": [
+      "safety_level",
+      "owner",
+      "shared_with",
+      "date_created",
+      "guid"
+    ],
+    "data_fields": [
+
+    ],
+    "init_args": [
+      "name",
+      "nonexisting"
+    ],
     "required": [
       "name",
-      "definition",
+      "section"
+    ],
+    "parents": [
       "section"
     ],
     "children": [
       "value"
     ]
   },
-  "section": {
-    "attributes": [
-      "name",
-      "tree_position",
-      "odml_type",
-      "safety_level",
-      "description",
-      "parent_section"
-    ],
-    "required": [
-      "name",
-      "description"
-    ],
-    "children": [
-      "section",
-      "property"
-    ]
-  },
   "value": {
     "attributes": [
-      "safety_level",
       "data",
       "parent_property"
+    ],
+    "reserved": [
+      "safety_level",
+      "owner",
+      "shared_with",
+      "date_created",
+      "guid"
+    ],
+    "data_fields": [
+
+    ],
+    "init_args": [
+
     ],
     "required": [
       "data",
       "parent_property"
+    ],
+    "parents": [
+      "property"
     ],
     "children": [
 
@@ -58,21 +103,31 @@
       "name",
       "filedatetime",
       "index",
-      "safety_level",
       "description"
+    ],
+    "reserved": [
+      "safety_level",
+      "owner",
+      "shared_with",
+      "date_created",
+      "guid"
+    ],
+    "data_fields": [
+      
+    ],
+    "init_args": [
+
     ],
     "required": [
       "name"
     ],
     "parents": [
-      "section"
+      "section",
+      "file_origin"
     ],
     "children": [
       "segment",
       "recordingchannelgroup"
-    ],
-    "data_fields": [
-      
     ]
   },
   "segment": {
@@ -80,8 +135,20 @@
       "name",
       "description",
       "filedatetime",
-      "index",
-      "safety_level"
+      "index"
+    ],
+    "reserved": [
+      "safety_level",
+      "owner",
+      "shared_with",
+      "date_created",
+      "guid"
+    ],
+    "data_fields": [
+      
+    ],
+    "init_args": [
+
     ],
     "required": [
       "name"
@@ -99,16 +166,25 @@
       "eventarray",
       "epoch",
       "epocharray"
-    ],
-    "data_fields": [
-      
     ]
   },
   "eventarray": {
     "attributes": [
       "name",
-      "description",
-      "safety_level"
+      "description"
+    ],
+    "reserved": [
+      "safety_level",
+      "owner",
+      "shared_with",
+      "date_created",
+      "guid"
+    ],
+    "data_fields": [
+      "times"
+    ],
+    "init_args": [
+
     ],
     "required": [
       "times"
@@ -119,17 +195,27 @@
     ],
     "children": [
       
-    ],
-    "data_fields": [
-      "times"
     ]
   },
   "event": {
     "attributes": [
       "name",
       "description",
-      "label",
-      "safety_level"
+      "label"
+    ],
+    "reserved": [
+      "safety_level",
+      "owner",
+      "shared_with",
+      "date_created",
+      "guid"
+    ],
+    "data_fields": [
+      "time"
+    ],
+    "init_args": [
+      "time",
+      "label"
     ],
     "required": [
       "label",
@@ -140,16 +226,26 @@
     ],
     "children": [
       
-    ],
-    "data_fields": [
-      "time"
     ]
   },
   "epocharray": {
     "attributes": [
       "name",
-      "description",
-      "safety_level"
+      "description"
+    ],
+    "reserved": [
+      "safety_level",
+      "owner",
+      "shared_with",
+      "date_created",
+      "guid"
+    ],
+    "data_fields": [
+      "times",
+      "durations"
+    ],
+    "init_args": [
+
     ],
     "required": [
       "times",
@@ -161,40 +257,59 @@
     ],
     "children": [
       
-    ],
-    "data_fields": [
-      "times",
-      "durations"
     ]
   },
   "epoch": {
     "attributes": [
       "name",
       "description",
-      "label",
-      "safety_level"
+      "label"
     ],
-    "required": [
-      "label",
+    "reserved": [
+      "safety_level",
+      "owner",
+      "shared_with",
+      "date_created",
+      "guid"
+    ],
+    "data_fields": [
       "time",
       "duration"
+    ],
+    "init_args": [
+      "time",
+      "duration",
+      "label"
+    ],
+    "required": [
+      "time",
+      "duration",
+      "label"
     ],
     "parents": [
       "segment"
     ],
     "children": [
       
-    ],
-    "data_fields": [
-      "time",
-      "duration"
     ]
   },
   "recordingchannelgroup": {
     "attributes": [
       "name",
-      "description",
-      "safety_level"
+      "description"
+    ],
+    "reserved": [
+      "safety_level",
+      "owner",
+      "shared_with",
+      "date_created",
+      "guid"
+    ],
+    "data_fields": [
+      
+    ],
+    "init_args": [
+
     ],
     "required": [
       "name"
@@ -205,17 +320,26 @@
     "children": [
       "recordingchannel",
       "analogsignalarray"
-    ],
-    "data_fields": [
-      
     ]
   },
   "recordingchannel": {
     "attributes": [
       "name",
       "description",
-      "index",
-      "safety_level"
+      "index"
+    ],
+    "reserved": [
+      "safety_level",
+      "owner",
+      "shared_with",
+      "date_created",
+      "guid"
+    ],
+    "data_fields": [
+      
+    ],
+    "init_args": [
+
     ],
     "required": [
       "name"
@@ -227,16 +351,25 @@
       "unit",
       "analogsignal",
       "irsaanalogsignal"
-    ],
-    "data_fields": [
-      
     ]
   },
   "unit": {
     "attributes": [
       "name",
-      "description",
-      "safety_level"
+      "description"
+    ],
+    "reserved": [
+      "safety_level",
+      "owner",
+      "shared_with",
+      "date_created",
+      "guid"
+    ],
+    "data_fields": [
+      
+    ],
+    "init_args": [
+
     ],
     "required": [
       "name"
@@ -247,16 +380,29 @@
     "children": [
       "spiketrain",
       "spike"
-    ],
-    "data_fields": [
-      
     ]
   },
   "spiketrain": {
     "attributes": [
       "name",
-      "description",
-      "safety_level"
+      "description"
+    ],
+    "reserved": [
+      "safety_level",
+      "owner",
+      "shared_with",
+      "date_created",
+      "guid"
+    ],
+    "data_fields": [
+      "t_start",
+      "t_stop",
+      "times",
+      "waveforms"
+    ],
+    "init_args": [
+      "times",
+      "t_stop"
     ],
     "required": [
       "t_start",
@@ -269,19 +415,27 @@
     ],
     "children": [
       
-    ],
-    "data_fields": [
-      "t_start",
-      "t_stop",
-      "times",
-      "waveforms"
     ]
   },
   "analogsignalarray": {
     "attributes": [
       "name",
-      "description",
-      "safety_level"
+      "description"
+    ],
+    "reserved": [
+      "safety_level",
+      "owner",
+      "shared_with",
+      "date_created",
+      "guid"
+    ],
+    "data_fields": [
+      "sampling_rate",
+      "t_start",
+      "signal"
+    ],
+    "init_args": [
+      "signal"
     ],
     "required": [
       "sampling_rate",
@@ -294,18 +448,27 @@
     ],
     "children": [
       
-    ],
-    "data_fields": [
-      "sampling_rate",
-      "t_start",
-      "signal"
     ]
   },
   "analogsignal": {
     "attributes": [
       "name",
-      "description",
-      "safety_level"
+      "description"
+    ],
+    "reserved": [
+      "safety_level",
+      "owner",
+      "shared_with",
+      "date_created",
+      "guid"
+    ],
+    "data_fields": [
+      "sampling_rate",
+      "t_start",
+      "signal"
+    ],
+    "init_args": [
+      "signal"
     ],
     "required": [
       "sampling_rate",
@@ -319,18 +482,28 @@
     ],
     "children": [
       
-    ],
-    "data_fields": [
-      "sampling_rate",
-      "t_start",
-      "signal"
     ]
   },
   "irsaanalogsignal": {
     "attributes": [
       "name",
-      "description",
-      "safety_level"
+      "description"
+    ],
+    "reserved": [
+      "safety_level",
+      "owner",
+      "shared_with",
+      "date_created",
+      "guid"
+    ],
+    "data_fields": [
+      "t_start",
+      "signal",
+      "times"
+    ],
+    "init_args": [
+      "times",
+      "signal"
     ],
     "required": [
       "t_start",
@@ -343,18 +516,28 @@
     ],
     "children": [
       
-    ],
-    "data_fields": [
-      "t_start",
-      "signal",
-      "times"
     ]
   },
   "spike": {
     "attributes": [
       "name",
-      "description",
-      "safety_level"
+      "description"
+    ],
+    "reserved": [
+      "safety_level",
+      "owner",
+      "shared_with",
+      "date_created",
+      "guid"
+    ],
+    "data_fields": [
+      "left_sweep",
+      "time",
+      "sampling_rate",
+      "waveform"
+    ],
+    "init_args": [
+
     ],
     "required": [
       "time"
@@ -365,12 +548,6 @@
     ],
     "children": [
       
-    ],
-    "data_fields": [
-      "left_sweep",
-      "time",
-      "sampling_rate",
-      "waveform"
     ]
   }
 }

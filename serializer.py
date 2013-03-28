@@ -4,26 +4,37 @@ import os
 
 import numpy as np
 import quantities as pq
-import tables
+import tables as tb
 import requests
 
 import errors
+from utils import get_id_from_permalink
 from models import AnalogSignal, SpikeTrain
 
 # core classes imports
 from neo.core import *
-from odml.models import Section as odmlSection
-from odml.models import Property as odmlProperty
-from odml.models import Value as odmlValue
+from odml.section import BaseSection
+from odml.property import BaseProperty
+from odml.value import BaseValue
 
-units_dict = {'mv':pq.mV, 'mV':pq.mV, 'ms':pq.ms, 's':pq.s, 'hz':pq.Hz,
-'Hz':pq.Hz}
+units_dict = {
+    'V': pq.V,
+    'mV': pq.mV,
+    'uV': pq.uV,
+    's': pq.s,
+    'ms': pq.ms,
+    'us': pq.us,
+    'MHz': pq.MHz,
+    'KHz': pq.kHz,
+    'Hz': pq.Hz,
+    '1/s': pq.Hz
+}
 
 models_map = {
     'metadata': {
-        'section': odmlSection,
-        'property': odmlProperty,
-        'value': odmlValue
+        'section': BaseSection,
+        'property': BaseProperty,
+        'value': BaseValue
     },
     'neo_api': {
         'block': Block,
@@ -36,7 +47,7 @@ models_map = {
         'spiketrain': SpikeTrain,
         'analogsignal': AnalogSignal,
         'analogsignalarray': AnalogSignalArray,
-        'irsaanalogsignal': IrSaAnalogSignal,
+        'irsaanalogsignal': IrregularlySampledSignal,
         'spike': Spike,
         'recordingchannelgroup': RecordingChannelGroup,
         'recordingchannel': RecordingChannel
@@ -46,8 +57,10 @@ models_map = {
 
 class Deserializer(object):
 
-	@classmethod
-	def deserialize(json_obj, data={}, session):
+    @classmethod
+    def deserialize(cls, json_obj, session, data_refs):
+        args = [] # args to init an object
+        kwargs = {} # kwargs to init an object
 
         # 1. define a model
         model_base = json_obj['model']
@@ -55,14 +68,57 @@ class Deserializer(object):
         model_name = model_base[ model_base.find('.') + 1 : ]
         model = models_map[ app_name ][ model_name ]
 
-        # 2. parse attrs into dict
+        # 2. parse plain attrs into dict
+        app_definition = session.app_definitions[model_name]
+        fields = json_obj['fields']
+        for attr in app_definition['attributes']:
+            if fields.has_key( attr ) and fields[ attr ]:
+                kwargs[ attr ] = fields[ attr ]
 
         # 3. resolve data fields
+        for attr in app_definition['data_fields']:
+            if fields.has_key( attr ) and fields[ attr ]:
 
-        # 4. parse special fields
+                if data_refs.has_key( attr ): # extract array from datafile
+                    with tb.openFile(data_refs[ attr ], 'r') as f:
+                        carray = f.listNodes( "/" )[0]
+                        data_value = np.array( carray[:] )
 
-        # 5. assign self and parents ids
+                else: # plain data field
+                    data_value = fields[ attr ]['data'] 
 
+                kwargs[ attr ] = data_value * units_dict[ fields[attr]['units'] ]
+
+        # and more some params into args for a proper init
+        for argname in app_definition['init_args']: # order matters!!
+            if kwargs.has_key( argname ):
+                args.append( kwargs.pop( argname ) )
+            else:
+                args.append( None )
+
+        # 4. init object
+        obj = model( *args, **kwargs )
+        setattr(obj, '_gnode', {})
+
+        # 5. parse id from permalink and save it into obj._gnode
+        permalink = json_obj['permalink']
+        obj_id = get_id_from_permalink(session.url, permalink)
+        obj._gnode['id'] = obj_id
+        obj._gnode['permalink'] = permalink
+
+        # 6. parse special fields, including ACLs into obj._gnode
+        for attr in app_definition['reserved']:
+            if fields.has_key( attr ):
+                obj._gnode[attr] = fields[ attr ]
+
+        # 7. assign parents permalinks/ids into obj._gnode
+        for par_attr in app_definition['parents']:
+            if fields.has_key( par_attr ):
+                obj_id = get_id_from_permalink(session.url, fields[ par_attr ])
+                obj._gnode[par_attr + '_id'] = obj_id
+                obj._gnode[par_attr] = fields[ par_attr ]
+
+        return obj
 
 
 class DataDeserializer(object):

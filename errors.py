@@ -57,8 +57,8 @@ class MisformattedConfigurationFileError(ValueError):
 
 #------------------Server request errors------------------------
 class Error(Exception):
-	"""Base class for Gnode Client's exceptions."""
-	def __init__(self, message=''):
+    """Base class for Gnode Client's exceptions."""
+    def __init__(self, message=''):
         self.message = message # error message
 
 class BadRequestError(Error):

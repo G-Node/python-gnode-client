@@ -5,11 +5,11 @@
     "required": ["username", "password", "host", "port", "path",
 		 "apiVersion", "caching", "db"],
     
-    "username": "wdat2",
+    "username": "bob",
     "password": "pass",
     
-    "host": "141.84.42.103",
-    "port": 8015,
+    "host": "predata.g-node.org",
+    "port": 8010,
     "https": false,
     "prefix": "",
     "prefixData": "electrophysiology",
