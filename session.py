@@ -74,13 +74,13 @@ class Browser(object):
                     parent_name = 'parent_' + parent_name
 
                 params[ parent_name + '__id' ] = lid
-                objs = self.get(child, params=params, cascade=False)
+                objs = self.get(child, params=params, cascade=False, data_mode=False)
 
                 out = self._render( objs, out )
                 params.pop( parent_name + '__id' )
         else:
             params['parent_section__isnull'] = 1
-            objs = self.get('section', params=params, cascade=False)
+            objs = self.get('section', params=params, cascade=False, data_mode=False)
             out = self._render( objs, out )
 
         print out
@@ -99,7 +99,7 @@ class Browser(object):
             app, cls, lid = self._parse_location( url )
 
             # 2. get the object at the location - raises error if not accessible
-            obj = self.get(cls, id=lid, cascade=False)
+            obj = self.get(cls, id=lid, cascade=False, data_mode=False)
 
             self.location = url
             print "entered %s" % url
@@ -152,7 +152,7 @@ class Session( Browser ):
         #self.auth_cookie = self.cookie_jar['sessionid']
 
 
-    def get(self, obj_type, id=None, params={}, cascade=True):
+    def get(self, obj_type, id=None, params={}, cascade=True, data_mode=True):
         """ Gets one or several objects from the server of a given object type.
 
         Args:
@@ -228,15 +228,20 @@ class Session( Browser ):
                 for attr in self.app_definitions[obj_type]['data_fields']:
                     attr_value = json_obj['fields'][ attr ]['data']
                     if is_permalink( attr_value ):
-                        # download related datafile
-                        r = requests.get(attr_value, cookies=self.cookie_jar)
 
-                        temp_name = str(get_id_from_permalink(self.url, attr_value)) + '.h5'
-                        with open( self.temp_dir + temp_name, "w" ) as f:
-                            f.write( r.content )
+                        if data_mode:
+                            # download related datafile
+                            r = requests.get(attr_value, cookies=self.cookie_jar)
 
-                        # collect path to the downloaded datafile
-                        data_refs[ attr ] = self.temp_dir + temp_name
+                            temp_name = str(get_id_from_permalink(self.url, attr_value)) + '.h5'
+                            with open( self.temp_dir + temp_name, "w" ) as f:
+                                f.write( r.content )
+
+                            # collect path to the downloaded datafile
+                            data_refs[ attr ] = self.temp_dir + temp_name
+
+                        else:
+                            data_refs[ attr ] = None
 
             # 2. parse json (+data) into python object
             obj = Deserializer.deserialize(json_obj, self, data_refs)

@@ -77,12 +77,17 @@ class Deserializer(object):
 
         # 3. resolve data fields
         for attr in app_definition['data_fields']:
-            if fields.has_key( attr ) and fields[ attr ]:
+            if fields.has_key( attr ) and fields[ attr ]['data']:
 
                 if data_refs.has_key( attr ): # extract array from datafile
-                    with tb.openFile(data_refs[ attr ], 'r') as f:
-                        carray = f.listNodes( "/" )[0]
-                        data_value = np.array( carray[:] )
+
+                    if data_refs[ attr ]:
+                        with tb.openFile(data_refs[ attr ], 'r') as f:
+                            carray = f.listNodes( "/" )[0]
+                            data_value = np.array( carray[:] )
+
+                    else: # a dummy array given. request in a 'no-data' mode
+                        data_value = np.array( [0] )
 
                 else: # plain data field
                     data_value = fields[ attr ]['data'] 
