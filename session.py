@@ -9,7 +9,7 @@ from utils import *
 import errors
 from serializer import Deserializer
 
-
+max_line_out = 50 # max charachters to display for ls
 
 def init(config_file='default.json'):
     """Initialize session using data specified in a JSON configuration file
@@ -51,7 +51,65 @@ def load_saved_session(pickle_file):
         auth_cookie = pickle.load(pkl_file)
 
 
-class Session(object):
+class Browser(object):
+    """ abstract cls, implements cmd-type operations like ls, cd etc."""
+
+    ls_filt = {} # display filters
+    location = '' # current location, like 'metadata/section/293847/'
+    default_view = 'section'
+
+    def ls(self, filt=None):
+        """ cmd-type ls function """
+        out = '' # output
+        params = dict( self.ls_filt )
+
+        if self.location:
+            app, cls, lid = self._parse_location()
+
+            for child in self.app_definitions[ curr_type ]:
+                params[ curr_type + '__id' ] = lid
+                objs = self.get(child, params=params, cascade=False)
+                out = self._render( objs, out )
+                params.pop[ curr_type + '__id' ]
+        else:
+            objs = self.get(self.default_view, params=params, cascade=False)
+            out = self._render( objs, out )
+
+        print out
+
+    def cd(self, location=''):
+        """ changes the current location within the data structure """
+        pass
+
+    def _render(self, objs, out):
+        """ renders a list of objects for a *nice* output """
+        for obj in objs:
+            # object location
+            out += obj._gnode['permalink'].replace(self.url, '') + ':\t'
+            # object __repr__
+            out += obj.__repr__()[ : max_line_out ] + '\n'
+        return out
+
+    def _parse_location(self):
+        """ extracts app name and object type from the current location, e.g.
+        'metadata' and 'section' from 'metadata/section/293847/' """
+        l = str( self.location )
+
+        if l.startswith('/'):
+            l = l[ 1 : ]
+        if not l.endswith('/'):
+            l += '/'
+
+        res = []
+        while l:
+            item = l[ : l.find('/') ]
+            res.append( item ) # e.g. 'metadata' or 'section'
+            l = l[ len(item) + 1 : ]
+
+        return res
+
+
+class Session( Browser ):
     """ Object to handle connection and client-server data transfer """
 
     def __init__(self, url, username, password, cache_dir=None, temp_dir='/tmp/'):
@@ -131,7 +189,7 @@ class Session(object):
         get_params = dict( [(k, str(v)) for k, v in params.items()] )
 
         resp = requests.get(url, params=get_params, cookies=self.cookie_jar)
-        raw_json = resp.json
+        raw_json = resp.json()
         if not resp.status_code == 200:
             raise errors.error_codes[resp.status_code](raw_json['message'])
 

@@ -1,12 +1,11 @@
 {
   "section": {
     "attributes": [
-      "name",
-      "tree_position",
-      "odml_type",
-      "description"
+      "name"
     ],
     "reserved": [
+      "odml_type",
+      "tree_position",
       "safety_level",
       "owner",
       "shared_with",
