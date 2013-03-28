@@ -35,15 +35,14 @@
     "attributes": [
       "name",
       "definition",
-      "section",
       "uncertainty",
       "mapping",
       "dependency",
       "unit",
-      "comment",
       "dtype"
     ],
     "reserved": [
+      "comment",
       "safety_level",
       "owner",
       "shared_with",
