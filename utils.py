@@ -43,7 +43,7 @@ def get_id_from_permalink(host_url, permalink):
     if not permalink:
         return None
     base_url = permalink.replace(host_url, '')
-    return re.search("(?P<id>[\d]+)", base_url).group()
+    return int( re.search("(?P<id>[\d]+)", base_url).group() )
 
 
 def load_profile(config_file='default.json'):

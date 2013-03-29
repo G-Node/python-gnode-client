@@ -25,7 +25,7 @@ units_dict = {
     'ms': pq.ms,
     'us': pq.us,
     'MHz': pq.MHz,
-    'KHz': pq.kHz,
+    'kHz': pq.kHz,
     'Hz': pq.Hz,
     '1/s': pq.Hz
 }
@@ -119,9 +119,21 @@ class Deserializer(object):
         # 7. assign parents permalinks/ids into obj._gnode
         for par_attr in app_definition['parents']:
             if fields.has_key( par_attr ):
-                obj_id = get_id_from_permalink(session.url, fields[ par_attr ])
-                obj._gnode[par_attr + '_id'] = obj_id
-                obj._gnode[par_attr] = fields[ par_attr ]
+                par_val = fields[ par_attr ]
+                # can be multiple (m2m) -> wrap in a list if single value
+                if not type(fields[ par_attr ]) == type([]):
+                    par_val = [ par_val ]
+
+                ids = []
+                for v in par_val:
+                    ids.append( get_id_from_permalink(session.url, v) )
+
+                if len(ids) == 1:
+                    obj._gnode[par_attr + '_id'] = ids[0]
+                    obj._gnode[par_attr] = par_val[0]
+                else:
+                    obj._gnode[par_attr + '_id'] = ids
+                    obj._gnode[par_attr] = par_val
 
         return obj
 

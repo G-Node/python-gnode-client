@@ -9,7 +9,7 @@ from utils import *
 import errors
 from serializer import Deserializer
 
-max_line_out = 50 # max charachters to display for ls
+max_line_out = 40 # max charachters to display for ls
 
 alias_map = {
     'metadata': {
@@ -41,8 +41,12 @@ alias_map = {
     }
 }
 
-# build plain alias dicts
+# build plain alias dicts:
+
+# 1. app aliases, dict like {'electrophysiology': 'mtd', ...}
 app_aliases = dict([ (app, als['alias']) for app, als in alias_map.items() ])
+
+# 2. model aliases, dict like {'block': 'blk', ...}
 cls_aliases = {}
 for als in alias_map.values():
     cls_aliases = dict(als['models'].items() + cls_aliases.items())
@@ -94,10 +98,10 @@ class Browser(object):
     ls_filt = {} # dispslay filters
     location = '' # current location, like 'metadata/section/293847/'
 
-    def ls(self, filt=None):
+    def ls(self, filt={}):
         """ cmd-type ls function """
         out = '' # output
-        params = dict( self.ls_filt )
+        params = dict( self.ls_filt.items() + filt.items() )
 
         if self.location:
             app, cls, lid = self._parse_location( self.location )
@@ -111,13 +115,13 @@ class Browser(object):
                     parent_name = 'parent_' + parent_name
 
                 params[ parent_name + '__id' ] = lid
-                objs = self.get(child, params=params, cascade=False, data_mode=False)
+                objs = self.get(child, params=params, cascade=False, data_load=False)
 
                 out = self._render( objs, out )
                 params.pop( parent_name + '__id' )
         else:
             params['parent_section__isnull'] = 1
-            objs = self.get('section', params=params, cascade=False, data_mode=False)
+            objs = self.get('section', params=params, cascade=False, data_load=False)
             out = self._render( objs, out )
 
         print out
@@ -135,12 +139,8 @@ class Browser(object):
                 url = url.replace(self.url, '')
             app, cls, lid = self._parse_location( url )
 
-            try:
-                # 2. get the object at the location - raises error if not accessible
-                obj = self.get(cls, id=lid, cascade=False, data_mode=False)
-            except:
-                import ipdb
-                ipdb.set_trace()
+            # 2. get the object at the location - raises error if not accessible
+            obj = self.get(cls, id=lid, cascade=False, data_load=False)
 
             self.location = url
             print "entered %s" % url
@@ -152,7 +152,13 @@ class Browser(object):
 
             # object location
             location = obj._gnode['permalink'].replace(self.url, '')
-            out += self._strip_location(location) + ':\t'
+            out += self._strip_location(location) + '\t'
+
+            # safety level
+            out += str(obj._gnode['safety_level']) + ' '
+
+            # object owner
+            out += obj._gnode['owner'].replace(self.url, '') + '\t'
 
             # object __repr__
             out += obj.__repr__()[ : max_line_out ] + '\n'
@@ -228,7 +234,7 @@ class Session( Browser ):
         #self.auth_cookie = self.cookie_jar['sessionid']
 
 
-    def get(self, obj_type, id=None, params={}, cascade=True, data_mode=True):
+    def get(self, obj_type, id=None, params={}, cascade=True, data_load=True):
         """ Gets one or several objects from the server of a given object type.
 
         Args:
@@ -275,6 +281,10 @@ class Session( Browser ):
         get('section', params={'odml_type': 'experiment', 'date_created': '2013-02-22'})
 
         """
+        # resolve alias - short model name like 'rcg' -> 'recordingchannelgroup'
+        if obj_type in cls_aliases.values():
+            obj_type = [k for k, v in cls_aliases.items() if v==obj_type][0]
+
         if not obj_type in self.model_names:
             raise TypeError('Objects of that type are not supported.')
 
@@ -291,7 +301,8 @@ class Session( Browser ):
         resp = requests.get(url, params=get_params, cookies=self.cookie_jar)
         raw_json = resp.json()
         if not resp.status_code == 200:
-            raise errors.error_codes[resp.status_code](raw_json['message'])
+            message = '%s (%s)' % (raw_json['message'], raw_json['details'])
+            raise errors.error_codes[resp.status_code]( message )
 
         if not raw_json['selected']: # if no objects exist return empty result
             return []
@@ -305,7 +316,7 @@ class Session( Browser ):
                     attr_value = json_obj['fields'][ attr ]['data']
                     if is_permalink( attr_value ):
 
-                        if data_mode:
+                        if data_load:
                             # download related datafile
                             r = requests.get(attr_value, cookies=self.cookie_jar)
 
@@ -331,22 +342,38 @@ class Session( Browser ):
             for child in children: # 'child' is like 'segment', 'event' etc.
 
                 # filter to fetch objects of type child for ALL parents
-                filt = { obj_type + '__id__in': parent_ids }
+                # FIXME dirty fix!! stupid data model inconsistency
+                parent_name = obj_type
+                if (obj_type == 'section' and child == 'section') or \
+                    (obj_type == 'property' and child == 'value'):
+                    parent_name = 'parent_' + parent_name
+
+                filt = { parent_name + '__id__in': parent_ids }
                 if params.has_key('at_time'): # proxy time if requested
                     filt = dict(filt, **{"at_time": params['at_time']})
 
                 # fetching *child*-type objects
-                rel_objs = self.get( child, params=filt )
+                rel_objs = self.get( child, params=filt, data_load=data_load )
 
                 if rel_objs:
                     for obj in objects: # parse children into parent attrs
-                        setattr(obj, child + 's', [x for x in rel_objs if \
-                            getattr(x, '_gnode')[obj_type + '_id'] == obj._gnode['id']])
-                else:
-                    for obj in objects: # no objects have children of that type
-                        setattr(obj, child + 's', [])
+                        related = [x for x in rel_objs if \
+                            getattr(x, '_gnode')[parent_name + '_id'] == obj._gnode['id']]
+                        # a way to assign kids depends on object type
+                        self._assign_child( child, obj, related )
 
         return objects
+
+    def _assign_child(self, child, obj, related):
+        """ object type-dependent parser adding children to the given obj """
+        if child in ['section', 'property', 'value']:
+            for rel in related:
+                obj.append( rel )
+        else:
+            setattr(obj, child + 's', related)
+        return obj
+
+
 
 
     def save(self, obj, *kwargs):

@@ -58,34 +58,34 @@ class MisformattedConfigurationFileError(ValueError):
 #------------------Server request errors------------------------
 class Error(Exception):
     """Base class for Gnode Client's exceptions."""
-    def __init__(self, message=''):
-        self.message = message # error message
+    #def __init__(self, message=''):
+    #    self.message = message # error message
 
 class BadRequestError(Error):
 	"""Exception raised for a 400 "Bad request" server status code."""
-	def __str__(self):
+	def _definition(self):
 		return "Some of the request parameters are not provided correctly"
 
 class UnauthorizedError(Error):
 	"""Exception raised for a 401 "Unauthorized" server status code."""
-	def __str__(self):
+	def _definition(self):
 		return "Authorization key not provided"
 
 class ForbiddenError(Error):
 	"""Exception raised for a 403 "Forbidden" server status code."""
-	def __str__(self):
+	def _definition(self):
 		return "You don't have access to create, modify or view this object"
 
 class NotFoundError(Error):
 	"""Exception raised for a 404 "Not Found" server status code."""
 	#TODO: Separate this in two errors
-	def __str__(self):
+	def _definition(self):
 		return "An object with the provided id does not exist or URL is \
 		wrong and not supported"
 
 class NotSupportedError(Error):
 	"""Exception raised for a 405 "Not Supported" server status code."""
-	def __str__(self):
+	def _definition(self):
 		return "Request is not supported at this URL"
 
 error_codes = {400:BadRequestError, 401:UnauthorizedError, 403:ForbiddenError,

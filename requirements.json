@@ -69,8 +69,7 @@
   },
   "value": {
     "attributes": [
-      "data",
-      "parent_property"
+      "data"
     ],
     "reserved": [
       "safety_level",
@@ -90,7 +89,7 @@
       "parent_property"
     ],
     "parents": [
-      "property"
+      "parent_property"
     ],
     "children": [
 
