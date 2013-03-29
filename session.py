@@ -11,6 +11,43 @@ from serializer import Deserializer
 
 max_line_out = 50 # max charachters to display for ls
 
+alias_map = {
+    'metadata': {
+        'alias': 'mtd',
+        'models': {
+            'section': 'sec',
+            'property': 'prp',
+            'value': 'val'
+        }
+    },
+    'electrophysiology': {
+        'alias': 'eph',
+        'models': {
+            'block': 'blk',
+            'segment': 'seg',
+            'event': 'evt',
+            'eventarray': 'eva',
+            'epoch': 'epc',
+            'epocharray': 'epa',
+            'unit': 'unt',
+            'spiketrain': 'spt',
+            'analogsignal': 'sig',
+            'analogsignalarray': 'sga',
+            'irsaanalogsignal': 'ias',
+            'spike': 'spk',
+            'recordingchannelgroup': 'rcg',
+            'recordingchannel': 'rch'
+        }
+    }
+}
+
+# build plain alias dicts
+app_aliases = dict([ (app, als['alias']) for app, als in alias_map.items() ])
+cls_aliases = {}
+for als in alias_map.values():
+    cls_aliases = dict(als['models'].items() + cls_aliases.items())
+
+
 def init(config_file='default.json'):
     """Initialize session using data specified in a JSON configuration file
 
@@ -54,7 +91,7 @@ def load_saved_session(pickle_file):
 class Browser(object):
     """ abstract cls, implements cmd-type operations like ls, cd etc."""
 
-    ls_filt = {} # display filters
+    ls_filt = {} # dispslay filters
     location = '' # current location, like 'metadata/section/293847/'
 
     def ls(self, filt=None):
@@ -98,8 +135,12 @@ class Browser(object):
                 url = url.replace(self.url, '')
             app, cls, lid = self._parse_location( url )
 
-            # 2. get the object at the location - raises error if not accessible
-            obj = self.get(cls, id=lid, cascade=False, data_mode=False)
+            try:
+                # 2. get the object at the location - raises error if not accessible
+                obj = self.get(cls, id=lid, cascade=False, data_mode=False)
+            except:
+                import ipdb
+                ipdb.set_trace()
 
             self.location = url
             print "entered %s" % url
@@ -108,16 +149,48 @@ class Browser(object):
     def _render(self, objs, out):
         """ renders a list of objects for a *nice* output """
         for obj in objs:
+
             # object location
-            out += obj._gnode['permalink'].replace(self.url, '') + ':\t'
+            location = obj._gnode['permalink'].replace(self.url, '')
+            out += self._strip_location(location) + ':\t'
+
             # object __repr__
             out += obj.__repr__()[ : max_line_out ] + '\n'
+
         return out
+
+    def _restore_location(self, location):
+        """ restore a full version of the location using alias_map, like
+        'mtd/sec/293847/' -> 'metadata/section/293847/' """
+        l = str( location )
+        if not l.startswith('/'):
+            l = '/' + l
+
+        for name, alias in dict(app_aliases.items() + cls_aliases.items()).items():
+            if l.find(alias) > -1 and l[l.find(alias)-1] == '/' and \
+                l[l.find(alias) + len(alias)] == '/':
+                l = l.replace(alias, name)
+
+        return l
+
+    def _strip_location(self, location):
+        """ make a shorter version of the location using alias_map, like
+        'metadata/section/293847/' -> 'mtd/sec/293847/' """
+        l = str( location )
+        if not l.startswith('/'):
+            l = '/' + l
+
+        for name, alias in dict(app_aliases.items() + cls_aliases.items()).items():
+            if l.find(name) > -1 and l[l.find(name)-1] == '/' and\
+                l[l.find(name) + len(name)] == '/':
+                l = l.replace(name, alias)
+
+        return l
 
     def _parse_location(self, location):
         """ extracts app name and object type from the current location, e.g.
         'metadata' and 'section' from 'metadata/section/293847/' """
-        l = str( location )
+        l = self._restore_location( location )
 
         if l.startswith('/'):
             l = l[ 1 : ]
@@ -129,6 +202,9 @@ class Browser(object):
             item = l[ : l.find('/') ]
             res.append( item ) # e.g. 'metadata' or 'section'
             l = l[ len(item) + 1 : ]
+
+        if not len(res) == 3:
+            raise ReferenceError('This location does not exist.')
 
         return res
 
