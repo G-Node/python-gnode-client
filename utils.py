@@ -9,18 +9,12 @@ import re
 import requests
 import errors
 
-try: 
-    import simplejson as json
-except ImportError: 
-    import json
-
-
 # 'bidirectional dictionary to convert between the two nomenclatures used
 #	for methos using permissions
 safety_level_dict = {1: 'public', 2:'friendly', 3:'private'}
 
 
-def Property(func): # FIXME why do we need it here for?
+def Property(func): # FIXME what do we need it here for?
     return property(**func())
 
 
@@ -46,52 +40,61 @@ def get_id_from_permalink(host_url, permalink):
     return int( re.search("(?P<id>[\d]+)", base_url).group() )
 
 
-def load_profile(config_file='default.json'):
-    """Load Profile parameters"""
-        #TODO: parse prefixData, apiDefinition, caching, DB
-    try:
-        with open(str(config_file), 'r') as config_file:
-            profile_data = json.load(config_file)
-        
-        host = profile_data['host']
-        port = profile_data['port']
-        https = profile_data['https']
-        prefix = profile_data['prefix']
+def build_hostname( profile_data ):
+    """ compiling actual hostname from profile parameters """
 
-        username = profile_data['username']
-        password = profile_data['password']
+    host = profile_data['host']
+    port = profile_data['port']
+    https = profile_data['https']
+    prefix = profile_data['prefix']
 
-        cache_dir = profile_data['cacheDir']
-        temp_dir = profile_data['tempDir']
-        
-    #Python3: this is the way exceptions are raised in Python 3!
-    except IOError as err:
-        raise errors.AbsentConfigurationFileError(err)
-    except json.JSONDecodeError as err:
-        raise errors.MisformattedConfigurationFileError(err)
+    if port:
+        url = (host.strip('/')+':'+str(port)+'/'+prefix+'/')
+    else:
+        url = (host.strip('/')+'/'+prefix+'/')
 
-    return host, port, https, prefix, username, password, cache_dir, temp_dir
+    # substitute // for / in case no prefixData in the configuration file
+    url = url.replace('//','/')
+
+    # avoid double 'http://' in case user has already typed it in json file
+    if https:
+        # in case user has already typed https
+        url = re.sub('https://', '', url)
+        url = 'https://'+re.sub('http://', '', url)
+    
+    else:
+        url = 'http://'+re.sub('http://', '', url)
+
+    return url
 
 
-def load_app_definitions(config_file='requirements.json'):
-    """ reads app definitions from the requirements - structure of supported
+def load_app_definitions( model_data ):
+    """ reads app definitions from the model_data - structure of supported
     object models, required attributes, URL prefixes etc. """
     def parse_prefix( model ):
         if model in ['section', 'property', 'value']:
             return 'metadata'
         return 'neo'
 
-    try:
-        with open(str(config_file), 'r') as config_file:
-            data = json.load(config_file)
-    except IOError, e:
-        print 'Problem loading client configuration. check the requirements.json file'
-
-    app_definitions = dict( data )
-    model_names = data.keys()
+    app_definitions = dict( model_data )
+    model_names = model_data.keys()
     app_prefix_dict = dict( (model, parse_prefix( model )) for model in model_names )
    
     return app_definitions, model_names, app_prefix_dict
+
+
+def build_alias_dicts( alias_map ):
+    """ builds plain app/model (name) alias dicts """
+
+    # 1. app aliases, dict like {'electrophysiology': 'mtd', ...}
+    app_aliases = dict([ (app, als['alias']) for app, als in alias_map.items() ])
+
+    # 2. model aliases, dict like {'block': 'blk', ...}
+    cls_aliases = {}
+    for als in alias_map.values():
+        cls_aliases = dict(als['models'].items() + cls_aliases.items())
+
+    return app_aliases, cls_aliases
 
 
 def authenticate(url, username=None, password=None):

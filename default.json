@@ -20,6 +20,38 @@
     "tempDir": "/tmp/",
 
     "caching" : "MEMORY",
-    "db": ""
+    "db": "",
+
+    "max_line_out": 40,
+
+    "alias_map": {
+        "metadata": {
+            "alias": "mtd",
+            "models": {
+                "section": "sec",
+                "property": "prp",
+                "value": "val"
+            }
+        },
+        "electrophysiology": {
+            "alias": "eph",
+            "models": {
+                "block": "blk",
+                "segment": "seg",
+                "event": "evt",
+                "eventarray": "eva",
+                "epoch": "epc",
+                "epocharray": "epa",
+                "unit": "unt",
+                "spiketrain": "spt",
+                "analogsignal": "sig",
+                "analogsignalarray": "sga",
+                "irsaanalogsignal": "ias",
+                "spike": "spk",
+                "recordingchannelgroup": "rcg",
+                "recordingchannel": "rch"
+            }
+        }
+    }
     
 }

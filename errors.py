@@ -19,7 +19,7 @@ import simplejson as json
 #	messages
 
 class AbsentConfigurationFileError(IOError):
-	"""Exception raised when the specified configuration file does not exist.
+	"""Exception raised when some of the specified config files do not exist.
 	
 	Args:
 		IOError: the IOError raised; will be printed and help user recognize e.g.
@@ -33,16 +33,13 @@ class AbsentConfigurationFileError(IOError):
 			self.upstream_error_str = ""
 
 	def __str__(self):
-		return self.upstream_error_str + "\n Please check whether configuration file \
-		exists and is stored in the right directory"
+		return self.upstream_error_str + "\n Please check whether configuration\
+            and/or requirements file exists and is stored in the right directory"
 
 class MisformattedConfigurationFileError(ValueError):
 	"""Exception raised when the configuration data cannot be read from the
-	JSON configuration file due to a misformatted file.
+	JSON configuration files due to a misformatted file."""
 
-	Args:
-		JSONDecodeError: the JSONDecodeError raised by load_profile()
-	"""
 	def __init__(self, json_error=None):
 		if json_error:
 			self.upstream_error = json_error
@@ -50,9 +47,9 @@ class MisformattedConfigurationFileError(ValueError):
 		else:
 			self.upstream_error_str = ""
 	def __str__(self):
-		return self.upstream_error_str + "\n Please check whether the configuration \
-		file follows the standard JSON format and contains the mandatory \
-		fields"
+		return self.upstream_error_str + "\n Please check whether the \
+            configuration and/or requirements file follows the standard JSON \
+            format and contains the mandatory fields"
 
 
 #------------------Server request errors------------------------

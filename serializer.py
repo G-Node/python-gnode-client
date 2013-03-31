@@ -69,7 +69,7 @@ class Deserializer(object):
         model = models_map[ app_name ][ model_name ]
 
         # 2. parse plain attrs into dict
-        app_definition = session.app_definitions[model_name]
+        app_definition = session._meta.app_definitions[model_name]
         fields = json_obj['fields']
         for attr in app_definition['attributes']:
             if fields.has_key( attr ) and fields[ attr ]:
@@ -107,7 +107,7 @@ class Deserializer(object):
 
         # 5. parse id from permalink and save it into obj._gnode
         permalink = json_obj['permalink']
-        obj_id = get_id_from_permalink(session.url, permalink)
+        obj_id = get_id_from_permalink(session._meta.host, permalink)
         obj._gnode['id'] = obj_id
         obj._gnode['permalink'] = permalink
 
@@ -126,7 +126,7 @@ class Deserializer(object):
 
                 ids = []
                 for v in par_val:
-                    ids.append( get_id_from_permalink(session.url, v) )
+                    ids.append( get_id_from_permalink(session._meta.host, v) )
 
                 if len(ids) == 1:
                     obj._gnode[par_attr + '_id'] = ids[0]

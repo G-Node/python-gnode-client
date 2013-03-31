@@ -9,50 +9,12 @@ from utils import *
 import errors
 from serializer import Deserializer
 
-max_line_out = 40 # max charachters to display for ls
+try: 
+    import simplejson as json
+except ImportError: 
+    import json
 
-alias_map = {
-    'metadata': {
-        'alias': 'mtd',
-        'models': {
-            'section': 'sec',
-            'property': 'prp',
-            'value': 'val'
-        }
-    },
-    'electrophysiology': {
-        'alias': 'eph',
-        'models': {
-            'block': 'blk',
-            'segment': 'seg',
-            'event': 'evt',
-            'eventarray': 'eva',
-            'epoch': 'epc',
-            'epocharray': 'epa',
-            'unit': 'unt',
-            'spiketrain': 'spt',
-            'analogsignal': 'sig',
-            'analogsignalarray': 'sga',
-            'irsaanalogsignal': 'ias',
-            'spike': 'spk',
-            'recordingchannelgroup': 'rcg',
-            'recordingchannel': 'rch'
-        }
-    }
-}
-
-# build plain alias dicts:
-
-# 1. app aliases, dict like {'electrophysiology': 'mtd', ...}
-app_aliases = dict([ (app, als['alias']) for app, als in alias_map.items() ])
-
-# 2. model aliases, dict like {'block': 'blk', ...}
-cls_aliases = {}
-for als in alias_map.values():
-    cls_aliases = dict(als['models'].items() + cls_aliases.items())
-
-
-def init(config_file='default.json'):
+def init(config_file='default.json', models_file='requirements.json'):
     """Initialize session using data specified in a JSON configuration file
 
     Args:
@@ -60,27 +22,22 @@ def init(config_file='default.json'):
             to be loaded is contained the standard profile is located at
             default.json"""
 
-    host, port, https, prefix, username, password, cache_dir, temp_dir = \
-        load_profile( config_file )
+    try:
+        # 1. load profile configuration
+        with open(str(config_file), 'r') as f:
+            profile_data = json.load(f)
 
-    if port:
-        url = (host.strip('/')+':'+str(port)+'/'+prefix+'/')
-    else:
-        url = (host.strip('/')+'/'+prefix+'/')
+        # 2. load apps and models definitions
+        with open(str(models_file), 'r') as f:
+            model_data = json.load(f)
+        
+    except IOError as err:
+        raise errors.AbsentConfigurationFileError(err)
+    except ValueError as err:
+        raise errors.MisformattedConfigurationFileError(err)
 
-    #substitute // for / in case no prefixData in the configuration file
-    url = url.replace('//','/')
+    return Session(profile_data, model_data)
 
-    #avoid double 'http://' in case user has already typed it in json file
-    if https:
-        # in case user has already typed https
-        url = re.sub('https://', '', url)
-        url = 'https://'+re.sub('http://', '', url)
-    
-    else:
-        url = 'http://'+re.sub('http://', '', url)
-
-    return Session(url, username, password, cache_dir, temp_dir)
 
 
 def load_saved_session(pickle_file):
@@ -90,6 +47,10 @@ def load_saved_session(pickle_file):
     import pickle
     with open(filename, 'rb') as pkl_file:
         auth_cookie = pickle.load(pkl_file)
+
+class Meta:
+    """ abstract class to handle settings, auth information for Session """
+    pass
 
 
 class Browser(object):
@@ -106,7 +67,7 @@ class Browser(object):
         if self.location:
             app, cls, lid = self._parse_location( self.location )
 
-            for child in self.app_definitions[ cls ]['children']:
+            for child in self._meta.app_definitions[ cls ]['children']:
 
                 parent_name = cls
                 # FIXME dirty fix!! stupid data model inconsistency
@@ -136,7 +97,7 @@ class Browser(object):
             # 1. compile url
             url = str( location )
             if is_permalink( location ):
-                url = url.replace(self.url, '')
+                url = url.replace(self._meta.host, '')
             app, cls, lid = self._parse_location( url )
 
             # 2. get the object at the location - raises error if not accessible
@@ -151,17 +112,17 @@ class Browser(object):
         for obj in objs:
 
             # object location
-            location = obj._gnode['permalink'].replace(self.url, '')
+            location = obj._gnode['permalink'].replace(self._meta.host, '')
             out += self._strip_location(location) + '\t'
 
             # safety level
             out += str(obj._gnode['safety_level']) + ' '
 
             # object owner
-            out += obj._gnode['owner'].replace(self.url, '') + '\t'
+            out += obj._gnode['owner'].replace(self._meta.host, '') + '\t'
 
             # object __repr__
-            out += obj.__repr__()[ : max_line_out ] + '\n'
+            out += obj.__repr__()[ : self._meta.max_line_out ] + '\n'
 
         return out
 
@@ -172,7 +133,8 @@ class Browser(object):
         if not l.startswith('/'):
             l = '/' + l
 
-        for name, alias in dict(app_aliases.items() + cls_aliases.items()).items():
+        almap = dict(self._meta.app_aliases.items() + self._meta.cls_aliases.items())
+        for name, alias in almap.items():
             if l.find(alias) > -1 and l[l.find(alias)-1] == '/' and \
                 l[l.find(alias) + len(alias)] == '/':
                 l = l.replace(alias, name)
@@ -186,7 +148,8 @@ class Browser(object):
         if not l.startswith('/'):
             l = '/' + l
 
-        for name, alias in dict(app_aliases.items() + cls_aliases.items()).items():
+        almap = dict(self._meta.app_aliases.items() + self._meta.cls_aliases.items())
+        for name, alias in almap.items():
             if l.find(name) > -1 and l[l.find(name)-1] == '/' and\
                 l[l.find(name) + len(name)] == '/':
                 l = l.replace(name, alias)
@@ -230,20 +193,28 @@ class Session( Browser ):
     #   '16613a7b6b2fa4433a2927b6e9a0b0b63a0b419f': <Block ...>
     # }
 
-    def __init__(self, url, username, password, cache_dir=None, temp_dir='/tmp/'):
+    def __init__(self, profile_data, model_data):
 
-        self.url = url
-        self.username = username
-        self.password = password
-        #TODO: Turn this into an absolute path
-        self.cache_dir = os.path.abspath(cache_dir)
-        self.temp_dir = temp_dir
-        self.app_definitions, self.model_names, self.app_prefix_dict = load_app_definitions()
-        self.cookie_jar = authenticate(self.url, self.username,
-            self.password)
-        #the auth cookie is actually not necessary; the cookie jar should be
-        #sent instead
-        #self.auth_cookie = self.cookie_jar['sessionid']
+        meta = Meta() # store all settings in Meta class as _meta attribute
+        meta.username = profile_data['username']
+        meta.password = profile_data['password']
+        meta.cache_dir = os.path.abspath( profile_data['cacheDir'] )
+        meta.temp_dir = os.path.abspath( profile_data['tempDir'] )
+        meta.max_line_out = profile_data['max_line_out']
+
+        meta.host = build_hostname( profile_data )
+        meta.app_definitions, meta.model_names, meta.app_prefix_dict = \
+            load_app_definitions(model_data)
+        meta.app_aliases, meta.cls_aliases = build_alias_dicts( profile_data['alias_map'] )
+
+        meta.cookie_jar = authenticate(meta.host, meta.username, meta.password)
+        self._meta = meta
+
+        #TODO: parse prefixData, apiDefinition, caching, DB
+        # M.Pereira:
+        # the auth cookie is actually not necessary; the cookie jar should be
+        # sent instead
+        # self.auth_cookie = meta.cookie_jar['sessionid']
 
     def clear_cache(self):
         """ removes all objects from the cache """
@@ -298,10 +269,10 @@ class Session( Browser ):
 
         """
         # resolve alias - short model name like 'rcg' -> 'recordingchannelgroup'
-        if obj_type in cls_aliases.values():
-            obj_type = [k for k, v in cls_aliases.items() if v==obj_type][0]
+        if obj_type in self._meta.cls_aliases.values():
+            obj_type = [k for k, v in self._meta.cls_aliases.items() if v==obj_type][0]
 
-        if not obj_type in self.model_names:
+        if not obj_type in self._meta.model_names:
             raise TypeError('Objects of that type are not supported.')
 
         objects = [] # resulting objects set
@@ -310,13 +281,13 @@ class Session( Browser ):
         # convert all values to string for a correct GET behavior (encoding??)
         get_params = dict( [(k, str(v)) for k, v in params.items()] )
 
-        url = self.url + self.app_prefix_dict[obj_type] + '/' + str(obj_type) + '/'
+        url = '%s%s/%s/' % (self._meta.host, self._meta.app_prefix_dict[obj_type], str(obj_type))
 
         if id: # get single obj, add id to the URL
             url += str( int( id ) )
 
         # do fetch objects from the server
-        resp = requests.get(url, params=get_params, cookies=self.cookie_jar)
+        resp = requests.get(url, params=get_params, cookies=self._meta.cookie_jar)
         raw_json = resp.json()
         if not resp.status_code == 200:
             message = '%s (%s)' % (raw_json['message'], raw_json['details'])
@@ -329,21 +300,21 @@ class Session( Browser ):
 
             # 1. download attached data if needed
             data_refs = {} # collects downloaded datafile on-disk references 
-            if has_data( self.app_definitions, obj_type ):
-                for attr in self.app_definitions[obj_type]['data_fields']:
+            if has_data( self._meta.app_definitions, obj_type ):
+                for attr in self._meta.app_definitions[obj_type]['data_fields']:
                     attr_value = json_obj['fields'][ attr ]['data']
                     if is_permalink( attr_value ):
 
                         if data_load:
                             # download related datafile
-                            r = requests.get(attr_value, cookies=self.cookie_jar)
+                            r = requests.get(attr_value, cookies=self._meta.cookie_jar)
 
-                            temp_name = str(get_id_from_permalink(self.url, attr_value)) + '.h5'
-                            with open( self.temp_dir + temp_name, "w" ) as f:
+                            temp_name = str(get_id_from_permalink(self._meta.host, attr_value)) + '.h5'
+                            with open( self._meta.temp_dir + temp_name, "w" ) as f:
                                 f.write( r.content )
 
                             # collect path to the downloaded datafile
-                            data_refs[ attr ] = self.temp_dir + temp_name
+                            data_refs[ attr ] = self._meta.temp_dir + temp_name
 
                         else:
                             data_refs[ attr ] = None
@@ -353,8 +324,8 @@ class Session( Browser ):
 
             objects.append(obj)
 
-        children = self.app_definitions[obj_type]['children'] # child object types
-        if cascade and self.app_definitions[obj_type]['children']:
+        children = self._meta.app_definitions[obj_type]['children'] # child object types
+        if cascade and self._meta.app_definitions[obj_type]['children']:
             parent_ids = [obj._gnode['id'] for obj in objects]
 
             for child in children: # 'child' is like 'segment', 'event' etc.
@@ -406,7 +377,7 @@ class Session( Browser ):
 
         json_dict = None
         #TODO: serialize object
-        requests.post(url, data=json.dump(json_dict), cookies=self.cookie_jar)
+        requests.post(url, data=json.dump(json_dict), cookies=self._meta.cookie_jar)
 
 
     def list_objects(self, object_type, params=None):
@@ -428,7 +399,7 @@ class Session( Browser ):
         """
         #TODO: parse the JSON object received and display it in a pretty way?
         resp = requests.get(self.data_url+str(object_type)+'/', params=params,
-            cookies=self.cookie_jar)
+            cookies=self._meta.cookie_jar)
 
         if resp.status_code == 200:
             return resp.json
@@ -460,5 +431,5 @@ class Session( Browser ):
         #feature all together
         #s = requests.session()
         #s.config['keep_alive'] = False
-        requests.get(self.url+'account/logout/', cookies=self.cookie_jar)
-        del(self.cookie_jar)
+        requests.get(self._meta.host+'account/logout/', cookies=self._meta.cookie_jar)
+        del(self._meta.cookie_jar)
