@@ -97,23 +97,4 @@ def build_alias_dicts( alias_map ):
     return app_aliases, cls_aliases
 
 
-def authenticate(url, username=None, password=None):
-	"""Returns authentication cookie jar given username and password"""
-	#TODO: ask for user input
-
-	#get the username if the user hasn't already specified one either by
-	#directly calling the authenticate() function or by reading the username
-	#and password from a configuration file (usually default.json) where these
-	#have not been specified
-	if not username:
-		username = raw_input('username: ')
-
-	#get the password if the user hasn't already specified one
-	if not password:
-		import getpass
-		password = getpass.getpass('password: ')	
-
-	auth = requests.post(url+'account/authenticate/', {'username': username, 'password': password})
-	return auth.cookies
-
 

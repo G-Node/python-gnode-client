@@ -3,24 +3,30 @@ import os
 import re
 
 import requests
+import getpass
 import simplejson as json
 
-from utils import *
 import errors
+from utils import *
 from serializer import Deserializer
+from browser import Browser
 
 try: 
     import simplejson as json
 except ImportError: 
     import json
 
+
 def init(config_file='default.json', models_file='requirements.json'):
-    """Initialize session using data specified in a JSON configuration file
+    """Initialize session using data specified in a JSON configuration files
 
     Args:
         config_file: name of the configuration file in which the profile
             to be loaded is contained the standard profile is located at
-            default.json"""
+            default.json
+
+        models_file: name of the configuration file defining models structure
+    """
 
     try:
         # 1. load profile configuration
@@ -39,6 +45,24 @@ def init(config_file='default.json', models_file='requirements.json'):
     return Session(profile_data, model_data)
 
 
+def authenticate(url, username=None, password=None):
+	"""Returns authentication cookie jar given username and password"""
+	#TODO: ask for user input
+
+	#get the username if the user hasn't already specified one either by
+	#directly calling the authenticate() function or by reading the username
+	#and password from a configuration file (usually default.json) where these
+	#have not been specified
+	if not username:
+		username = raw_input('username: ')
+
+	#get the password if the user hasn't already specified one
+	if not password:
+		password = getpass.getpass('password: ')	
+
+	auth = requests.post(url+'account/authenticate/', {'username': username, 'password': password})
+	return auth.cookies
+
 
 def load_saved_session(pickle_file):
     """Load a previously saved session
@@ -51,131 +75,6 @@ def load_saved_session(pickle_file):
 class Meta:
     """ abstract class to handle settings, auth information for Session """
     pass
-
-
-class Browser(object):
-    """ abstract cls, implements cmd-type operations like ls, cd etc."""
-
-    ls_filt = {} # dispslay filters
-    location = '' # current location, like 'metadata/section/293847/'
-
-    def ls(self, filt={}):
-        """ cmd-type ls function """
-        out = '' # output
-        params = dict( self.ls_filt.items() + filt.items() )
-
-        if self.location:
-            app, cls, lid = self._parse_location( self.location )
-
-            for child in self._meta.app_definitions[ cls ]['children']:
-
-                parent_name = cls
-                # FIXME dirty fix!! stupid data model inconsistency
-                if (cls == 'section' and child == 'section') or \
-                    (cls == 'property' and child == 'value'):
-                    parent_name = 'parent_' + parent_name
-
-                params[ parent_name + '__id' ] = lid
-                objs = self.get(child, params=params, cascade=False, data_load=False)
-
-                out = self._render( objs, out )
-                params.pop( parent_name + '__id' )
-        else:
-            params['parent_section__isnull'] = 1
-            objs = self.get('section', params=params, cascade=False, data_load=False)
-            out = self._render( objs, out )
-
-        print out
-
-    def cd(self, location=''):
-        """ changes the current location within the data structure """
-        if location == '':
-            self.location = ''
-            print 'back to root'
-
-        else:
-            # 1. compile url
-            url = str( location )
-            if is_permalink( location ):
-                url = url.replace(self._meta.host, '')
-            app, cls, lid = self._parse_location( url )
-
-            # 2. get the object at the location - raises error if not accessible
-            obj = self.get(cls, id=lid, cascade=False, data_load=False)
-
-            self.location = url
-            print "entered %s" % url
-
-
-    def _render(self, objs, out):
-        """ renders a list of objects for a *nice* output """
-        for obj in objs:
-
-            # object location
-            location = obj._gnode['permalink'].replace(self._meta.host, '')
-            out += self._strip_location(location) + '\t'
-
-            # safety level
-            out += str(obj._gnode['safety_level']) + ' '
-
-            # object owner
-            out += obj._gnode['owner'].replace(self._meta.host, '') + '\t'
-
-            # object __repr__
-            out += obj.__repr__()[ : self._meta.max_line_out ] + '\n'
-
-        return out
-
-    def _restore_location(self, location):
-        """ restore a full version of the location using alias_map, like
-        'mtd/sec/293847/' -> 'metadata/section/293847/' """
-        l = str( location )
-        if not l.startswith('/'):
-            l = '/' + l
-
-        almap = dict(self._meta.app_aliases.items() + self._meta.cls_aliases.items())
-        for name, alias in almap.items():
-            if l.find(alias) > -1 and l[l.find(alias)-1] == '/' and \
-                l[l.find(alias) + len(alias)] == '/':
-                l = l.replace(alias, name)
-
-        return l
-
-    def _strip_location(self, location):
-        """ make a shorter version of the location using alias_map, like
-        'metadata/section/293847/' -> 'mtd/sec/293847/' """
-        l = str( location )
-        if not l.startswith('/'):
-            l = '/' + l
-
-        almap = dict(self._meta.app_aliases.items() + self._meta.cls_aliases.items())
-        for name, alias in almap.items():
-            if l.find(name) > -1 and l[l.find(name)-1] == '/' and\
-                l[l.find(name) + len(name)] == '/':
-                l = l.replace(name, alias)
-
-        return l
-
-    def _parse_location(self, location):
-        """ extracts app name and object type from the current location, e.g.
-        'metadata' and 'section' from 'metadata/section/293847/' """
-        l = self._restore_location( location )
-
-        if l.startswith('/'):
-            l = l[ 1 : ]
-        if not l.endswith('/'):
-            l += '/'
-
-        res = []
-        while l:
-            item = l[ : l.find('/') ]
-            res.append( item ) # e.g. 'metadata' or 'section'
-            l = l[ len(item) + 1 : ]
-
-        if not len(res) == 3:
-            raise ReferenceError('This location does not exist.')
-
-        return res
 
 
 class Session( Browser ):
