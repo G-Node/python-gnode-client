@@ -107,6 +107,8 @@ class Deserializer(object):
 
         # 5. parse id from permalink and save it into obj._gnode
         permalink = json_obj['permalink']
+        if not permalink.endswith('/'):
+            permalink += '/'
         obj_id = get_id_from_permalink(session._meta.host, permalink)
         obj._gnode['id'] = obj_id
         obj._gnode['location'] = permalink.replace(session._meta.host, '')

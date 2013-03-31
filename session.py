@@ -108,12 +108,12 @@ class Cache( object ):
         self.objs_map[ obj._gnode['location'] ] = obj._gnode['guid']
         self.objs[ obj._gnode['guid'] ] = obj
 
-    def save_cache():
+    def save_cache(self):
         """ saves cached data map """
         with open(self.cache_dir + self.cache_file_name, 'w') as f:
             f.write( json.dumps(self.data_map) )
 
-    def load_cached_data():
+    def load_cached_data(self):
         """ loads cached data map and validates cached files """
         try:
             # 1. load cache map
@@ -133,7 +133,9 @@ class Cache( object ):
 
             print 'Cache loaded.'
 
-        except IOError, ValueError:
+        except IOError:
+            print 'No saved cached data found, cache is empty.'
+        except ValueError:
             print 'Cache file cannot be parsed. Skip loading cached data.'
 
 
@@ -156,10 +158,12 @@ class Session( Browser ):
         self._meta = meta
 
         # 2. load cache
-        cache_dir = os.path.abspath( profile_data['cacheDir'] )
+        cache_dir = os.path.abspath( profile_data['cacheDir'] ) + '/'
         load_cached_data = bool( profile_data['load_cached_data'] )
         cache_file_name = profile_data['cache_file_name']
         self._cache = Cache( cache_dir, cache_file_name, load_cached_data )
+
+        print "Session initialized."
 
         #TODO: parse prefixData, apiDefinition, caching, DB
         # M.Pereira:
@@ -172,12 +176,14 @@ class Session( Browser ):
         self._cache_map = {}
         self._cache = {}
 
-    def pull(self, location, params={}, cascade=True, data_load=True, refresh=False):
+    def pull(self, location, params={}, cascade=True, data_load=True):
         """ pulls object from the specified location on the server. 
         caching:    yes
         cascade:    yes
         data_load:  yes
         """
+        if is_permalink( location ):
+            location = location.replace(self._meta.host, '')
         location = self._restore_location( location )
         app, cls, lid = self._parse_location( location )
 
@@ -187,17 +193,19 @@ class Session( Browser ):
         url = '%s%s/%s/%s/' % (self._meta.host, app, cls, str(lid))
 
         # find object in cache
-        if location in self._cache_map.keys() and not refresh:
-            headers['ETag'] = self._cache_map[ location ]
+        if location in self._cache.objs_map.keys():
+            headers['If-none-match'] = self._cache.objs_map[ location ]
 
-        # request object from the server (with ETag if no refresh)
+        # request object from the server (with ETag)
         resp = requests.get(url, params=params, headers=headers, cookies=self._meta.cookie_jar)
 
         if resp.status_code == 304: # get object from cache
-            guid = self._cache_map[ location ]
-            obj = self._cache[ guid ]
+            guid = self._cache.objs_map[ location ]
+            obj = self._cache.objs[ guid ]
 
-        else:
+            print '%s loaded from cache.\r' % location
+
+        else: # request from server
 
             # parse response json
             raw_json = resp.json()
@@ -221,16 +229,23 @@ class Session( Browser ):
 
                         if data_load:
 
-                            if not refresh and fid in self._cache.data_map.keys():
-                                # get data from cache
+                            if fid in self._cache.data_map.keys(): # get data from cache
                                 data_refs[ attr ] = self._cache.data_map[ fid ]
 
                             else: # download related datafile
+
+                                print 'loading datafile %s from server...\r' % fid
+
                                 r = requests.get(attr_value, cookies=self._meta.cookie_jar)
 
                                 temp_name = str(get_id_from_permalink(self._meta.host, attr_value)) + '.h5'
                                 with open( self._cache.cache_dir + temp_name, "w" ) as f:
                                     f.write( r.content )
+
+                                # save filepath to the cache
+                                self._cache.data_map[ fid ] = self._meta.temp_dir + temp_name
+
+                                print 'datafile %s fetched from server.' % fid
 
                                 # collect path to the downloaded datafile
                                 data_refs[ attr ] = self._meta.temp_dir + temp_name
@@ -244,8 +259,10 @@ class Session( Browser ):
             # save it to cache
             self._cache.add_object( obj )
 
-        children = self._meta.app_definitions[obj_type]['children'] # child object types
-        if cascade and self._meta.app_definitions[obj_type]['children']:
+            print '%s fetched from server.\r' % location
+
+        children = self._meta.app_definitions[cls]['children'] # child object types
+        if cascade and self._meta.app_definitions[cls]['children']:
             for child in children: # 'child' is like 'segment', 'event' etc.
 
                 if json_obj['fields'][child + '_set']:
@@ -253,19 +270,11 @@ class Session( Browser ):
 
                     for rel_link in json_obj['fields'][child + '_set']:
                         # fetching *child*-type objects
-                        rel_obj = self.pull( rel_link, params=params, data_load=data_load, refresh=refresh )
+                        rel_objs.append( self.pull( rel_link, params=params, data_load=data_load ) )
 
                     if rel_objs: # parse children into parent attrs
-                        for obj in objects: 
-                            related = [x for x in rel_objs if \
-                                getattr(x, '_gnode')[parent_name + '_id'] == obj._gnode['id']]
-                            # a way to assign kids depends on object type
-                            self._assign_child( child, obj, related )
-
-                        # FIXME make a special processing for the Block object to avoid
-                        # downloading some objects twice
-
-        # FIXME test caching of the recursively downloaded objects!
+                        # a way to assign kids depends on object type
+                        self._assign_child( child, obj, rel_objs )
 
         return obj
 
@@ -434,6 +443,9 @@ class Session( Browser ):
                 l[l.find(alias) + len(alias)] == '/':
                 l = l.replace(alias, name)
 
+        if not l.endswith('/'):
+            l += '/'
+
         return l
 
     def _strip_location(self, location):
@@ -477,8 +489,8 @@ class Session( Browser ):
         try:
             app, cls, lid = res
         except ValueError:
-            raise ReferenceError('Cannot parse object location. The format \
-                should be like "metadata/section/293847/"')
+            raise ReferenceError('Cannot parse object location %s. The format \
+                should be like "metadata/section/293847/"' % str(res))
 
         if not app in self._meta.app_prefix_dict.values():
             raise TypeError('This app is not supported: %s' % app)
