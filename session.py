@@ -218,6 +218,18 @@ class Browser(object):
 class Session( Browser ):
     """ Object to handle connection and client-server data transfer """
 
+    _cache_map = {} # map of cached objects, location: reference, like 
+    # _cache_map = {
+    #   'metadata/section/293847/': '5c142e1ace4bfb766dcec1995428dbd99ea057c7',
+    #   'neo/block/198472/': '16613a7b6b2fa4433a2927b6e9a0b0b63a0b419f'
+    # }
+
+    _cache = {} # in-memory cache, contains objects by reference, like
+    # _cache = {
+    #   '5c142e1ace4bfb766dcec1995428dbd99ea057c7': <Section ...>,
+    #   '16613a7b6b2fa4433a2927b6e9a0b0b63a0b419f': <Block ...>
+    # }
+
     def __init__(self, url, username, password, cache_dir=None, temp_dir='/tmp/'):
 
         self.url = url
@@ -233,6 +245,10 @@ class Session( Browser ):
         #sent instead
         #self.auth_cookie = self.cookie_jar['sessionid']
 
+    def clear_cache(self):
+        """ removes all objects from the cache """
+        self._cache_map = {}
+        self._cache = {}
 
     def get(self, obj_type, id=None, params={}, cascade=True, data_load=True):
         """ Gets one or several objects from the server of a given object type.
@@ -288,16 +304,18 @@ class Session( Browser ):
         if not obj_type in self.model_names:
             raise TypeError('Objects of that type are not supported.')
 
-        objects = []
+        objects = [] # resulting objects set
+        headers = {} # request headers
         params['q'] = 'full' # always operate in full mode, see API specs
+        # convert all values to string for a correct GET behavior (encoding??)
+        get_params = dict( [(k, str(v)) for k, v in params.items()] )
+
         url = self.url + self.app_prefix_dict[obj_type] + '/' + str(obj_type) + '/'
 
         if id: # get single obj, add id to the URL
             url += str( int( id ) )
 
-        # convert all values to string for a correct GET behavior (encoding??)
-        get_params = dict( [(k, str(v)) for k, v in params.items()] )
-
+        # do fetch objects from the server
         resp = requests.get(url, params=get_params, cookies=self.cookie_jar)
         raw_json = resp.json()
         if not resp.status_code == 200:
