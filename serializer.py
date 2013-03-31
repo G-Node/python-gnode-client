@@ -109,6 +109,7 @@ class Deserializer(object):
         permalink = json_obj['permalink']
         obj_id = get_id_from_permalink(session._meta.host, permalink)
         obj._gnode['id'] = obj_id
+        obj._gnode['location'] = permalink.replace(session._meta.host, '')
         obj._gnode['permalink'] = permalink
 
         # 6. parse special fields, including ACLs into obj._gnode

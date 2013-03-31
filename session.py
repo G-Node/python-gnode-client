@@ -72,42 +72,94 @@ def load_saved_session(pickle_file):
     with open(filename, 'rb') as pkl_file:
         auth_cookie = pickle.load(pkl_file)
 
-class Meta:
+class Meta( object ):
     """ abstract class to handle settings, auth information for Session """
     pass
 
+class Cache( object ):
+    """ abstract class to handle cached objects and data for Session """
 
-class Session( Browser ):
-    """ Object to handle connection and client-server data transfer """
-
-    _cache_map = {} # map of cached objects, location: reference, like 
+    objs_map = {} # map of cached objects, location: reference, like 
     # _cache_map = {
     #   'metadata/section/293847/': '5c142e1ace4bfb766dcec1995428dbd99ea057c7',
     #   'neo/block/198472/': '16613a7b6b2fa4433a2927b6e9a0b0b63a0b419f'
     # }
 
-    _cache = {} # in-memory cache, contains objects by reference, like
-    # _cache = {
+    objs = {} # in-memory cache, contains objects by reference, like
+    # _cache_objs = {
     #   '5c142e1ace4bfb766dcec1995428dbd99ea057c7': <Section ...>,
     #   '16613a7b6b2fa4433a2927b6e9a0b0b63a0b419f': <Block ...>
     # }
 
+    data_map = {} # map of cached data, contains file paths by id, like
+    # _cache_data = {
+    #   '538472': '/tmp/538472.h5',
+    #   '928464': '/tmp/928464.h5',
+    # }
+
+    def __init__(self, cache_dir, cache_file_name, load_cached_data):
+        self.cache_dir = cache_dir
+        self.cache_file_name = cache_file_name
+        if load_cached_data:
+            self.load_cached_data()
+
+    def add_object(self, obj):
+        """ adds object to cache """
+        self.objs_map[ obj._gnode['location'] ] = obj._gnode['guid']
+        self.objs[ obj._gnode['guid'] ] = obj
+
+    def save_cache():
+        """ saves cached data map """
+        with open(self.cache_dir + self.cache_file_name, 'w') as f:
+            f.write( json.dumps(self.data_map) )
+
+    def load_cached_data():
+        """ loads cached data map and validates cached files """
+        try:
+            # 1. load cache map
+            with open(self.cache_dir + self.cache_file_name, 'r') as f:
+                data_map = json.load(f)
+            print 'Cache file found. Loading...'
+            
+            # 2. validate map
+            not_found = []
+            for lid, filepath in data_map.items():
+                if os.path.exists( filepath ):
+                    self.data_map[ lid ] = filepath
+                not_found.append( filepath )
+            if not_found:
+                to_render = str( not_found )[:100]
+                print 'Some cached files cannot be found, remove them from cache: %s' % to_render
+
+            print 'Cache loaded.'
+
+        except IOError, ValueError:
+            print 'Cache file cannot be parsed. Skip loading cached data.'
+
+
+class Session( Browser ):
+    """ Object to handle connection and client-server data transfer """
+
     def __init__(self, profile_data, model_data):
 
-        meta = Meta() # store all settings in Meta class as _meta attribute
+        # 1. load meta info: store all settings in Meta class as _meta attribute
+        meta = Meta()
         meta.username = profile_data['username']
         meta.password = profile_data['password']
-        meta.cache_dir = os.path.abspath( profile_data['cacheDir'] )
         meta.temp_dir = os.path.abspath( profile_data['tempDir'] )
         meta.max_line_out = profile_data['max_line_out']
-
         meta.host = build_hostname( profile_data )
         meta.app_definitions, meta.model_names, meta.app_prefix_dict = \
             load_app_definitions(model_data)
         meta.app_aliases, meta.cls_aliases = build_alias_dicts( profile_data['alias_map'] )
-
         meta.cookie_jar = authenticate(meta.host, meta.username, meta.password)
         self._meta = meta
+
+        # 2. load cache
+        cache_dir = os.path.abspath( profile_data['cacheDir'] )
+        load_cached_data = bool( profile_data['load_cached_data'] )
+        cache_file_name = profile_data['cache_file_name']
+        self._cache = Cache( cache_dir, cache_file_name, load_cached_data )
 
         #TODO: parse prefixData, apiDefinition, caching, DB
         # M.Pereira:
@@ -120,8 +172,109 @@ class Session( Browser ):
         self._cache_map = {}
         self._cache = {}
 
-    def get(self, obj_type, id=None, params={}, cascade=True, data_load=True):
-        """ Gets one or several objects from the server of a given object type.
+    def pull(self, location, params={}, cascade=True, data_load=True, refresh=False):
+        """ pulls object from the specified location on the server. 
+        caching:    yes
+        cascade:    yes
+        data_load:  yes
+        """
+        location = self._restore_location( location )
+        app, cls, lid = self._parse_location( location )
+
+        headers = {} # request headers
+        params['q'] = 'full' # always operate in full mode, see API specs
+
+        url = '%s%s/%s/%s/' % (self._meta.host, app, cls, str(lid))
+
+        # find object in cache
+        if location in self._cache_map.keys() and not refresh:
+            headers['ETag'] = self._cache_map[ location ]
+
+        # request object from the server (with ETag if no refresh)
+        resp = requests.get(url, params=params, headers=headers, cookies=self._meta.cookie_jar)
+
+        if resp.status_code == 304: # get object from cache
+            guid = self._cache_map[ location ]
+            obj = self._cache[ guid ]
+
+        else:
+
+            # parse response json
+            raw_json = resp.json()
+            if not resp.status_code == 200:
+                message = '%s (%s)' % (raw_json['message'], raw_json['details'])
+                raise errors.error_codes[resp.status_code]( message )
+
+            if not raw_json['selected']:
+                raise ReferenceError('Object does not exist.')
+
+            json_obj = raw_json['selected'][0] # should be single object 
+
+            # fetch attached data if needed
+            data_refs = {} # collects downloaded datafile on-disk references 
+            if has_data( self._meta.app_definitions, cls ):
+                for attr in self._meta.app_definitions[cls]['data_fields']:
+                    attr_value = json_obj['fields'][ attr ]['data']
+                    if is_permalink( attr_value ):
+
+                        fid = str(get_id_from_permalink(self._meta.host, attr_value))
+
+                        if data_load:
+
+                            if not refresh and fid in self._cache.data_map.keys():
+                                # get data from cache
+                                data_refs[ attr ] = self._cache.data_map[ fid ]
+
+                            else: # download related datafile
+                                r = requests.get(attr_value, cookies=self._meta.cookie_jar)
+
+                                temp_name = str(get_id_from_permalink(self._meta.host, attr_value)) + '.h5'
+                                with open( self._cache.cache_dir + temp_name, "w" ) as f:
+                                    f.write( r.content )
+
+                                # collect path to the downloaded datafile
+                                data_refs[ attr ] = self._meta.temp_dir + temp_name
+
+                        else:
+                            data_refs[ attr ] = None
+
+            # parse json (+data) into python object
+            obj = Deserializer.deserialize(json_obj, self, data_refs)
+
+            # save it to cache
+            self._cache.add_object( obj )
+
+        children = self._meta.app_definitions[obj_type]['children'] # child object types
+        if cascade and self._meta.app_definitions[obj_type]['children']:
+            for child in children: # 'child' is like 'segment', 'event' etc.
+
+                if json_obj['fields'][child + '_set']:
+                    rel_objs = []
+
+                    for rel_link in json_obj['fields'][child + '_set']:
+                        # fetching *child*-type objects
+                        rel_obj = self.pull( rel_link, params=params, data_load=data_load, refresh=refresh )
+
+                    if rel_objs: # parse children into parent attrs
+                        for obj in objects: 
+                            related = [x for x in rel_objs if \
+                                getattr(x, '_gnode')[parent_name + '_id'] == obj._gnode['id']]
+                            # a way to assign kids depends on object type
+                            self._assign_child( child, obj, related )
+
+                        # FIXME make a special processing for the Block object to avoid
+                        # downloading some objects twice
+
+        # FIXME test caching of the recursively downloaded objects!
+
+        return obj
+
+
+    def list(self, obj_type, params={}, cascade=False, data_load=False):
+        """ requests objects of a given type from server in bulk mode. 
+        caching:    no
+        cascade:    yes
+        data_load:  yes
 
         Args:
         obj_type: type of the object (like block, segment or section.)
@@ -182,8 +335,8 @@ class Session( Browser ):
 
         url = '%s%s/%s/' % (self._meta.host, self._meta.app_prefix_dict[obj_type], str(obj_type))
 
-        if id: # get single obj, add id to the URL
-            url += str( int( id ) )
+        #if id: # get single obj, add id to the URL
+        #    url += str( int( id ) )
 
         # do fetch objects from the server
         resp = requests.get(url, params=get_params, cookies=self._meta.cookie_jar)
@@ -241,7 +394,7 @@ class Session( Browser ):
                     filt = dict(filt, **{"at_time": params['at_time']})
 
                 # fetching *child*-type objects
-                rel_objs = self.get( child, params=filt, data_load=data_load )
+                rel_objs = self.list( child, params=filt, data_load=data_load )
 
                 if rel_objs:
                     for obj in objects: # parse children into parent attrs
@@ -250,7 +403,14 @@ class Session( Browser ):
                         # a way to assign kids depends on object type
                         self._assign_child( child, obj, related )
 
+                # FIXME make a special processing for the Block object to avoid
+                # downloading some objects twice
+
         return objects
+
+    #---------------------------------------------------------------------------
+    # helper functions
+    #---------------------------------------------------------------------------
 
     def _assign_child(self, child, obj, related):
         """ object type-dependent parser adding children to the given obj """
@@ -261,7 +421,73 @@ class Session( Browser ):
             setattr(obj, child + 's', related)
         return obj
 
+    def _restore_location(self, location):
+        """ restore a full version of the location using alias_map, like
+        'mtd/sec/293847/' -> 'metadata/section/293847/' """
+        l = str( location )
+        if not l.startswith('/'):
+            l = '/' + l
 
+        almap = dict(self._meta.app_aliases.items() + self._meta.cls_aliases.items())
+        for name, alias in almap.items():
+            if l.find(alias) > -1 and l[l.find(alias)-1] == '/' and \
+                l[l.find(alias) + len(alias)] == '/':
+                l = l.replace(alias, name)
+
+        return l
+
+    def _strip_location(self, location):
+        """ make a shorter version of the location using alias_map, like
+        'metadata/section/293847/' -> 'mtd/sec/293847/' """
+        l = str( location )
+        if not l.startswith('/'):
+            l = '/' + l
+
+        almap = dict(self._meta.app_aliases.items() + self._meta.cls_aliases.items())
+        for name, alias in almap.items():
+            if l.find(name) > -1 and l[l.find(name)-1] == '/' and\
+                l[l.find(name) + len(name)] == '/':
+                l = l.replace(name, alias)
+
+        return l
+
+    def _parse_location(self, location):
+        """ extracts app name and object type from the current location, e.g.
+        'metadata' and 'section' from 'metadata/section/293847/' """
+        def is_valid_id( lid ):
+            try:
+                int( lid )
+                return True
+            except ValueError:
+                return False
+
+        l = self._restore_location( location )
+
+        if l.startswith('/'):
+            l = l[ 1 : ]
+        if not l.endswith('/'):
+            l += '/'
+
+        res = []
+        while l:
+            item = l[ : l.find('/') ]
+            res.append( item ) # e.g. 'metadata' or 'section'
+            l = l[ len(item) + 1 : ]
+
+        try:
+            app, cls, lid = res
+        except ValueError:
+            raise ReferenceError('Cannot parse object location. The format \
+                should be like "metadata/section/293847/"')
+
+        if not app in self._meta.app_prefix_dict.values():
+            raise TypeError('This app is not supported: %s' % app)
+        if not cls in self._meta.model_names:
+            raise TypeError('This type of object is not supported: %s' % cls)
+        if not is_valid_id( lid ):
+            raise TypeError('ID of an object must be of "int" type: %s' % lid)
+
+        return app, cls, int(lid)
 
 
     def save(self, obj, *kwargs):
@@ -331,4 +557,8 @@ class Session( Browser ):
         #s = requests.session()
         #s.config['keep_alive'] = False
         requests.get(self._meta.host+'account/logout/', cookies=self._meta.cookie_jar)
+        self._cache.save_cache()
         del(self._meta.cookie_jar)
+
+
+

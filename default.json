@@ -17,9 +17,10 @@
     "apiDefinition": "./requirements.json",
 
     "cacheDir": "./cache/",
+    "cache_file_name": "cache.json",
+    "load_cached_data" : 1,
     "tempDir": "/tmp/",
 
-    "caching" : "MEMORY",
     "db": "",
 
     "max_line_out": 40,
