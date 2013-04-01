@@ -1,4 +1,4 @@
-
+from utils import *
 
 class Browser(object):
     """ ABSTRACT class, implements cmd-type operations like ls, cd etc."""
@@ -27,6 +27,15 @@ class Browser(object):
 
                 out = self._render( objs, out )
                 params.pop( parent_name + '__id' )
+
+            # FIXME exception case for Block -> Section
+            if cls == 'section':
+                params[ 'section__id' ] = lid
+                objs = self.list('block', params=params)
+                if objs:
+                    out += '\nDATA:\n'
+                    out = self._render( objs, out )
+
         else:
             params['parent_section__isnull'] = 1
             objs = self.list('section', params=params)

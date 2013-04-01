@@ -6,6 +6,7 @@
 # http://docs.python-requests.org/en/latest/user/install/
 
 import re
+import sys
 import requests
 import errors
 
@@ -74,7 +75,7 @@ def load_app_definitions( model_data ):
     def parse_prefix( model ):
         if model in ['section', 'property', 'value']:
             return 'metadata'
-        return 'neo'
+        return 'electrophysiology'
 
     app_definitions = dict( model_data )
     model_names = model_data.keys()
@@ -96,5 +97,10 @@ def build_alias_dicts( alias_map ):
 
     return app_aliases, cls_aliases
 
+
+def print_status(text):
+    """ implements single line text output """
+    sys.stdout.write( "\r\x1b[K" + text )
+    sys.stdout.flush()
 
 

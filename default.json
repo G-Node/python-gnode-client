@@ -17,13 +17,14 @@
     "apiDefinition": "./requirements.json",
 
     "cacheDir": "./cache/",
-    "cache_file_name": "cache.json",
+    "cache_file_name": "gnode_cache.json",
     "load_cached_data" : 1,
     "tempDir": "/tmp/",
 
     "db": "",
 
     "max_line_out": 40,
+    "verbose" : 1,
 
     "alias_map": {
         "metadata": {

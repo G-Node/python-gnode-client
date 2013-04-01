@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import os
+import os, sys
 import re
 
 import requests
@@ -8,7 +8,7 @@ import simplejson as json
 
 import errors
 from utils import *
-from serializer import Deserializer
+from serializer import Serializer
 from browser import Browser
 
 try: 
@@ -16,6 +16,9 @@ try:
 except ImportError: 
     import json
 
+#-------------------------------------------------------------------------------
+# common wrapper functions
+#-------------------------------------------------------------------------------
 
 def init(config_file='default.json', models_file='requirements.json'):
     """Initialize session using data specified in a JSON configuration files
@@ -60,7 +63,8 @@ def authenticate(url, username=None, password=None):
 	if not password:
 		password = getpass.getpass('password: ')	
 
-	auth = requests.post(url+'account/authenticate/', {'username': username, 'password': password})
+	auth = requests.post(url+'account/authenticate/', \
+        {'username': username, 'password': password})
 	return auth.cookies
 
 
@@ -72,9 +76,14 @@ def load_saved_session(pickle_file):
     with open(filename, 'rb') as pkl_file:
         auth_cookie = pickle.load(pkl_file)
 
+#-------------------------------------------------------------------------------
+# core Client classes
+#-------------------------------------------------------------------------------
+
 class Meta( object ):
     """ abstract class to handle settings, auth information for Session """
     pass
+
 
 class Cache( object ):
     """ abstract class to handle cached objects and data for Session """
@@ -108,30 +117,39 @@ class Cache( object ):
         self.objs_map[ obj._gnode['location'] ] = obj._gnode['guid']
         self.objs[ obj._gnode['guid'] ] = obj
 
+    def clear_cache(self):
+        """ removes all objects from the cache """
+        self.objs_map = {}
+        self.objs = {}
+        self.data_map = {}
+        self.save_cache()
+        # TODO clear files from disk??
+
     def save_cache(self):
-        """ saves cached data map """
+        """ saves cached data map to disk """
         with open(self.cache_dir + self.cache_file_name, 'w') as f:
             f.write( json.dumps(self.data_map) )
 
     def load_cached_data(self):
-        """ loads cached data map and validates cached files """
+        """ loads cached data map from disk and validates cached files """
         try:
             # 1. load cache map
             with open(self.cache_dir + self.cache_file_name, 'r') as f:
                 data_map = json.load(f)
-            print 'Cache file found. Loading...'
+            print_status( 'Cache file found. Loading...' )
             
             # 2. validate map
             not_found = []
             for lid, filepath in data_map.items():
                 if os.path.exists( filepath ):
                     self.data_map[ lid ] = filepath
-                not_found.append( filepath )
+                else:
+                    not_found.append( filepath )
             if not_found:
                 to_render = str( not_found )[:100]
                 print 'Some cached files cannot be found, remove them from cache: %s' % to_render
 
-            print 'Cache loaded.'
+            print 'Cache loaded (%d).' % len( self.data_map.keys() )
 
         except IOError:
             print 'No saved cached data found, cache is empty.'
@@ -150,6 +168,7 @@ class Session( Browser ):
         meta.password = profile_data['password']
         meta.temp_dir = os.path.abspath( profile_data['tempDir'] )
         meta.max_line_out = profile_data['max_line_out']
+        meta.verbose = bool( profile_data['verbose'] )
         meta.host = build_hostname( profile_data )
         meta.app_definitions, meta.model_names, meta.app_prefix_dict = \
             load_app_definitions(model_data)
@@ -173,14 +192,17 @@ class Session( Browser ):
 
     def clear_cache(self):
         """ removes all objects from the cache """
-        self._cache_map = {}
-        self._cache = {}
+        self._cache.clear_cache()
 
-    def pull(self, location, params={}, cascade=True, data_load=True):
+    def pull(self, location, params={}, cascade=True, data_load=True, _top=True):
         """ pulls object from the specified location on the server. 
         caching:    yes
         cascade:    yes
         data_load:  yes
+
+        _top:       reserved parameter used to detect the top function call in
+                    cascade (recursive) mode. This is needed to save cache and
+                    make correct printing after new objects are fetched.
         """
         if is_permalink( location ):
             location = location.replace(self._meta.host, '')
@@ -203,7 +225,7 @@ class Session( Browser ):
             guid = self._cache.objs_map[ location ]
             obj = self._cache.objs[ guid ]
 
-            print '%s loaded from cache.\r' % location
+            print_status('%s loaded from cache.' % location)
 
         else: # request from server
 
@@ -218,75 +240,49 @@ class Session( Browser ):
 
             json_obj = raw_json['selected'][0] # should be single object 
 
-            # fetch attached data if needed
-            data_refs = {} # collects downloaded datafile on-disk references 
-            if has_data( self._meta.app_definitions, cls ):
-                for attr in self._meta.app_definitions[cls]['data_fields']:
-                    attr_value = json_obj['fields'][ attr ]['data']
-                    if is_permalink( attr_value ):
-
-                        fid = str(get_id_from_permalink(self._meta.host, attr_value))
-
-                        if data_load:
-
-                            if fid in self._cache.data_map.keys(): # get data from cache
-                                data_refs[ attr ] = self._cache.data_map[ fid ]
-
-                            else: # download related datafile
-
-                                print 'loading datafile %s from server...\r' % fid
-
-                                r = requests.get(attr_value, cookies=self._meta.cookie_jar)
-
-                                temp_name = str(get_id_from_permalink(self._meta.host, attr_value)) + '.h5'
-                                with open( self._cache.cache_dir + temp_name, "w" ) as f:
-                                    f.write( r.content )
-
-                                # save filepath to the cache
-                                self._cache.data_map[ fid ] = self._meta.temp_dir + temp_name
-
-                                print 'datafile %s fetched from server.' % fid
-
-                                # collect path to the downloaded datafile
-                                data_refs[ attr ] = self._meta.temp_dir + temp_name
-
-                        else:
-                            data_refs[ attr ] = None
+            # download attached data if requested
+            data_refs = self._parse_data_from_json(cls, json_obj, data_load=data_load)
 
             # parse json (+data) into python object
-            obj = Deserializer.deserialize(json_obj, self, data_refs)
+            obj = Serializer.deserialize(json_obj, self, data_refs)
 
             # save it to cache
             self._cache.add_object( obj )
 
-            print '%s fetched from server.\r' % location
+            print_status("%s fetched from server." % location)
 
         children = self._meta.app_definitions[cls]['children'] # child object types
         if cascade and self._meta.app_definitions[cls]['children']:
             for child in children: # 'child' is like 'segment', 'event' etc.
 
-                if json_obj['fields'][child + '_set']:
+                field_name = child + '_set'
+                if obj._gnode.has_key( field_name ) and obj._gnode[ field_name ]:
                     rel_objs = []
 
-                    for rel_link in json_obj['fields'][child + '_set']:
+                    for rel_link in obj._gnode[ field_name ]:
                         # fetching *child*-type objects
-                        rel_objs.append( self.pull( rel_link, params=params, data_load=data_load ) )
+                        ch = self.pull( rel_link, params=params, data_load=data_load, _top=False )
+                        rel_objs.append( ch )
 
                     if rel_objs: # parse children into parent attrs
                         # a way to assign kids depends on object type
                         self._assign_child( child, obj, rel_objs )
 
+        if _top: # end of the function call if run in recursive mode
+            print_status( 'Object(s) loaded.\n' )
+            self._cache.save_cache() # updates on-disk cache with new objects
+
         return obj
 
 
-    def list(self, obj_type, params={}, cascade=False, data_load=False):
+    def list(self, cls, params={}, cascade=False, data_load=False, _top=True):
         """ requests objects of a given type from server in bulk mode. 
         caching:    no
         cascade:    yes
         data_load:  yes
 
         Args:
-        obj_type: type of the object (like block, segment or section.)
+        cls: type of the object (like 'block', 'segment' or 'section'.)
 
         obj_id: id of the single object to retrieve (caching works here)
 
@@ -323,6 +319,9 @@ class Session( Browser ):
                 is applied on top of the selected data range using other
                 parameters (if specified)
 
+        _top:       reserved parameter used to detect the top function call in
+                    cascade (recursive) mode. This is needed to save cache and
+                    make correct printing after new objects are fetched.
         Examples:
         get('analogsignal', obj_id=38551, params={'downsample': 100})
         get('analogsignal', params={'segment__id': 93882, 'start_time': 500.0})
@@ -330,10 +329,10 @@ class Session( Browser ):
 
         """
         # resolve alias - short model name like 'rcg' -> 'recordingchannelgroup'
-        if obj_type in self._meta.cls_aliases.values():
-            obj_type = [k for k, v in self._meta.cls_aliases.items() if v==obj_type][0]
+        if cls in self._meta.cls_aliases.values():
+            cls = [k for k, v in self._meta.cls_aliases.items() if v==cls][0]
 
-        if not obj_type in self._meta.model_names:
+        if not cls in self._meta.model_names:
             raise TypeError('Objects of that type are not supported.')
 
         objects = [] # resulting objects set
@@ -342,12 +341,9 @@ class Session( Browser ):
         # convert all values to string for a correct GET behavior (encoding??)
         get_params = dict( [(k, str(v)) for k, v in params.items()] )
 
-        url = '%s%s/%s/' % (self._meta.host, self._meta.app_prefix_dict[obj_type], str(obj_type))
+        url = '%s%s/%s/' % (self._meta.host, self._meta.app_prefix_dict[cls], str(cls))
 
-        #if id: # get single obj, add id to the URL
-        #    url += str( int( id ) )
-
-        # do fetch objects from the server
+        # do fetch list of objects from the server
         resp = requests.get(url, params=get_params, cookies=self._meta.cookie_jar)
         raw_json = resp.json()
         if not resp.status_code == 200:
@@ -359,43 +355,28 @@ class Session( Browser ):
 
         for json_obj in raw_json['selected']:
 
-            # 1. download attached data if needed
-            data_refs = {} # collects downloaded datafile on-disk references 
-            if has_data( self._meta.app_definitions, obj_type ):
-                for attr in self._meta.app_definitions[obj_type]['data_fields']:
-                    attr_value = json_obj['fields'][ attr ]['data']
-                    if is_permalink( attr_value ):
+            # download attached data if requested
+            data_refs = self._parse_data_from_json(cls, json_obj, data_load=data_load)
 
-                        if data_load:
-                            # download related datafile
-                            r = requests.get(attr_value, cookies=self._meta.cookie_jar)
-
-                            temp_name = str(get_id_from_permalink(self._meta.host, attr_value)) + '.h5'
-                            with open( self._meta.temp_dir + temp_name, "w" ) as f:
-                                f.write( r.content )
-
-                            # collect path to the downloaded datafile
-                            data_refs[ attr ] = self._meta.temp_dir + temp_name
-
-                        else:
-                            data_refs[ attr ] = None
-
-            # 2. parse json (+data) into python object
-            obj = Deserializer.deserialize(json_obj, self, data_refs)
+            # parse json (+data) into python object
+            obj = Serializer.deserialize(json_obj, self, data_refs)
 
             objects.append(obj)
 
-        children = self._meta.app_definitions[obj_type]['children'] # child object types
-        if cascade and self._meta.app_definitions[obj_type]['children']:
+        print_status('%s(s) fetched.' % cls)
+
+        # fetch children 'in bulk'
+        children = self._meta.app_definitions[cls]['children'] # child object types
+        if cascade and self._meta.app_definitions[cls]['children']:
             parent_ids = [obj._gnode['id'] for obj in objects]
 
             for child in children: # 'child' is like 'segment', 'event' etc.
 
                 # filter to fetch objects of type child for ALL parents
                 # FIXME dirty fix!! stupid data model inconsistency
-                parent_name = obj_type
-                if (obj_type == 'section' and child == 'section') or \
-                    (obj_type == 'property' and child == 'value'):
+                parent_name = cls
+                if (cls == 'section' and child == 'section') or \
+                    (cls == 'property' and child == 'value'):
                     parent_name = 'parent_' + parent_name
 
                 filt = { parent_name + '__id__in': parent_ids }
@@ -403,7 +384,7 @@ class Session( Browser ):
                     filt = dict(filt, **{"at_time": params['at_time']})
 
                 # fetching *child*-type objects
-                rel_objs = self.list( child, params=filt, data_load=data_load )
+                rel_objs = self.list( child, params=filt, data_load=data_load, _top=False )
 
                 if rel_objs:
                     for obj in objects: # parse children into parent attrs
@@ -415,19 +396,67 @@ class Session( Browser ):
                 # FIXME make a special processing for the Block object to avoid
                 # downloading some objects twice
 
+        if _top: # end of the function call if run in recursive mode
+            print_status( 'Object(s) loaded.\n' )
+            self._cache.save_cache() # updates on-disk cache with new objects
+
         return objects
 
     #---------------------------------------------------------------------------
     # helper functions
     #---------------------------------------------------------------------------
 
+    def _parse_data_from_json(self, cls, json_obj, data_load=True):
+        """ parses incoming json object representation and fetches related 
+        object data, either from cache or from the server. """
+        data_refs = {} # collects downloaded datafile on-disk references 
+
+        if has_data( self._meta.app_definitions, cls ):
+            for attr in self._meta.app_definitions[cls]['data_fields']:
+                attr_value = json_obj['fields'][ attr ]['data']
+                if is_permalink( attr_value ):
+
+                    fid = str(get_id_from_permalink(self._meta.host, attr_value))
+
+                    if data_load:
+
+                        if fid in self._cache.data_map.keys(): # get data from cache
+                            data_refs[ attr ] = self._cache.data_map[ fid ]
+
+                        else: # download related datafile
+
+                            print_status('loading datafile %s from server...' % fid)
+
+                            r = requests.get(attr_value, cookies=self._meta.cookie_jar)
+
+                            temp_name = str(get_id_from_permalink(self._meta.host, attr_value)) + '.h5'
+                            with open( self._cache.cache_dir + temp_name, "w" ) as f:
+                                f.write( r.content )
+
+                            # save filepath to the cache
+                            self._cache.data_map[ fid ] = self._cache.cache_dir + temp_name
+
+                            print 'datafile %s fetched from server.' % fid
+
+                            # collect path to the downloaded datafile
+                            data_refs[ attr ] = self._cache.cache_dir + temp_name
+
+                    else:
+                        data_refs[ attr ] = None
+
+        return data_refs
+
     def _assign_child(self, child, obj, related):
         """ object type-dependent parser adding children to the given obj """
         if child in ['section', 'property', 'value']:
+            attr_name = child + 's'
+            if child == 'property':
+                attr_name = 'properties'
             for rel in related:
-                obj.append( rel )
+                if not rel in getattr(obj, attr_name): # avoid duplicates
+                    obj.append( rel )
         else:
-            setattr(obj, child + 's', related)
+            setattr(obj, child + 's', related) # raplace all
         return obj
 
     def _restore_location(self, location):
@@ -443,6 +472,7 @@ class Session( Browser ):
                 l[l.find(alias) + len(alias)] == '/':
                 l = l.replace(alias, name)
 
+        l = l[1:] # remove preceeding slash
         if not l.endswith('/'):
             l += '/'
 

@@ -55,7 +55,7 @@ models_map = {
 }
 
 
-class Deserializer(object):
+class Serializer(object):
 
     @classmethod
     def deserialize(cls, json_obj, session, data_refs):
@@ -86,10 +86,10 @@ class Deserializer(object):
                             carray = f.listNodes( "/" )[0]
                             data_value = np.array( carray[:] )
 
-                    else: # a dummy array given. request in a 'no-data' mode
+                    else: # init a dummy array for 'no-data' requests
                         data_value = np.array( [0] )
 
-                else: # plain data field
+                else: # plain data field (single value)
                     data_value = fields[ attr ]['data'] 
 
                 kwargs[ attr ] = data_value * units_dict[ fields[attr]['units'] ]
@@ -137,6 +137,12 @@ class Deserializer(object):
                 else:
                     obj._gnode[par_attr + '_id'] = ids
                     obj._gnode[par_attr] = par_val
+
+        # 8. parse children permalinks into obj._gnode
+        for child in app_definition['children']:
+            field_name = child + '_set'
+            if fields.has_key( field_name ):
+                obj._gnode[ field_name ] = fields[ field_name ]
 
         return obj
 
