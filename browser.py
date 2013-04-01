@@ -12,6 +12,7 @@ class Browser(object):
         params = dict( self.ls_filt.items() + filt.items() )
 
         if self.location:
+            out += 'location %s:\n' % self.location
             app, cls, lid = self._parse_location( self.location )
 
             for child in self._meta.app_definitions[ cls ]['children']:
