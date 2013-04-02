@@ -104,3 +104,10 @@ def print_status(text):
     sys.stdout.flush()
 
 
+def get_json_from_response( resp ):
+    """ requests library handles json depending on the platform, resolve """
+    if type( resp.json ) == type( {} ):
+        return resp.json
+    return resp.json()
+
+

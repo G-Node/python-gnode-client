@@ -6,14 +6,17 @@ class Browser(object):
     ls_filt = {} # dispslay filters
     location = '' # current location, like 'metadata/section/293847/'
 
-    def ls(self, filt={}):
+    def ls(self, location=None, filt={}):
         """ cmd-type ls function """
         out = '' # output
         params = dict( self.ls_filt.items() + filt.items() )
 
-        if self.location:
-            out += 'location %s:\n' % self.location
-            app, cls, lid = self._parse_location( self.location )
+        if not location: # if not given use the current one
+            location = self.location
+
+        if location:
+            out += 'location %s:\n' % location
+            app, cls, lid = self._parse_location( location )
 
             for child in self._meta.app_definitions[ cls ]['children']:
 
@@ -42,7 +45,7 @@ class Browser(object):
             objs = self.list('section', params=params)
             out = self._render( objs, out )
 
-        print out
+        print_status( out )
 
     def cd(self, location=''):
         """ changes the current location within the data structure """

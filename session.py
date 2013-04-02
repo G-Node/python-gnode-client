@@ -230,7 +230,7 @@ class Session( Browser ):
         else: # request from server
 
             # parse response json
-            raw_json = resp.json()
+            raw_json = get_json_from_response( resp )
             if not resp.status_code == 200:
                 message = '%s (%s)' % (raw_json['message'], raw_json['details'])
                 raise errors.error_codes[resp.status_code]( message )
@@ -345,7 +345,8 @@ class Session( Browser ):
 
         # do fetch list of objects from the server
         resp = requests.get(url, params=get_params, cookies=self._meta.cookie_jar)
-        raw_json = resp.json()
+        raw_json = get_json_from_response( resp )
+
         if not resp.status_code == 200:
             message = '%s (%s)' % (raw_json['message'], raw_json['details'])
             raise errors.error_codes[resp.status_code]( message )
@@ -397,7 +398,7 @@ class Session( Browser ):
                 # downloading some objects twice
 
         if _top: # end of the function call if run in recursive mode
-            print_status( 'Object(s) loaded.\n' )
+            #print_status( 'Object(s) loaded.\n' )
             self._cache.save_cache() # updates on-disk cache with new objects
 
         return objects
