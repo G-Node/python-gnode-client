@@ -98,6 +98,12 @@ def build_alias_dicts( alias_map ):
     return app_aliases, cls_aliases
 
 
+def cut_to_render( text, count=30 ):
+    if len( text ) < count:
+        return text
+    return text[ : count-3] + '..'
+
+
 def print_status(text):
     """ implements single line text output """
     sys.stdout.write( "\r\x1b[K" + text )

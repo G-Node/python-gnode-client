@@ -6,9 +6,22 @@ import simplejson as json
 import numpy as np
 import quantities as pq
 import neo
-file
 from errors import NotInDataStorage, NotBoundToSession, error_codes
-from utils import Property
+
+from utils import *
+
+
+
+class Metadata(object):
+    """ class containing metadata property-value pairs for a single object. """
+
+    def __repr__(self):
+        out = ''
+        for p_name, prp in self.__dict__.items():
+            property_out = cut_to_render( p_name, 20 )
+            value_out = cut_to_render( str(prp.value.data) )
+            out += '%s: %s\n' % ( property_out, value_out )
+        return out
 
 
 class BaseObject(object):

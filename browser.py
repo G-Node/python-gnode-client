@@ -1,18 +1,23 @@
 from utils import *
 
+
 class Browser(object):
     """ ABSTRACT class, implements cmd-type operations like ls, cd etc."""
 
-    ls_filt = {} # dispslay filters
-    location = '' # current location, like 'metadata/section/293847/'
+    ls_config = {
+        'ls_filt': {}, # dispslay filters
+        'location': '', # current location, like 'metadata/section/293847/'
+        'default_ls_mode': 'metadata', # browsing by metadata is default
+        'ls_modes': ['data', 'metadata'] # could browse in data mode too
+    }
 
     def ls(self, location=None, filt={}):
         """ cmd-type ls function """
         out = '' # output
-        params = dict( self.ls_filt.items() + filt.items() )
+        params = dict( self.ls_config['ls_filt'].items() + filt.items() )
 
         if not location: # if not given use the current one
-            location = self.location
+            location = self.ls_config['location']
 
         if location:
             out += 'location %s:\n' % location
@@ -41,8 +46,13 @@ class Browser(object):
                     out = self._render( objs, out )
 
         else:
-            params['parent_section__isnull'] = 1
-            objs = self.list('section', params=params)
+            if self.ls_config['default_ls_mode'] == 'data':
+                objs = self.list('block', params=params)
+
+            else: # metadata mode otherwise
+                params['parent_section__isnull'] = 1
+                objs = self.list('section', params=params)
+
             out = self._render( objs, out )
 
         print_status( out )
@@ -50,7 +60,7 @@ class Browser(object):
     def cd(self, location=''):
         """ changes the current location within the data structure """
         if location == '':
-            self.location = ''
+            self.ls_config['location'] = ''
             print 'back to root'
 
         else:
@@ -62,7 +72,7 @@ class Browser(object):
             # 2. get the object at the location
             obj = self.pull(url, cascade=False, data_load=False)
 
-            self.location = url
+            self.ls_config['location'] = url
             print "entered %s" % url
 
 

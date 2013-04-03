@@ -17,6 +17,8 @@ from odml.section import BaseSection
 from odml.property import BaseProperty
 from odml.value import BaseValue
 
+from models import Metadata
+
 units_dict = {
     'V': pq.V,
     'mV': pq.mV,
@@ -58,7 +60,7 @@ models_map = {
 class Serializer(object):
 
     @classmethod
-    def deserialize(cls, json_obj, session, data_refs):
+    def deserialize(cls, json_obj, session, data_refs={}, metadata=None):
         args = [] # args to init an object
         kwargs = {} # kwargs to init an object
 
@@ -103,7 +105,9 @@ class Serializer(object):
 
         # 4. init object
         obj = model( *args, **kwargs )
-        setattr(obj, '_gnode', {})
+        setattr(obj, '_gnode', {}) # reserved info
+        if metadata:
+            setattr(obj, 'metadata', metadata) # tagged metadata
 
         # 5. parse id from permalink and save it into obj._gnode
         permalink = json_obj['permalink']

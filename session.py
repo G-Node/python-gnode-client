@@ -10,6 +10,7 @@ import errors
 from utils import *
 from serializer import Serializer
 from browser import Browser
+from models import Metadata
 
 try: 
     import simplejson as json
@@ -67,14 +68,6 @@ def authenticate(url, username=None, password=None):
         {'username': username, 'password': password})
 	return auth.cookies
 
-
-def load_saved_session(pickle_file):
-    """Load a previously saved session
-    """
-    #TODO: finish this
-    import pickle
-    with open(filename, 'rb') as pkl_file:
-        auth_cookie = pickle.load(pkl_file)
 
 #-------------------------------------------------------------------------------
 # core Client classes
@@ -243,8 +236,11 @@ class Session( Browser ):
             # download attached data if requested
             data_refs = self._parse_data_from_json(cls, json_obj, data_load=data_load)
 
+            # download attached metadata if exists
+            metadata = self._fetch_metadata_by_json(cls, json_obj)
+
             # parse json (+data) into python object
-            obj = Serializer.deserialize(json_obj, self, data_refs)
+            obj = Serializer.deserialize(json_obj, self, data_refs, metadata)
 
             # save it to cache
             self._cache.add_object( obj )
@@ -336,7 +332,6 @@ class Session( Browser ):
             raise TypeError('Objects of that type are not supported.')
 
         objects = [] # resulting objects set
-        headers = {} # request headers
         params['q'] = 'full' # always operate in full mode, see API specs
         # convert all values to string for a correct GET behavior (encoding??)
         get_params = dict( [(k, str(v)) for k, v in params.items()] )
@@ -403,9 +398,135 @@ class Session( Browser ):
 
         return objects
 
+
+    def sync_all(self, *args, **kwargs):
+        """ sync a given object with all nested objects recursively """
+        kwargs['cascade'] = True
+        return self.sync( args, kwargs )
+
+
+    def sync(self, obj, cascade=False):
+        raise NotImplementedError
+
+        if not hasattr(obj, '_gnode'): # new object, create
+            # save related data to disk in HDF5
+            # file_refs is a dict like {'signal': '/tmp/signal.h5/', ...}
+            file_refs = Serializer.flush_rel_data( obj )
+
+            # push data to the server
+            # data_refs is a dict like {'signal': 'http://host:/neo/signal/148348', ...}
+            data_refs = self._push_related_data( rel_refs )
+
+            # push related metadata if exists
+            ???meta_refs = self._push_related_metadata( obj )
+
+            json_obj = Serializer.serialize( obj, data_refs )
+
+            resp = requests.post( url, data=json_obj )
+            raw_json = get_json_from_response( resp )
+
+            if not resp.status_code == 201:
+                message = '%s (%s)' % (raw_json['message'], raw_json['details'])
+                raise errors.error_codes[resp.status_code]( message )
+
+            Serializer.extend( obj, raw_json['selected'] )
+
+        else: # sync existing object, if possible
+            headers = {'If-none-match': obj._gnode['guid']}
+
+            # request object from the server (with ETag)
+            resp = requests.get(url, params=params, headers=headers, cookies=self._meta.cookie_jar)
+
+
+
+
+        # is cascade made recursive sync
+        if cascade:
+            pass
+
+
+
+
+
+
+    def delete(self, obj_type, obj_id=None, *kwargs):
+        """ delete (archive) one or several objects on the server """
+        raise NotImplementedError
+
+
+    def save_session(self, filename):
+        """ Save the data necessary to restart current session (cookies, ...)"""
+        raise NotImplementedError
+
+
+    def load_session(self, filename):
+        """Load a previously saved session """
+        raise NotImplementedError
+
+
+    def shutdown(self):
+        """ Logs out and saves cache. """
+        #TODO: which other actions should be accomplished?
+        # M.Pereira:
+        # Notes: does not seem to be necessary to GC, close sockets, etc...
+        # Requests keeps connections alive for performance increase but doesn't
+        # seem to have a method to close a connection other than disabling this
+        # feature all together
+        #s = requests.session()
+        #s.config['keep_alive'] = False
+        requests.get(self._meta.host + 'account/logout/', cookies=self._meta.cookie_jar)
+
+        self._cache.save_cache()
+
+        del(self._meta.cookie_jar)
+
     #---------------------------------------------------------------------------
     # helper functions
     #---------------------------------------------------------------------------
+
+    def _fetch_metadata_by_json(self, cls, json_obj):
+        """ parses incoming json object representation and fetches related 
+        object metadata from the server. Returns None or the Metadata object """
+        if not json_obj['fields'].has_key('metadata') or not json_obj['fields']['metadata']:
+            return None # no metadata field or empty metadata
+
+        """ an alternative way to fetch metadata - by calling 'neo/sig/293847/metadata'
+        url = json_obj['permalink']
+        if not url.endswith('/'):
+            url += '/'
+
+        resp = requests.get( url + 'metadata' , cookies=self._meta.cookie_jar )
+        raw_json = get_json_from_response( resp )
+
+        if not resp.status_code == 200:
+            message = '%s (%s)' % (raw_json['message'], raw_json['details'])
+            raise errors.error_codes[resp.status_code]( message )
+
+        if not raw_json['metadata']: # if no objects exist return empty result
+            return None
+
+        mobj = Metadata()
+        for p, v in raw_json['metadata']:
+            prp = Serializer.deserialize(p, self)
+            val = Serializer.deserialize(v, self)
+            prp.append( val )
+
+            # save both objects to cache
+            self._cache.add_object( prp )
+            self._cache.add_object( val )
+
+            setattr( mobj, prp.name, prp )
+        """
+        mobj = Metadata()
+        for vlink in json_obj['fields']['metadata']:
+            val = self.pull( vlink, cascade=False, data_load=False )
+            prp = self.pull( val._gnode['parent_property'], cascade=False, data_load=False )
+            prp.append( val )
+
+            setattr( mobj, prp.name, prp )
+
+        return mobj # Metadata object with list of properties (tags)
+
 
     def _parse_data_from_json(self, cls, json_obj, data_load=True):
         """ parses incoming json object representation and fetches related 
@@ -437,7 +558,7 @@ class Session( Browser ):
                             # save filepath to the cache
                             self._cache.data_map[ fid ] = self._cache.cache_dir + temp_name
 
-                            print 'datafile %s fetched from server.' % fid
+                            print 'done.'
 
                             # collect path to the downloaded datafile
                             data_refs[ attr ] = self._cache.cache_dir + temp_name
@@ -533,75 +654,9 @@ class Session( Browser ):
         return app, cls, int(lid)
 
 
-    def save(self, obj, *kwargs):
-        """ Saves or updates object to the server """
-        # serialize to JSON
-
-        if obj.permalink:
-            url = obj.permalink +'/'
-
-        else:
-            url = self.data_url+obj.obj_type+'/'
-
-        json_dict = None
-        #TODO: serialize object
-        requests.post(url, data=json.dump(json_dict), cookies=self._meta.cookie_jar)
-
-
-    def list_objects(self, object_type, params=None):
-        """Get a list of objects
-
-        Args:
-            object_type: the type of NEO objects to query for (e.g.'analogsignal')
-            params: a dictionary containing parameters to restrict the search
-                safety_level (1,3): 3 for private or 1 for public items
-                offset (int): useful for cases when more than 1000 results are listed
-                q (str): controls the amount of information about the received objects
-                    'link' -- just permalink
-                    'info' -- object with local attributes
-                    'beard' -- object with local attributes AND foreign keys resolved
-                    'data' -- data-arrays or any high-volume data associated
-                    'full' -- everything mentioned above
-
-        Example call: list_objects('analogsignal', {'safety_level': '3','q': 'link'})
-        """
-        #TODO: parse the JSON object received and display it in a pretty way?
-        resp = requests.get(self.data_url+str(object_type)+'/', params=params,
-            cookies=self._meta.cookie_jar)
-
-        if resp.status_code == 200:
-            return resp.json
-        else:
-            raise errors.error_codes[resp.status_code]
-
-
-    def bulk_update(self, obj_type, *kwargs):
+    def _bulk_update(self, obj_type, *kwargs):
         """ update several homogenious objects on the server """
-        pass
-
-
-    def delete(self, obj_type, obj_id=None, *kwargs):
-        """ delete (archive) one or several objects on the server """
-        pass
-
-    def save_session(self, filename):
-        """Save the data necessary to restart current session (cookies, etc..)
-        """
-        import pickle
-
-    def shutdown(self):
-        """Log out.
-        """
-        #TODO: which other actions should be accomplished?
-        #Notes: does not seem to be necessary to GC, close sockets, etc...
-        #Requests keeps connections alive for performance increase but doesn't
-        #seem to have a method to close a connection other than disabling this
-        #feature all together
-        #s = requests.session()
-        #s.config['keep_alive'] = False
-        requests.get(self._meta.host+'account/logout/', cookies=self._meta.cookie_jar)
-        self._cache.save_cache()
-        del(self._meta.cookie_jar)
+        raise NotImplementedError
 
 
 
