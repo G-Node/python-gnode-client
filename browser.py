@@ -7,7 +7,7 @@ class Browser(object):
     ls_config = {
         'ls_filt': {}, # dispslay filters
         'location': '', # current location, like 'metadata/section/293847/'
-        'default_ls_mode': 'metadata', # browsing by metadata is default
+        'mode': 'metadata', # browsing by metadata is default
         'ls_modes': ['data', 'metadata'] # could browse in data mode too
     }
 
@@ -46,7 +46,7 @@ class Browser(object):
                     out = self._render( objs, out )
 
         else:
-            if self.ls_config['default_ls_mode'] == 'data':
+            if self.ls_config['mode'] == 'data':
                 objs = self.list('block', params=params)
 
             else: # metadata mode otherwise

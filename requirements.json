@@ -177,9 +177,13 @@
       "date_created",
       "guid"
     ],
-    "data_fields": [
-      "times"
-    ],
+    "data_fields": {
+      "times": [
+        "times",
+        "times",
+        "times"
+      ]
+    },
     "init_args": [
 
     ],
@@ -207,9 +211,13 @@
       "date_created",
       "guid"
     ],
-    "data_fields": [
-      "time"
-    ],
+    "data_fields": {
+      "time": [
+        "time",
+        "time",
+        "time"
+      ]
+    },
     "init_args": [
       "time",
       "label"
@@ -237,10 +245,18 @@
       "date_created",
       "guid"
     ],
-    "data_fields": [
-      "times",
-      "durations"
-    ],
+    "data_fields": {
+      "times": [
+        "times",
+        "times",
+        "times"
+      ],
+      "durations": [
+        "durations",
+        "durations",
+        "durations"
+      ]
+    },
     "init_args": [
 
     ],
@@ -269,10 +285,18 @@
       "date_created",
       "guid"
     ],
-    "data_fields": [
-      "time",
-      "duration"
-    ],
+    "data_fields": {
+      "time": [
+        "time",
+        "time",
+        "time"
+      ],
+      "duration": [
+        "duration",
+        "duration",
+        "duration"
+      ]
+    },
     "init_args": [
       "time",
       "duration",
@@ -391,12 +415,28 @@
       "date_created",
       "guid"
     ],
-    "data_fields": [
-      "t_start",
-      "t_stop",
-      "times",
-      "waveforms"
-    ],
+    "data_fields": {
+      "t_start": [
+        "t_start",
+        "t_start",
+        "t_start"
+      ],
+      "t_stop": [
+        "t_stop",
+        "t_stop",
+        "t_stop"
+      ],
+      "times": [
+        "times",
+        "times",
+        "times"
+      ],
+      "waveforms": [
+        "waveforms",
+        "waveforms",
+        "waveforms"
+      ]
+    },
     "init_args": [
       "times",
       "t_stop"
@@ -426,11 +466,23 @@
       "date_created",
       "guid"
     ],
-    "data_fields": [
-      "sampling_rate",
-      "t_start",
-      "signal"
-    ],
+    "data_fields": {
+      "sampling_rate": [
+        "sampling_rate",
+        "sampling_rate",
+        "sampling_rate"
+      ],
+      "t_start": [
+        "t_start",
+        "t_start",
+        "t_start"
+      ],
+      "signal": [
+        "signal",
+        "signal",
+        "self"
+      ]
+    },
     "init_args": [
       "signal"
     ],
@@ -459,11 +511,23 @@
       "date_created",
       "guid"
     ],
-    "data_fields": [
-      "sampling_rate",
-      "t_start",
-      "signal"
-    ],
+    "data_fields": {
+      "sampling_rate": [
+        "sampling_rate",
+        "sampling_rate",
+        "sampling_rate"
+      ],
+      "t_start": [
+        "t_start",
+        "t_start",
+        "t_start"
+      ],
+      "signal": [
+        "signal",
+        "signal",
+        "self"
+      ]
+    },
     "init_args": [
       "signal"
     ],
@@ -493,11 +557,23 @@
       "date_created",
       "guid"
     ],
-    "data_fields": [
-      "t_start",
-      "signal",
-      "times"
-    ],
+    "data_fields": {
+      "t_start": [
+        "t_start",
+        "t_start",
+        "t_start"
+      ],
+      "signal": [
+        "signal",
+        "signal",
+        "self"
+      ],
+      "times": [
+        "times",
+        "times",
+        "self"
+      ]
+    },
     "init_args": [
       "times",
       "signal"
@@ -527,12 +603,28 @@
       "date_created",
       "guid"
     ],
-    "data_fields": [
-      "left_sweep",
-      "time",
-      "sampling_rate",
-      "waveform"
-    ],
+    "data_fields": {
+      "left_sweep": [
+        "left_sweep",
+        "left_sweep",
+        "left_sweep"
+      ],
+      "time": [
+        "time",
+        "time",
+        "time"
+      ],
+      "sampling_rate": [
+        "sampling_rate",
+        "sampling_rate",
+        "sampling_rate"
+      ],
+      "waveform": [
+        "waveform",
+        "waveform",
+        "waveform"
+      ]
+    },
     "init_args": [
 
     ],

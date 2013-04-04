@@ -10,7 +10,40 @@ from errors import NotInDataStorage, NotBoundToSession, error_codes
 
 from utils import *
 
+units_dict = {
+    'V': pq.V,
+    'mV': pq.mV,
+    'uV': pq.uV,
+    's': pq.s,
+    'ms': pq.ms,
+    'us': pq.us,
+    'MHz': pq.MHz,
+    'kHz': pq.kHz,
+    'Hz': pq.Hz,
+    '1/s': pq.Hz
+}
 
+models_map = {
+    'section': BaseSection,
+    'property': BaseProperty,
+    'value': BaseValue
+    'block': Block,
+    'segment': Segment,
+    'event': Event,
+    'eventarray': EventArray,
+    'epoch': Epoch,
+    'epocharray': EpochArray,
+    'unit': Unit,
+    'spiketrain': SpikeTrain,
+    'analogsignal': AnalogSignal,
+    'analogsignalarray': AnalogSignalArray,
+    'irsaanalogsignal': IrregularlySampledSignal,
+    'spike': Spike,
+    'recordingchannelgroup': RecordingChannelGroup,
+    'recordingchannel': RecordingChannel
+}
+
+supported_models = models_map.values()
 
 class Metadata(object):
     """ class containing metadata property-value pairs for a single object. """

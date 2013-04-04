@@ -9,7 +9,7 @@ import requests
 
 import errors
 from utils import get_id_from_permalink
-from models import AnalogSignal, SpikeTrain
+from models import *
 
 # core classes imports
 from neo.core import *
@@ -17,50 +17,28 @@ from odml.section import BaseSection
 from odml.property import BaseProperty
 from odml.value import BaseValue
 
-from models import Metadata
-
-units_dict = {
-    'V': pq.V,
-    'mV': pq.mV,
-    'uV': pq.uV,
-    's': pq.s,
-    'ms': pq.ms,
-    'us': pq.us,
-    'MHz': pq.MHz,
-    'kHz': pq.kHz,
-    'Hz': pq.Hz,
-    '1/s': pq.Hz
-}
-
-models_map = {
-    'metadata': {
-        'section': BaseSection,
-        'property': BaseProperty,
-        'value': BaseValue
-    },
-    'neo_api': {
-        'block': Block,
-        'segment': Segment,
-        'event': Event,
-        'eventarray': EventArray,
-        'epoch': Epoch,
-        'epocharray': EpochArray,
-        'unit': Unit,
-        'spiketrain': SpikeTrain,
-        'analogsignal': AnalogSignal,
-        'analogsignalarray': AnalogSignalArray,
-        'irsaanalogsignal': IrregularlySampledSignal,
-        'spike': Spike,
-        'recordingchannelgroup': RecordingChannelGroup,
-        'recordingchannel': RecordingChannel
-    }
-}
-
 
 class Serializer(object):
 
     @classmethod
     def deserialize(cls, json_obj, session, data_refs={}, metadata=None):
+        """
+        Instantiates a new python object from a given JSON representation.
+
+        cls       - self
+
+        json_obj  - a JSON representaion of the object fetched from the server.
+
+        session   - current user session.
+
+        data_refs - a dict with references to the downloaded datafiles, required
+                    to instantiate a new object, like 
+                    {'signal': ('28374', '/tmp/28374.h5'), ...}
+
+        metadata  - Metadata() object containing properties and values by which
+                    object is tagged.
+        """
+
         args = [] # args to init an object
         kwargs = {} # kwargs to init an object
 
@@ -68,7 +46,7 @@ class Serializer(object):
         model_base = json_obj['model']
         app_name = model_base[ : model_base.find('.') ]
         model_name = model_base[ model_base.find('.') + 1 : ]
-        model = models_map[ app_name ][ model_name ]
+        model = models_map[ model_name ]
 
         # 2. parse plain attrs into dict
         app_definition = session._meta.app_definitions[model_name]
@@ -78,13 +56,13 @@ class Serializer(object):
                 kwargs[ attr ] = fields[ attr ]
 
         # 3. resolve data fields
-        for attr in app_definition['data_fields']:
+        for attr in app_definition['data_fields'].keys():
             if fields.has_key( attr ) and fields[ attr ]['data']:
 
                 if data_refs.has_key( attr ): # extract array from datafile
 
                     if data_refs[ attr ]:
-                        with tb.openFile(data_refs[ attr ], 'r') as f:
+                        with tb.openFile(data_refs[ attr ][1], 'r') as f:
                             carray = f.listNodes( "/" )[0]
                             data_value = np.array( carray[:] )
 
@@ -105,11 +83,33 @@ class Serializer(object):
 
         # 4. init object
         obj = model( *args, **kwargs )
-        setattr(obj, '_gnode', {}) # reserved info
-        if metadata:
-            setattr(obj, 'metadata', metadata) # tagged metadata
 
-        # 5. parse id from permalink and save it into obj._gnode
+        # 5. attach metadata if exists
+        if metadata:
+            setattr(obj, 'metadata', metadata) # tagged Metadata() object
+
+        # 6. adds _gnode attr to the object as a dict with reserved attributes
+        cls.extend(obj, json_obj, session)
+
+        return obj
+
+
+    def serialize(self, obj, session, data_refs={}, meta_refs=[]):
+        """ bla bla """
+
+        if getattr(obj, parent_attr[1]) == None:
+            print 'Parent %s of %s does not exist on the server' % \
+                (parent_attr, cut_to_render(obj.__repr__()))
+
+        pass
+
+
+    def extend(self, obj, session):
+        """ extends object by adding _gnode attribute as a dict with reserved 
+        gnode attributes like date_created, id, safety_level etc. """
+        setattr(obj, '_gnode', {}) # reserved info
+
+        # 1. parse id from permalink and save it into obj._gnode
         permalink = json_obj['permalink']
         if not permalink.endswith('/'):
             permalink += '/'
@@ -118,12 +118,12 @@ class Serializer(object):
         obj._gnode['location'] = permalink.replace(session._meta.host, '')
         obj._gnode['permalink'] = permalink
 
-        # 6. parse special fields, including ACLs into obj._gnode
+        # 2. parse special fields, including ACLs into obj._gnode
         for attr in app_definition['reserved']:
             if fields.has_key( attr ):
                 obj._gnode[attr] = fields[ attr ]
 
-        # 7. assign parents permalinks/ids into obj._gnode
+        # 3. assign parents permalinks/ids into obj._gnode
         for par_attr in app_definition['parents']:
             if fields.has_key( par_attr ):
                 par_val = fields[ par_attr ]
@@ -142,13 +142,20 @@ class Serializer(object):
                     obj._gnode[par_attr + '_id'] = ids
                     obj._gnode[par_attr] = par_val
 
-        # 8. parse children permalinks into obj._gnode
+        # 4. parse children permalinks into obj._gnode
         for child in app_definition['children']:
             field_name = child + '_set'
             if fields.has_key( field_name ):
                 obj._gnode[ field_name ] = fields[ field_name ]
 
-        return obj
+        # 5. parse data ids into obj._gnode (required to reference cache.data_map)
+        for attr in app_definition['data_fields'].keys():
+            if data_refs.has_key( attr ):
+                if data_refs[ attr ]:
+                    obj._gnode[attr + '_id'] = data_refs[ attr ][0]
+
+
+
 
 
 class DataDeserializer(object):
