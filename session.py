@@ -417,8 +417,8 @@ class Session( Browser ):
             # data_refs is a dict like {'signal': 'http://host:/neo/signal/148348', ...}
             data_refs = self._push_related_data( rel_refs )
 
-            # push related metadata if exists
-            ???meta_refs = self._push_related_metadata( obj )
+            # ???push related metadata if exists
+            meta_refs = self._push_related_metadata( obj )
 
             json_obj = Serializer.serialize( obj, data_refs )
 
@@ -490,7 +490,6 @@ class Session( Browser ):
         if not json_obj['fields'].has_key('metadata') or not json_obj['fields']['metadata']:
             return None # no metadata field or empty metadata
 
-        """ an alternative way to fetch metadata - by calling 'neo/sig/293847/metadata'
         url = json_obj['permalink']
         if not url.endswith('/'):
             url += '/'
@@ -516,7 +515,13 @@ class Session( Browser ):
             self._cache.add_object( val )
 
             setattr( mobj, prp.name, prp )
-        """
+
+        """ 
+        # an alternative way to fetch metadata - just use pull for all related 
+        # values and properties (performance down!!). Not needed here because 
+        # this func is called only when core object is not found in cache, means
+        # metadata should be requested from the server anyway and it can be done
+        # faster with GET /neo/<obj_type>/198272/metadata/
         mobj = Metadata()
         for vlink in json_obj['fields']['metadata']:
             val = self.pull( vlink, cascade=False, data_load=False )
@@ -524,6 +529,7 @@ class Session( Browser ):
             prp.append( val )
 
             setattr( mobj, prp.name, prp )
+        """ 
 
         return mobj # Metadata object with list of properties (tags)
 
