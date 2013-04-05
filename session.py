@@ -4,13 +4,14 @@ import re
 
 import requests
 import getpass
+import hashlib
 import simplejson as json
 
 import errors
 from utils import *
 from serializer import Serializer
 from browser import Browser
-from models import Metadata, models_map, supported_models
+from models import Metadata, models_map, supported_models, units_dict
 
 try: 
     import simplejson as json
@@ -171,6 +172,10 @@ class Session( Browser ):
         meta.host = build_hostname( profile_data )
         meta.app_definitions, meta.model_names, meta.app_prefix_dict = \
             load_app_definitions(model_data)
+        # a) app_definitions is a dict parsed from requirements.json
+        # b) model names is a list like ['segment', 'event', ...]
+        # c) app_prefix_dict is like {'section': 'metadata', 'block': 'electrophysiology', ...}
+
         meta.app_aliases, meta.cls_aliases = build_alias_dicts( profile_data['alias_map'] )
         meta.cookie_jar = authenticate(meta.host, meta.username, meta.password)
         self._meta = meta
@@ -411,85 +416,145 @@ class Session( Browser ):
         return self.sync( args, kwargs )
 
 
-    def sync(self, obj, cascade=False, _top=True):
+    def sync(self, obj_to_sync, cascade=False):
         """ bla bla """
 
-        processed = False # flag to indicate success of the syncing
-        cls = None # type of the object like 'segment' or 'section'
+        processed = [] # collector of permalinks of processed objects
+        to_clean = [] # collector of ids of objects to clean parent
+        stack = [ obj_to_sync ] # a stack of objects to sync
 
-        if not obj.__class__ in supported_models:
-            # skip this object
-            print 'Object %s is not supported.' % cut_to_render( obj.__repr__() )
-        else:
-            cls = _get_type_by_obj( obj )
-            app = self._meta.app_prefix_dict[cls]
-        
-        if cls:
-            if hasattr(obj, '_gnode'): # existing object, sync if possible
-                # 1. sync data that is new or was changed
-                attrs_to_sync = self._detect_changed_data_fields( obj )
+        while len( stack ) > 0:
 
-                # 3. update object on the server (with ETag)
-                headers = {'If-none-match': obj._gnode['guid']}
-                params = {'m2m_append': 0}
-                lid = obj._gnode['id'] # get the full permalink from _gnode?
-                url = '%s%s/%s/%s/' % (self._meta.host, app, cls, str(lid))
-                status = 200
+            obj = stack[0] # take first object from stack
+            success = False # flag to indicate success of the syncing
+            cls = None # type of the object like 'segment' or 'section'
 
-            else: # new object, create
-                attrs_to_sync = [] # all data should be pushed
-                headers, params = {}, {} # not needed for new objects
-                url = '%s%s/%s/' % (self._meta.host, app, cls)
-                status = 201
-
-            # 1. push new array data to the server (+put in cache)
-            # data_refs is a dict like {'signal': 'http://host:/neo/signal/148348', ...}
-            data_refs = self._push_related_data( obj, attrs_to_sync )
-
-            # 2. sync related metadata if exists (+put in cache)
-            meta_refs = self._push_related_metadata( obj )
-
-            json_obj = Serializer.serialize(obj, session, data_refs, meta_refs)
-
-            # 3. sync main object on server (create / update)
-            resp = requests.post(url, data=json_obj, headers=headers, \
-                params=params, cookies=self._meta.cookie_jar)
-            raw_json = get_json_from_response( resp )
-
-            if not resp.status_code == status:
-                # do not raise error, just print a message. continue with kids
-                print 'Object at %s skipped: %s (%s)' % (obj._gnode['location'], \
-                    raw_json['message'], raw_json['details'])
-                #message = '%s (%s)' % (raw_json['message'], raw_json['details'])
-                #raise errors.error_codes[resp.status_code]( message )
+            if not obj.__class__ in supported_models:
+                # skip this object
+                print 'Object %s is not supported.' % cut_to_render( obj.__repr__() )
             else:
-                processed = True # success!
+                cls = _get_type_by_obj( obj )
+                app = self._meta.app_prefix_dict[cls]
+            
+            if cls:
+                if hasattr(obj, '_gnode'): # existing object, sync if possible
+                    # update object on the server (with ETag)
+                    headers = {'If-none-match': obj._gnode['guid']}
+                    params = {'m2m_append': 0}
+                    lid = obj._gnode['id'] # get the full permalink from _gnode?
+                    url = '%s%s/%s/%s/' % (self._meta.host, app, cls, str(lid))
+                    status = 200
 
-            # 4. update local in-memory object with newly acquired params
-            Serializer.extend( obj, raw_json['selected'], self )
+                else: # new object, create
+                    attrs_to_sync = [] # all data should be pushed
+                    headers, params = {}, {} # not needed for new objects
+                    url = '%s%s/%s/' % (self._meta.host, app, cls)
+                    status = 201
 
-            if processed:
-                print_status('Object at %s synced.' % obj._gnode['location'])
+                # push new/changed array data to the server (+put in cache)
+                # data_refs is a dict like {'signal': 'http://host:/neo/signal/148348', ...}
+                try:
+                    data_refs = self._push_related_data( obj )
+                except ValueError:
+                    # related data wasn't sent to the server, skip this object
+                    stack.remove( obj )
+                    continue
 
-        # if cascade made recursive sync
-        children = self._meta.app_definitions[cls]['children'] # child object types
-        if cascade and self._meta.app_definitions[cls]['children']:
+                # sync related metadata if exists (+put in cache)
+                meta_refs = []
+                if hasattr(obj, 'metadata'):
 
-            for child in children: # 'child' is like 'segment', 'event' etc.
-                # 1. remember children of that type that were before sync
+                    metadata = getattr(obj, 'metadata')
+                    if isinstance(metadata, Metadata):
 
-                # 2. sync current objects
+                        to_sync = []
+                        for name, prp in metadata.__dict__.items():
+                            if prp.value:
+                                if not hasattr(prp.value, '_gnode'):
+                                    to_sync.insert(0, prp.value) # sync value if never synced
 
-                # 3. clear parent for children no longer related with obj
+                                if not hasattr(prp, '_gnode'):
+                                    to_sync.insert(0, prp) # sync property if never synced
+                                    if not prp.parent:
+                                        print 'Cannot sync %s for %s: section is not defined.' % \
+                                            (name, cut_to_render( obj.__repr__() ))
+                                        continue # move to other property
 
+                                    if not hasattr(prp.parent, '_gnode'):
+                                        to_sync.insert(0, prp.parent) # sync parent section
 
-        # 4. save to the cache, after processing children, so in case of a new
-        # object it goes to cache with all children already synced and extended
-        if processed and status == 201:
-            self._cache.add_object( obj )
+                        if to_sync: # sync what's needed first
+                            stack = to_sync + stack
+                            continue
 
+                        else: # all metadata objects exist on the server
+                            meta_refs = [prp.value._gnode['permalink'] for name, prp\
+                                 in metadata.__dict__.items()]
 
+                json_obj = Serializer.serialize(obj, session, data_refs, meta_refs)
 
+                # sync main object on server (create / update)
+                resp = requests.post(url, data=json_obj, headers=headers, \
+                    params=params, cookies=self._meta.cookie_jar)
+                raw_json = get_json_from_response( resp )
+
+                if not resp.status_code == status:
+                    # do not raise error, just print a message. continue with kids
+                    print 'Object at %s skipped: %s (%s)' % (obj._gnode['location'], \
+                        raw_json['message'], raw_json['details'])
+                    #message = '%s (%s)' % (raw_json['message'], raw_json['details'])
+                    #raise errors.error_codes[resp.status_code]( message )
+                else:
+
+                    # update local in-memory object with newly acquired params
+                    Serializer.extend( obj, raw_json['selected'][0], self )
+
+                    success = True
+                    processed.append( obj._gnode['permalink'] )
+                    stack.remove( obj )
+                    print_status('Object at %s synced.' % obj._gnode['location'])
+
+            # if cascade put children objects to the stack to sync
+            children = self._meta.app_definitions[cls]['children'] # child object types
+            if cascade and self._meta.app_definitions[cls]['children']:
+
+                for child in children: # 'child' is like 'segment', 'event' etc.
+
+                    # cached children references
+                    child_link_set = list( obj._gnode[ child + '_set' ] )
+
+                    for rel in getattr(obj, _get_children_field_name( child )):
+
+                        # detect children of that type that were removed (using cache)
+                        if hasattr(rel, '_gnode') and rel._gnode['permalink'] in child_link_set:
+                            child_link_set.remove( rel._gnode['permalink'] )
+
+                        # prepare to sync child object
+                        stack.append( rel )
+
+                    par_name = _get_parent_field_name(cls, child)
+                    # collect permalinks of removed objects as (link, par_field_name)
+                    to_clean += [(x, par_name) for x in child_link_set]
+
+            # save to the cache after processing children, so in case of a 
+            # new object it goes to the cache with all children already synced
+            if success:
+                self._cache.add_object( obj )
+
+        # post-processing
+        # 1. clean objects that were removed from everywhere in this scope
+        pure_links = [x[0] for x in to_clean]
+        removed = list( set(pure_links) - set(processed) )
+        to_clean = [x for x in to_clean if x[0] in removed]
+
+        print_status('Cleaning removed objects..')
+        for link, par_name in to_clean: # TODO making bulk? could be faster
+
+            json_data = '{"%s": null}' % par_name
+            requests.post(link, data=json_data, cookies=self._meta.cookie_jar)
+
+        # 2. final output
+        print 'Sync done, %d objects processed.' % len( processed )
 
 
     def delete(self, obj_type, obj_id=None, *kwargs):
@@ -509,8 +574,8 @@ class Session( Browser ):
 
     def shutdown(self):
         """ Logs out and saves cache. """
-        #TODO: which other actions should be accomplished?
         # M.Pereira:
+        #TODO: which other actions should be accomplished?
         # Notes: does not seem to be necessary to GC, close sockets, etc...
         # Requests keeps connections alive for performance increase but doesn't
         # seem to have a method to close a connection other than disabling this
@@ -524,66 +589,64 @@ class Session( Browser ):
         del(self._meta.cookie_jar)
 
     #---------------------------------------------------------------------------
-    # helper functions
+    # helper functions that DO send HTTP requests
     #---------------------------------------------------------------------------
 
-    def _detect_changed_data_fields(self, obj):
-        """ compares all current in-memory data fields (arrays) for a given 
-        object with cached (on-disk) versions of these data arrays and returns
-        names of the fields where arrays do NOT match """
-
-        if not hasattr(obj, '_gnode'):
-            raise TypeError('This object was never synced, cannot detect changes')
-
-        attrs_to_sync = []
-        for attr in self._meta.app_definition[cls]['data_fields'].keys():
-            fname = attr + '_id'
-            if obj._gnode.has_key( fname ) and obj._gnode[ fname ]:
-                if obj._gnode[ fname ] in self._cache.data_map.keys():
-
-                    # compare cached (original) and current data
-                    fname = self._cache.data_map[ obj._gnode[ fname ] ]
-                    with tb.openFile(fname, 'r') as f:
-                        carray = f.listNodes( "/" )[0]
-                        init_arr = np.array( carray[:] )
-
-                    # get current array
-                    fname = self._meta.app_definition[cls]['data_fields'][attr][2]
-                    if fname == 'self':
-                        # some NEO objects like signal inherit array
-                        curr_arr = obj 
-                    else:
-                        curr_arr = getattr(obj, fname)
-
-                    if not np.array_equal(init_arr, curr_arr):
-                        attrs_to_sync.append( attr )
-
-                else: # nothing to compare with! do nothing
-                    print 'Reference to a cached %s array is broken for %s.' % \
-                        (attr, obj._gnode['location'])
-
-            else: # no real reference! treat as changed
-                attrs_to_sync.append( attr )
-
-        return attrs_to_sync
-
-
-    def _push_related_data(self, obj, attrs_to_sync=[]):
-        """ saves array data to disk in HDF5 and creates new datafiles on the 
+    def _push_related_data(self, obj):
+        """ saves array data to disk in HDF5 and uploads new datafiles to the 
         server according to the arrays of the given obj. Saves datafile objects 
         to cache """
+        data_refs = {} # returns all updated references to the related data
         cls = _get_type_by_obj( obj )
 
-        if not len( attrs_to_sync ) > 0:
-            attrs_to_sync = self._meta.app_definition[cls]['data_fields'].keys()
+        attrs_to_sync = self._meta.app_definition[cls]['data_fields'].keys()
+        if hasattr(obj, '_gnode'):
+            attrs_to_sync = self._detect_changed_data_fields( obj )
 
-        raise NotImplementedError
+        for attr in self._meta.app_definition[cls]['data_fields'].keys():
+            if attr in attrs_to_sync: # attr is like 'times', 'signal' etc.
 
+                # 1. get current array and units
+                fname = self._meta.app_definition[cls]['data_fields'][attr][2]
+                if fname == 'self':
+                    arr = obj # some NEO objects like signal inherit array
+                else:
+                    arr = getattr(obj, fname)
+                units = [k for k, v in units_dict if arr.units == v][0]
 
-    def _push_related_metadata(self, obj):
-        """ sync related Metadata() object if exists """
-        pass
+                # 2. save it to the cache_dir as HDF5 file
+                cache_dir = self._cache.cache_dir
+                temp_name = hashlib.sha1( arr ).hexdigest()
+                with open( cache_dir + temp_name + '.h5', "w" ) as f:
+                    f.createArray('/', temp_name, arr)
 
+                # 3. upload to the server
+                print_status('uploading datafile for %s.%s...' % \
+                    (cut_to_render(obj, 10), attr))
+
+                url = self._meta.host + 'datafiles/'
+                files = {'file': open(cache_dir + temp_name + '.h5', 'rb')}
+                resp = requests.post(url, files=files, cookies=self._meta.cookie_jar)
+                raw_json = get_json_from_response( resp )
+
+                if resp.status_code == 200:
+
+                    # save filepath to the cache
+                    link = raw_json['selected'][0]['permalink']
+                    fid = str(get_id_from_permalink(self._meta.host, attr_value))
+                    self._cache.data_map[ fid ] = cache_dir + temp_name + '.h5'
+
+                    print 'done.'
+                    data_refs[ attr ] = {'data': link, 'units': units}
+
+                else:
+                    print 'error. file upload failed. maybe sync again?'
+                    raise ValueError
+
+            else:
+                data_refs[ attr ] = None
+
+        return data_refs
 
     def _fetch_metadata_by_json(self, cls, json_obj):
         """ parses incoming json object representation and fetches related 
@@ -635,7 +698,6 @@ class Session( Browser ):
 
         return mobj # Metadata object with list of properties (tags)
 
-
     def _parse_data_from_json(self, cls, json_obj, data_load=True):
         """ parses incoming json object representation and fetches related 
         object data, either from cache or from the server. """
@@ -663,18 +725,66 @@ class Session( Browser ):
                             with open( self._cache.cache_dir + temp_name, "w" ) as f:
                                 f.write( r.content )
 
-                            # save filepath to the cache
-                            self._cache.data_map[ fid ] = self._cache.cache_dir + temp_name
+                            if r.status_code == 200:
+                                # save filepath to the cache
+                                self._cache.data_map[ fid ] = self._cache.cache_dir + temp_name
 
-                            print 'done.'
+                                print 'done.'
 
-                            # collect path to the downloaded datafile
-                            data_refs[ attr ] = (fid, self._cache.cache_dir + temp_name)
+                                # collect path to the downloaded datafile
+                                data_refs[ attr ] = (fid, self._cache.cache_dir + temp_name)
 
+                            else:
+                                print 'error. file was not fetched. maybe pull again?'
+                                data_refs[ attr ] = None
                     else:
                         data_refs[ attr ] = None
 
         return data_refs
+
+    #---------------------------------------------------------------------------
+    # helper functions that DO NOT send HTTP requests
+    #---------------------------------------------------------------------------
+
+    def _detect_changed_data_fields(self, obj):
+        """ compares all current in-memory data fields (arrays) for a given 
+        object with cached (on-disk) versions of these data arrays and returns
+        names of the fields where arrays do NOT match """
+
+        if not hasattr(obj, '_gnode'):
+            raise TypeError('This object was never synced, cannot detect changes')
+
+        attrs_to_sync = []
+        for attr in self._meta.app_definition[cls]['data_fields'].keys():
+            fname = attr + '_id'
+            if obj._gnode.has_key( fname ) and obj._gnode[ fname ]:
+                if obj._gnode[ fname ] in self._cache.data_map.keys():
+
+                    # compare cached (original) and current data
+                    fname = self._cache.data_map[ obj._gnode[ fname ] ]
+                    with tb.openFile(fname, 'r') as f:
+                        carray = f.listNodes( "/" )[0]
+                        init_arr = np.array( carray[:] )
+
+                    # get current array
+                    fname = self._meta.app_definition[cls]['data_fields'][attr][2]
+                    if fname == 'self':
+                        # some NEO objects like signal inherit array
+                        curr_arr = obj 
+                    else:
+                        curr_arr = getattr(obj, fname)
+
+                    if not np.array_equal(init_arr, curr_arr):
+                        attrs_to_sync.append( attr )
+
+                else: # nothing to compare with! do nothing
+                    print 'Reference to a cached %s array is broken for %s.' % \
+                        (attr, obj._gnode['location'])
+
+            else: # no real reference! treat as changed
+                attrs_to_sync.append( attr )
+
+        return attrs_to_sync
 
     def _assign_child(self, child, obj, related):
         """ object type-dependent parser adding children to the given obj """
@@ -776,8 +886,6 @@ class Session( Browser ):
     def _bulk_update(self, obj_type, *kwargs):
         """ update several homogenious objects on the server """
         raise NotImplementedError
-
-
 
 
     def _get_type_by_obj(self, obj):

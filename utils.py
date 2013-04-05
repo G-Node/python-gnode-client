@@ -98,6 +98,28 @@ def build_alias_dicts( alias_map ):
     return app_aliases, cls_aliases
 
 
+
+
+# TODO clean these all up
+
+def _get_parent_attr_name(parent_name):
+    if parent_name in ['section', 'property', 'value']
+        return 'parent'
+    return parent_name
+
+def _get_parent_field_name(cls, child):
+    parent_name = cls
+    if (cls == 'section' and child == 'section') or \
+        (cls == 'property' and child == 'value'):
+        parent_name = 'parent_' + parent_name
+    return cls
+
+def _get_children_field_name(rel_type):
+    if rel_type == 'property':
+        return 'properties'
+    return rel_type + 's'
+
+
 def cut_to_render( text, count=30 ):
     if len( text ) < count:
         return text

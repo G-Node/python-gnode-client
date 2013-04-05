@@ -93,15 +93,92 @@ class Serializer(object):
 
         return obj
 
-
+    @classmethod
     def serialize(self, obj, session, data_refs={}, meta_refs=[]):
-        """ bla bla """
+        """ 
+        Instantiates a new python object from a given JSON representation.
 
-        if getattr(obj, parent_attr[1]) == None:
-            print 'Parent %s of %s does not exist on the server' % \
-                (parent_attr, cut_to_render(obj.__repr__()))
+        obj       - python object to serialize.
 
-        pass
+        session   - current user session.
+
+        data_refs - a dict with references to the related datafiles and units
+                    {'signal': {
+                            'data': http://host/datafiles/28374,
+                            'units': 'mV'
+                        },
+                    ...
+                    }
+
+        meta_refs - list of permalinks of the related metadata values.
+
+        serialized object should look like this:
+        {
+            "fields": {
+                "parent_section": null,
+                "odml_type": "bla",
+                ...
+                "property_set": [
+                    "http://host/metadata/property/55"
+                ],
+                "is_template": false,
+                "safety_level": 3,
+                "block_set": [],
+                "owner": "http://host/user/1",
+                "date_created": "2013-04-03 15:08:15",
+                "guid": "1f4a77ccc1fbd0af3e8636150e91700c629fc3ab",
+                "user_custom": null,
+                "name": "Perceptual evidence for saccadic updating of color stimuli"
+            },
+            "model": "metadata.section",
+            "permalink": "http://predata.g-node.org:8010/metadata/section/20"
+        }
+        """
+        json_obj = {'fields': {}, 'model': ''}
+        if not obj.__class__ in supported_models:
+            raise TypeError('Object %s is not supported.' % \
+                cut_to_render( obj.__repr__() ))
+
+        # 1. define a model
+        model_name = session._get_type_by_obj(obj)
+        app_name = session._meta.app_prefix_dict[ model_name ]
+        json_obj['model'] = '%s.%s' % (app_name, model_name)
+
+        # 2. put permalink if exist
+        if hasattr(obj, '_gnode') and obj._gnode.has_key('permalink'):
+            json_obj['permalink'] = obj._gnode['permalink']
+
+        # 3. parse simple fields into JSON dict
+        app_definition = session._meta.app_definitions[model_name]
+        for attr in app_definition['attributes']:
+            if hasattr(obj, attr) and getattr(obj, attr):
+                json_obj['fields'][ attr ] = getattr(obj, attr)
+
+        # 4. parse data fields into JSON dict
+        for attr in app_definition['data_fields'].keys():
+            api_attr = app_definition['data_fields'][ attr ][0]
+            obj_attr = app_definition['data_fields'][ attr ][2]
+
+            if data_refs.has_key( attr ): # it's an array
+                json_obj['fields'][ api_attr ] = data_refs[ attr ]
+
+            else: # plain data field (single value)
+                par = getattr(obj, obj_attr)
+                if par:
+                    data = float( par )
+                    units = [k for k, v in units_dict if par.units == v][0]
+                    json_obj['fields'][ api_attr ] = \
+                        {'data': data, 'units': units}
+
+        # 5. parse parents
+        for par_name in app_definition['parents']:
+            attr = _get_parent_attr_name( par_name )
+            json_obj[ par_name ] = getattr(obj, attr)
+
+        # 6. include metadata
+        json_obj['metadata'] = meta_refs
+
+        return json_obj
 
 
     def extend(self, obj, session):

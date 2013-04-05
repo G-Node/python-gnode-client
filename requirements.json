@@ -191,8 +191,7 @@
       "times"
     ],
     "parents": [
-      "segment",
-      "labels"
+      "segment"
     ],
     "children": [
       
@@ -265,8 +264,7 @@
       "durations"
     ],
     "parents": [
-      "segment",
-      "labels"
+      "segment"
     ],
     "children": [
       
