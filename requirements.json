@@ -14,9 +14,9 @@
       "is_template",
       "user_custom"
     ],
-    "data_fields": [
+    "data_fields": {
 
-    ],
+    },
     "init_args": [
       "name"
     ],
@@ -49,9 +49,9 @@
       "date_created",
       "guid"
     ],
-    "data_fields": [
+    "data_fields": {
 
-    ],
+    },
     "init_args": [
       "name",
       "nonexisting"
@@ -78,9 +78,9 @@
       "date_created",
       "guid"
     ],
-    "data_fields": [
+    "data_fields": {
 
-    ],
+    },
     "init_args": [
 
     ],
@@ -109,9 +109,9 @@
       "date_created",
       "guid"
     ],
-    "data_fields": [
+    "data_fields": {
       
-    ],
+    },
     "init_args": [
 
     ],
@@ -141,9 +141,9 @@
       "date_created",
       "guid"
     ],
-    "data_fields": [
+    "data_fields": {
       
-    ],
+    },
     "init_args": [
 
     ],
@@ -324,9 +324,9 @@
       "date_created",
       "guid"
     ],
-    "data_fields": [
+    "data_fields": {
       
-    ],
+    },
     "init_args": [
 
     ],
@@ -354,9 +354,9 @@
       "date_created",
       "guid"
     ],
-    "data_fields": [
+    "data_fields": {
       
-    ],
+    },
     "init_args": [
 
     ],
@@ -384,9 +384,9 @@
       "date_created",
       "guid"
     ],
-    "data_fields": [
+    "data_fields": {
       
-    ],
+    },
     "init_args": [
 
     ],

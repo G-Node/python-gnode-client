@@ -433,13 +433,13 @@ class Session( Browser ):
                 # skip this object
                 print 'Object %s is not supported.' % cut_to_render( obj.__repr__() )
             else:
-                cls = _get_type_by_obj( obj )
+                cls = self._get_type_by_obj( obj )
                 app = self._meta.app_prefix_dict[cls]
             
             if cls:
                 if hasattr(obj, '_gnode'): # existing object, sync if possible
                     # update object on the server (with ETag)
-                    headers = {'If-none-match': obj._gnode['guid']}
+                    headers = {'If-Match': obj._gnode['guid']}
                     params = {'m2m_append': 0}
                     lid = obj._gnode['id'] # get the full permalink from _gnode?
                     url = '%s%s/%s/%s/' % (self._meta.host, app, cls, str(lid))
@@ -461,7 +461,9 @@ class Session( Browser ):
                     continue
 
                 # sync related metadata if exists (+put in cache)
-                meta_refs = []
+                meta_refs = None
+                if supports_metadata( cls ):
+                    meta_refs = [] # empty list used to clean up metadata tags
                 if hasattr(obj, 'metadata'):
 
                     metadata = getattr(obj, 'metadata')
@@ -491,39 +493,53 @@ class Session( Browser ):
                             meta_refs = [prp.value._gnode['permalink'] for name, prp\
                                  in metadata.__dict__.items()]
 
-                json_obj = Serializer.serialize(obj, session, data_refs, meta_refs)
+                json_obj = Serializer.serialize(obj, self, data_refs, meta_refs)
 
                 # sync main object on server (create / update)
-                resp = requests.post(url, data=json_obj, headers=headers, \
-                    params=params, cookies=self._meta.cookie_jar)
-                raw_json = get_json_from_response( resp )
+                resp = requests.post(url, data=json.dumps(json_obj), \
+                    headers=headers, params=params, cookies=self._meta.cookie_jar)
 
-                if not resp.status_code == status:
-                    # do not raise error, just print a message. continue with kids
-                    print 'Object at %s skipped: %s (%s)' % (obj._gnode['location'], \
-                        raw_json['message'], raw_json['details'])
-                    #message = '%s (%s)' % (raw_json['message'], raw_json['details'])
-                    #raise errors.error_codes[resp.status_code]( message )
-                else:
+                if resp.status_code in [status, 304]:
 
-                    # update local in-memory object with newly acquired params
-                    Serializer.extend( obj, raw_json['selected'][0], self )
+                    if resp.status_code == status:
+                        raw_json = get_json_from_response( resp )
+
+                        # update local in-memory object with newly acquired params
+                        Serializer.extend( obj, raw_json['selected'][0], self )
 
                     success = True
                     processed.append( obj._gnode['permalink'] )
-                    stack.remove( obj )
                     print_status('Object at %s synced.' % obj._gnode['location'])
+
+                else:
+                    if resp.status_code == 412:
+                        message = 'it was changed. please pull current version first.'
+
+                    else:
+                        try:
+                            raw_json = get_json_from_response( resp )
+                            message = '%s (%s)' % (raw_json['message'], \
+                                raw_json['details'])
+
+                        except ValueError:
+                            message = 'unknown reason. contact developers!'
+
+                    # do not raise error, just print a message. continue with kids
+                    print 'Object at %s skipped: %s' % (obj._gnode['location'], \
+                        message)
+
+            stack.remove( obj ) # not to forget to remove processed object
 
             # if cascade put children objects to the stack to sync
             children = self._meta.app_definitions[cls]['children'] # child object types
-            if cascade and self._meta.app_definitions[cls]['children']:
+            if cascade and children:
 
                 for child in children: # 'child' is like 'segment', 'event' etc.
 
                     # cached children references
                     child_link_set = list( obj._gnode[ child + '_set' ] )
 
-                    for rel in getattr(obj, _get_children_field_name( child )):
+                    for rel in getattr(obj, get_children_field_name( child )):
 
                         # detect children of that type that were removed (using cache)
                         if hasattr(rel, '_gnode') and rel._gnode['permalink'] in child_link_set:
@@ -532,7 +548,7 @@ class Session( Browser ):
                         # prepare to sync child object
                         stack.append( rel )
 
-                    par_name = _get_parent_field_name(cls, child)
+                    par_name = get_parent_field_name(cls, child)
                     # collect permalinks of removed objects as (link, par_field_name)
                     to_clean += [(x, par_name) for x in child_link_set]
 
@@ -547,14 +563,15 @@ class Session( Browser ):
         removed = list( set(pure_links) - set(processed) )
         to_clean = [x for x in to_clean if x[0] in removed]
 
-        print_status('Cleaning removed objects..')
-        for link, par_name in to_clean: # TODO making bulk? could be faster
+        if to_clean:
+            print_status('Cleaning removed objects..')
+            for link, par_name in to_clean: # TODO make in bulk? could be faster
 
-            json_data = '{"%s": null}' % par_name
-            requests.post(link, data=json_data, cookies=self._meta.cookie_jar)
+                json_data = '{"%s": null}' % par_name
+                requests.post(link, data=json_data, cookies=self._meta.cookie_jar)
 
         # 2. final output
-        print 'Sync done, %d objects processed.' % len( processed )
+        print 'sync done, %d objects processed.' % len( processed )
 
 
     def delete(self, obj_type, obj_id=None, *kwargs):
@@ -597,17 +614,17 @@ class Session( Browser ):
         server according to the arrays of the given obj. Saves datafile objects 
         to cache """
         data_refs = {} # returns all updated references to the related data
-        cls = _get_type_by_obj( obj )
+        cls = self._get_type_by_obj( obj )
 
-        attrs_to_sync = self._meta.app_definition[cls]['data_fields'].keys()
+        attrs_to_sync = self._meta.app_definitions[cls]['data_fields'].keys()
         if hasattr(obj, '_gnode'):
             attrs_to_sync = self._detect_changed_data_fields( obj )
 
-        for attr in self._meta.app_definition[cls]['data_fields'].keys():
+        for attr in self._meta.app_definitions[cls]['data_fields'].keys():
             if attr in attrs_to_sync: # attr is like 'times', 'signal' etc.
 
                 # 1. get current array and units
-                fname = self._meta.app_definition[cls]['data_fields'][attr][2]
+                fname = self._meta.app_definitions[cls]['data_fields'][attr][2]
                 if fname == 'self':
                     arr = obj # some NEO objects like signal inherit array
                 else:
@@ -655,8 +672,6 @@ class Session( Browser ):
             return None # no metadata field or empty metadata
 
         url = json_obj['permalink']
-        if not url.endswith('/'):
-            url += '/'
 
         resp = requests.get( url + 'metadata' , cookies=self._meta.cookie_jar )
         raw_json = get_json_from_response( resp )
@@ -754,8 +769,10 @@ class Session( Browser ):
         if not hasattr(obj, '_gnode'):
             raise TypeError('This object was never synced, cannot detect changes')
 
+        cls = self._get_type_by_obj( obj )
         attrs_to_sync = []
-        for attr in self._meta.app_definition[cls]['data_fields'].keys():
+
+        for attr in self._meta.app_definitions[cls]['data_fields'].keys():
             fname = attr + '_id'
             if obj._gnode.has_key( fname ) and obj._gnode[ fname ]:
                 if obj._gnode[ fname ] in self._cache.data_map.keys():
@@ -767,7 +784,7 @@ class Session( Browser ):
                         init_arr = np.array( carray[:] )
 
                     # get current array
-                    fname = self._meta.app_definition[cls]['data_fields'][attr][2]
+                    fname = self._meta.app_definitions[cls]['data_fields'][attr][2]
                     if fname == 'self':
                         # some NEO objects like signal inherit array
                         curr_arr = obj 
@@ -804,7 +821,7 @@ class Session( Browser ):
             setattr(obj, child + 's', related) # replace all
 
             # 2. assign parent to every child
-            cls = _get_type_by_obj( obj )
+            cls = self._get_type_by_obj( obj )
             for rel in related:
                 setattr(rel, cls, obj)
 

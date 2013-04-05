@@ -10,6 +10,8 @@ import sys
 import requests
 import errors
 
+import simplejson as json
+
 # 'bidirectional dictionary to convert between the two nomenclatures used
 #	for methos using permissions
 safety_level_dict = {1: 'public', 2:'friendly', 3:'private'}
@@ -102,19 +104,25 @@ def build_alias_dicts( alias_map ):
 
 # TODO clean these all up
 
-def _get_parent_attr_name(parent_name):
-    if parent_name in ['section', 'property', 'value']
+def supports_metadata(cls):
+    if not cls in ['section', 'property', 'value']:
+        return True
+    return False
+
+
+def get_parent_attr_name(parent_name):
+    if parent_name in ['section', 'parent_section', 'parent_property']:
         return 'parent'
     return parent_name
 
-def _get_parent_field_name(cls, child):
+def get_parent_field_name(cls, child):
     parent_name = cls
     if (cls == 'section' and child == 'section') or \
         (cls == 'property' and child == 'value'):
         parent_name = 'parent_' + parent_name
     return cls
 
-def _get_children_field_name(rel_type):
+def get_children_field_name(rel_type):
     if rel_type == 'property':
         return 'properties'
     return rel_type + 's'
@@ -133,9 +141,25 @@ def print_status(text):
 
 
 def get_json_from_response( resp ):
-    """ requests library handles json depending on the platform, resolve """
+    """ some API -> Client incoming JSON preprocessing """
+
+    # 1. requests library handles json depending on the platform, resolve
     if type( resp.json ) == type( {} ):
-        return resp.json
-    return resp.json()
+        json_obj = resp.json
+    else:
+        json_obj = resp.json()
+
+    # 2. all permalinks should have trailing slash
+    jstr = json.dumps( json_obj )
+    si = 0
+    while jstr.find('http://', si) > 0:
+        lstart = jstr.find('http://', si)
+        lend = jstr.find('"', lstart)
+        link = jstr[ lstart : lend ]
+        if not link.endswith('/'):
+            jstr.replace(link, link + '/')
+        si = lend + 1
+
+    return json.loads( jstr )
 
 

@@ -6,6 +6,10 @@ import simplejson as json
 import numpy as np
 import quantities as pq
 import neo
+from neo.core import *
+from odml.section import BaseSection
+from odml.property import BaseProperty
+from odml.value import BaseValue
 from errors import NotInDataStorage, NotBoundToSession, error_codes
 
 from utils import *
@@ -26,7 +30,7 @@ units_dict = {
 models_map = {
     'section': BaseSection,
     'property': BaseProperty,
-    'value': BaseValue
+    'value': BaseValue,
     'block': Block,
     'segment': Segment,
     'event': Event,

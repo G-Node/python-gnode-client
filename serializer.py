@@ -8,14 +8,11 @@ import tables as tb
 import requests
 
 import errors
-from utils import get_id_from_permalink
+from utils import get_id_from_permalink, get_parent_attr_name
 from models import *
 
 # core classes imports
 from neo.core import *
-from odml.section import BaseSection
-from odml.property import BaseProperty
-from odml.value import BaseValue
 
 
 class Serializer(object):
@@ -89,12 +86,12 @@ class Serializer(object):
             setattr(obj, 'metadata', metadata) # tagged Metadata() object
 
         # 6. adds _gnode attr to the object as a dict with reserved attributes
-        cls.extend(obj, json_obj, session)
+        Serializer.extend(obj, json_obj, session)
 
         return obj
 
     @classmethod
-    def serialize(self, obj, session, data_refs={}, meta_refs=[]):
+    def serialize(cls, obj, session, data_refs={}, meta_refs=None):
         """ 
         Instantiates a new python object from a given JSON representation.
 
@@ -172,24 +169,32 @@ class Serializer(object):
 
         # 5. parse parents
         for par_name in app_definition['parents']:
-            attr = _get_parent_attr_name( par_name )
-            json_obj[ par_name ] = getattr(obj, attr)
+            attr = get_parent_attr_name( par_name )
+            parent = getattr(obj, attr)
+            if parent and hasattr(parent, '_gnode'):
+                json_obj['fields'][ par_name ] = parent._gnode['id']
+            else:
+                # reset parent if parent not synchronized?
+                json_obj['fields'][ par_name ] = None
 
-        # 6. include metadata
-        json_obj['metadata'] = meta_refs
+        # 6. include metadata. skip if object does not support metadata
+        if not meta_refs == None:
+            json_obj['fields']['metadata'] = meta_refs
 
         return json_obj
 
-
-    def extend(self, obj, session):
+    @classmethod
+    def extend(cls, obj, json_obj, session):
         """ extends object by adding _gnode attribute as a dict with reserved 
         gnode attributes like date_created, id, safety_level etc. """
         setattr(obj, '_gnode', {}) # reserved info
 
+        model_name = session._get_type_by_obj(obj)
+        app_definition = session._meta.app_definitions[model_name]
+        fields = json_obj['fields']
+
         # 1. parse id from permalink and save it into obj._gnode
         permalink = json_obj['permalink']
-        if not permalink.endswith('/'):
-            permalink += '/'
         obj_id = get_id_from_permalink(session._meta.host, permalink)
         obj._gnode['id'] = obj_id
         obj._gnode['location'] = permalink.replace(session._meta.host, '')
@@ -203,20 +208,17 @@ class Serializer(object):
         # 3. assign parents permalinks/ids into obj._gnode
         for par_attr in app_definition['parents']:
             if fields.has_key( par_attr ):
+
                 par_val = fields[ par_attr ]
-                # can be multiple (m2m) -> wrap in a list if single value
-                if not type(fields[ par_attr ]) == type([]):
-                    par_val = [ par_val ]
 
-                ids = []
-                for v in par_val:
-                    ids.append( get_id_from_permalink(session._meta.host, v) )
-
-                if len(ids) == 1:
-                    obj._gnode[par_attr + '_id'] = ids[0]
-                    obj._gnode[par_attr] = par_val[0]
-                else:
+                if type( par_val ) == type([]):
+                    # m2m parent, assign a list of parents
+                    ids = [get_id_from_permalink(session._meta.host, v) for v in par_val]
                     obj._gnode[par_attr + '_id'] = ids
+                    obj._gnode[par_attr] = par_val
+
+                else: # single FK parent object
+                    obj._gnode[par_attr + '_id'] = get_id_from_permalink(session._meta.host, par_val)
                     obj._gnode[par_attr] = par_val
 
         # 4. parse children permalinks into obj._gnode
