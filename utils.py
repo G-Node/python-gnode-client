@@ -157,7 +157,7 @@ def get_json_from_response( resp ):
         lend = jstr.find('"', lstart)
         link = jstr[ lstart : lend ]
         if not link.endswith('/'):
-            jstr.replace(link, link + '/')
+            jstr = jstr[:lend] + '/' + jstr[lend:]
         si = lend + 1
 
     return json.loads( jstr )

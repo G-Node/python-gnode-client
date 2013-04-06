@@ -52,6 +52,14 @@ class MisformattedConfigurationFileError(ValueError):
             format and contains the mandatory fields"
 
 
+class FileUploadError( ValueError ):
+    """ raised when some upload of the file fails """
+    pass
+
+class UnitsError( ValueError ):
+    """ raised when units of the array object are not supported """
+    pass
+
 #------------------Server request errors------------------------
 class Error(Exception):
     """Base class for Gnode Client's exceptions."""

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import unittest
-
+import quantities as pq
 import session, utils
 
 
@@ -25,8 +25,11 @@ class Tests( BaseTest ):
         s1 = self.s.pull('/mtd/sec/1')
 
     def test_sync(self):
-        s1 = self.s.pull('/mtd/sec/1')
-        self.s.sync( s1, cascade=True )
+        #s1 = self.s.pull('/mtd/sec/1')
+        #self.s.sync( s1, cascade=True )
+        a1 = self.s.pull('/eph/seg/15')
+        #a1 += 1*pq.V
+        self.s.sync( a1, cascade=True )
 
 
 if __name__ == '__main__':

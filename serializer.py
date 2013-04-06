@@ -40,10 +40,7 @@ class Serializer(object):
         kwargs = {} # kwargs to init an object
 
         # 1. define a model
-        model_base = json_obj['model']
-        app_name = model_base[ : model_base.find('.') ]
-        model_name = model_base[ model_base.find('.') + 1 : ]
-        model = models_map[ model_name ]
+        app_name, model_name, model = Serializer.parse_model(json_obj, session)
 
         # 2. parse plain attrs into dict
         app_definition = session._meta.app_definitions[model_name]
@@ -156,14 +153,16 @@ class Serializer(object):
             api_attr = app_definition['data_fields'][ attr ][0]
             obj_attr = app_definition['data_fields'][ attr ][2]
 
-            if data_refs.has_key( attr ): # it's an array
-                json_obj['fields'][ api_attr ] = data_refs[ attr ]
+            if data_refs.has_key( attr ): # it's an array, preprocessed
+                if data_refs[ attr ]:
+                    json_obj['fields'][ api_attr ] = data_refs[ attr ]
 
             else: # plain data field (single value)
                 par = getattr(obj, obj_attr)
+                
                 if par:
                     data = float( par )
-                    units = [k for k, v in units_dict if par.units == v][0]
+                    units = Serializer.parse_units( par )
                     json_obj['fields'][ api_attr ] = \
                         {'data': data, 'units': units}
 
@@ -173,9 +172,16 @@ class Serializer(object):
             parent = getattr(obj, attr)
             if parent and hasattr(parent, '_gnode'):
                 json_obj['fields'][ par_name ] = parent._gnode['id']
-            else:
+
+            elif hasattr(obj, '_gnode') and obj._gnode.has_key(par_name):
+                json_obj['fields'][ par_name ] = obj._gnode[ par_name ]
+
+            elif not parent:
                 # reset parent if parent not synchronized?
                 json_obj['fields'][ par_name ] = None
+
+            else:
+                pass # skip parent as both obj and perent are not synced
 
         # 6. include metadata. skip if object does not support metadata
         if not meta_refs == None:
@@ -228,13 +234,48 @@ class Serializer(object):
                 obj._gnode[ field_name ] = fields[ field_name ]
 
         # 5. parse data ids into obj._gnode (required to reference cache.data_map)
-        for attr in app_definition['data_fields'].keys():
-            if data_refs.has_key( attr ):
-                if data_refs[ attr ]:
-                    obj._gnode[attr + '_id'] = data_refs[ attr ][0]
+        data_links = Serializer.parse_data_permalinks(json_obj, session)
 
+        for attr, data_link in data_links.items():
+            fid = str(get_id_from_permalink(session._meta.host, data_link))
+            obj._gnode[attr + '_id'] = fid
 
+    @classmethod
+    def parse_data_permalinks(cls, json_obj, session):
+        """ parses incoming JSON object representation and fetches all
+        data-related permalinks """
+        links = {} # dict like {'signal': 'http://host/datafiles/388109/', ...}
 
+        app_name, model_name, model = Serializer.parse_model(json_obj, session)
+        app_definition = session._meta.app_definitions[model_name]
+
+        if has_data( session._meta.app_definitions, model_name ):
+            for attr in session._meta.app_definitions[model_name]['data_fields'].keys():
+                attr_value = json_obj['fields'][ attr ]['data']
+                if is_permalink( attr_value ):
+                    links[ attr ] = attr_value
+
+        return links
+
+    @classmethod
+    def parse_model(cls, json_obj, session):
+        """ parses incoming JSON object representation and determines model, 
+        model_name and app_name """
+
+        model_base = json_obj['model']
+        app_name = model_base[ : model_base.find('.') ]
+        model_name = model_base[ model_base.find('.') + 1 : ]
+        model = models_map[ model_name ]
+
+        return app_name, model_name, model
+
+    @classmethod
+    def parse_units(cls, element):
+        match = [k for k, v in units_dict.items() if element.units == v]
+        if not match:
+            raise UnitsError('units % are not supported. options are %s' % \
+                (str(element.units), str(units_dict.keys())))
+        return match[0]
 
 
 class DataDeserializer(object):

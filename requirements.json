@@ -536,7 +536,6 @@
     ],
     "parents": [
       "segment",
-      "analogsignalarray",
       "recordingchannel"
     ],
     "children": [
@@ -569,7 +568,7 @@
       "times": [
         "times",
         "times",
-        "self"
+        "times"
       ]
     },
     "init_args": [
