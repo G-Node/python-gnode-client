@@ -510,9 +510,6 @@ class Session( Browser ):
                     stack.remove( obj )
                     continue
 
-                import ipdb
-                ipdb.set_trace()
-
                 # sync main object on server (create / update)
                 resp = requests.post(url, data=json.dumps(json_obj), \
                     headers=headers, params=params, cookies=self._meta.cookie_jar)

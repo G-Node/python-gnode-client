@@ -2,6 +2,7 @@
 """Method(s) to reconstruct GNODE objects from JSON python dictionaries."""
 import os
 
+import datetime
 import numpy as np
 import quantities as pq
 import tables as tb
@@ -146,7 +147,8 @@ class Serializer(object):
         app_definition = session._meta.app_definitions[model_name]
         for attr in app_definition['attributes']:
             if hasattr(obj, attr) and getattr(obj, attr):
-                json_obj['fields'][ attr ] = getattr(obj, attr)
+                value = Serializer._datetime_to_str( getattr(obj, attr) )
+                json_obj['fields'][ attr ] = value
 
         # 4. parse data fields into JSON dict
         for attr in app_definition['data_fields'].keys():
@@ -276,6 +278,21 @@ class Serializer(object):
             raise UnitsError('units % are not supported. options are %s' % \
                 (str(element.units), str(units_dict.keys())))
         return match[0]
+
+    @classmethod
+    def _datetime_to_str(cls, value):
+        """ returns a str from a given datetime, does nothing if other type """
+        if type(value) == type(datetime.date.today()):
+            return value.strftime("%Y-%m-%d")
+
+        elif type(value) == type(datetime.datetime.now()):
+            return value.strftime("%Y-%m-%d %H:%M:%S")
+
+        else:
+            return value
+
+
+
 
 
 class DataDeserializer(object):
