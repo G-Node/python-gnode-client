@@ -21,6 +21,8 @@
     "load_cached_data" : 1,
     "tempDir": "/tmp/",
 
+    "odml_repository": "http://portal.g-node.org/odml/terminologies/v1.0/terminologies.xml",
+
     "db": "",
 
     "max_line_out": 40,

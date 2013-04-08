@@ -5,20 +5,22 @@ import re
 import requests
 import getpass
 import hashlib
-import simplejson as json
+try: 
+    import simplejson as json
+except ImportError: 
+    import json
 
 import tables as tb
 import numpy as np
+
+import odml.terminology as terminology
+
 import errors
 from utils import *
 from serializer import Serializer
 from browser import Browser
 from models import Metadata, models_map, supported_models, units_dict
 
-try: 
-    import simplejson as json
-except ImportError: 
-    import json
 
 #-------------------------------------------------------------------------------
 # common wrapper functions
@@ -187,6 +189,11 @@ class Session( Browser ):
         load_cached_data = bool( profile_data['load_cached_data'] )
         cache_file_name = profile_data['cache_file_name']
         self._cache = Cache( cache_dir, cache_file_name, load_cached_data )
+
+        # 3. load odML terminologies
+        # TODO make odML to load terms into our cache folder, not default /tmp
+        terms = terminology.terminologies.load(profile_data['odml_repository'])
+        self.terminologies = terms.sections
 
         print "Session initialized."
 
