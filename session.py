@@ -438,77 +438,71 @@ class Session( Browser ):
             success = False # flag to indicate success of the syncing
             cls = None # type of the object like 'segment' or 'section'
 
+            # 1. validate class type
             if not obj.__class__ in supported_models:
-                # skip this object
-                print 'Object %s is not supported.' % cut_to_render( obj.__repr__() )
-            else:
-                cls = self._get_type_by_obj( obj )
-                app = self._meta.app_prefix_dict[cls]
+                # skip this object completely
+                stack.remove( obj )
+                print_status('Object %s is not supported.\n' % cut_to_render( obj.__repr__() ))
+                continue
+
+            # 2. detect create/update and set request params
+            cls = self._get_type_by_obj( obj )
+            app = self._meta.app_prefix_dict[cls]
             
-            if cls:
-                if hasattr(obj, '_gnode'): # existing object, sync if possible
-                    # update object on the server (with ETag)
-                    headers = {'If-Match': obj._gnode['guid']}
-                    params = {'m2m_append': 0}
-                    lid = obj._gnode['id'] # get the full permalink from _gnode?
-                    url = '%s%s/%s/%s/' % (self._meta.host, app, cls, str(lid))
-                    status = 200
+            if hasattr(obj, '_gnode'): # existing object, sync if possible
+                # update object on the server (with ETag)
+                headers = {'If-Match': obj._gnode['guid']}
+                params = {'m2m_append': 0}
+                lid = obj._gnode['id'] # get the full permalink from _gnode?
+                url = '%s%s/%s/%s/' % (self._meta.host, app, cls, str(lid))
+                status = 200
 
-                else: # new object, create
-                    attrs_to_sync = [] # all data should be pushed
-                    headers, params = {}, {} # not needed for new objects
-                    url = '%s%s/%s/' % (self._meta.host, app, cls)
-                    status = 201
+            else: # new object, create
+                attrs_to_sync = [] # all data should be pushed
+                headers, params = {}, {} # not needed for new objects
+                url = '%s%s/%s/' % (self._meta.host, app, cls)
+                status = 201
 
-                # push new/changed array data to the server (+put in cache)
-                # data_refs is a dict like {'signal': 'http://host:/neo/signal/148348', ...}
-                try:
-                    data_refs = self._push_related_data( obj )
-                except errors.FileUploadError, errors.UnitsError:
-                    # related data wasn't sent to the server, skip this object
-                    stack.remove( obj )
-                    continue
+            # 3. pre-push new/changed array data to the server (+put in cache)
+            # data_refs is a dict like {'signal': 'http://host:/neo/signal/148348', ...}
+            try:
+                data_refs = self._push_related_data( obj )
+            except (errors.FileUploadError, errors.UnitsError), e:
+                # skip this object completely
+                stack.remove( obj )
+                print_status('%s skipped: %s\n' % (cut_to_render(obj.__repr__(), 15), str(e)))
+                continue
 
-                # sync related metadata if exists (+put in cache)
-                meta_refs = None
-                if supports_metadata( cls ):
-                    meta_refs = [] # empty list used to clean up metadata tags
-                if hasattr(obj, 'metadata'):
+            # 4. pre-sync related metadata if exists (+put in cache)
+            if hasattr(obj, 'metadata'):
 
-                    metadata = getattr(obj, 'metadata')
-                    if isinstance(metadata, Metadata):
+                metadata = getattr(obj, 'metadata')
+                if isinstance(metadata, Metadata):
 
-                        to_sync = []
-                        for name, prp in metadata.__dict__.items():
-                            if prp.value:
-                                if not hasattr(prp.value, '_gnode'):
-                                    to_sync.insert(0, prp.value) # sync value if never synced
+                    to_sync = []
+                    for name, prp in metadata.__dict__.items():
+                        if prp.value:
+                            if not hasattr(prp.value, '_gnode'):
+                                to_sync.insert(0, prp.value) # sync value if never synced
 
-                                if not hasattr(prp, '_gnode'):
-                                    to_sync.insert(0, prp) # sync property if never synced
-                                    if not prp.parent:
-                                        print 'Cannot sync %s for %s: section is not defined.' % \
-                                            (name, cut_to_render( obj.__repr__() ))
-                                        stack.remove( prp )
-                                        continue # move to other property
+                            if not hasattr(prp, '_gnode'):
+                                to_sync.insert(0, prp) # sync property if never synced
+                                if not prp.parent:
+                                    print_status('Cannot sync %s for %s: section is not defined.\n' % \
+                                        (name, cut_to_render( obj.__repr__() )))
+                                    stack.remove( prp )
+                                    continue # move to other property
 
-                                    if not hasattr(prp.parent, '_gnode'):
-                                        to_sync.insert(0, prp.parent) # sync parent section
+                                if not hasattr(prp.parent, '_gnode'):
+                                    to_sync.insert(0, prp.parent) # sync parent section
 
-                        if to_sync: # sync what's needed first
-                            stack = to_sync + stack
-                            continue
+                    if to_sync: # sync what's needed first
+                        stack = to_sync + stack
+                        continue
 
-                        else: # all metadata objects exist on the server
-                            meta_refs = [prp.value._gnode['permalink'] for name, prp\
-                                 in metadata.__dict__.items()]
-
-                try:
-                    json_obj = Serializer.serialize(obj, self, data_refs, meta_refs)
-                except errors.UnitsError:
-                    # wrong units, skip this object
-                    stack.remove( obj )
-                    continue
+            # 5. sync main object
+            try:
+                json_obj = Serializer.serialize(obj, self, data_refs)
 
                 # sync main object on server (create / update)
                 resp = requests.post(url, data=json.dumps(json_obj), \
@@ -539,15 +533,18 @@ class Session( Browser ):
                         except ValueError:
                             message = 'unknown reason. contact developers!'
 
-                    # do not raise error, just print a message. continue with kids
-                    print 'Object at %s skipped: %s' % (obj._gnode['location'], \
-                        message)
+                    raise errors.SyncFailed( message )
+
+            except (errors.UnitsError, errors.ValidationError, errors.SyncFailed), e:
+                import ipdb
+                ipdb.set_trace()
+                print_status('%s skipped: %s\n' % (cut_to_render(obj.__repr__(), 15), str(e)))
 
             stack.remove( obj ) # not to forget to remove processed object
 
             # if cascade put children objects to the stack to sync
             children = self._meta.app_definitions[cls]['children'] # child object types
-            if cascade and children:
+            if cascade and children and hasattr(obj, '_gnode'):
 
                 for child in children: # 'child' is like 'segment', 'event' etc.
 
@@ -561,7 +558,8 @@ class Session( Browser ):
                             child_link_set.remove( rel._gnode['permalink'] )
 
                         # prepare to sync child object
-                        stack.append( rel )
+                        #stack.append( rel )
+                        stack.insert( 0, rel )
 
                     par_name = get_parent_field_name(cls, child)
                     # collect permalinks of removed objects as (link, par_field_name)
@@ -679,8 +677,7 @@ class Session( Browser ):
                     data_refs[ attr ] = {'data': link, 'units': units}
 
                 else:
-                    print 'error. file upload failed: %s\nmaybe sync again?' % resp.content
-                    raise errors.FileUploadError
+                    raise errors.FileUploadError('error. file upload failed: %s\nmaybe sync again?' % resp.content)
             else:
                 data_refs[ attr ] = None
 

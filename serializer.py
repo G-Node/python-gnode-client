@@ -89,7 +89,7 @@ class Serializer(object):
         return obj
 
     @classmethod
-    def serialize(cls, obj, session, data_refs={}, meta_refs=None):
+    def serialize(cls, obj, session, data_refs={}):
         """ 
         Instantiates a new python object from a given JSON representation.
 
@@ -162,7 +162,7 @@ class Serializer(object):
             else: # plain data field (single value)
                 par = getattr(obj, obj_attr)
                 
-                if par:
+                if not par == None:
                     data = float( par )
                     units = Serializer.parse_units( par )
                     json_obj['fields'][ api_attr ] = \
@@ -170,24 +170,56 @@ class Serializer(object):
 
         # 5. parse parents
         for par_name in app_definition['parents']:
-            attr = get_parent_attr_name( par_name )
-            parent = getattr(obj, attr)
-            if parent and hasattr(parent, '_gnode'):
-                json_obj['fields'][ par_name ] = parent._gnode['id']
+            attr = get_parent_attr_name( model_name, par_name )
+            if hasattr(obj, attr):
+                parents = getattr(obj, attr)
 
-            elif hasattr(obj, '_gnode') and obj._gnode.has_key(par_name):
-                json_obj['fields'][ par_name ] = obj._gnode[ par_name ]
+                is_m2m = True
+                if not type(parents) == type([]):
+                    parents = [ parents ]
+                    is_m2m = False
 
-            elif not parent:
-                # reset parent if parent not synchronized?
-                json_obj['fields'][ par_name ] = None
+                par_values = [] # collector for parent values
+                for parent in parents:                
+                    if parent and hasattr(parent, '_gnode'):
+                        # actual parent was synced, take his id
+                        par_values.append( parent._gnode['id'] )
 
-            else:
-                pass # skip parent as both obj and perent are not synced
+                if par_values:
+                    if not is_m2m:
+                        par_values = par_values[0]
+                    json_obj['fields'][ par_name ] = par_values
+
+                elif hasattr(obj, '_gnode') and obj._gnode.has_key(par_name):
+                    # most probably object was pulled without parent, keep old 
+                    # parent and do not change anything
+                    json_obj['fields'][ par_name ] = obj._gnode[ par_name ]
+
+                elif not parents:
+                    # reset parent as no actual parent and obj has no parent in 
+                    # memory
+                    json_obj['fields'][ par_name ] = None
+
+                else:
+                    # totally skip parent as both obj and parent are not synced
+                    pass
 
         # 6. include metadata. skip if object does not support metadata
-        if not meta_refs == None:
-            json_obj['fields']['metadata'] = meta_refs
+        if hasattr(obj, 'metadata'):
+            metadata = getattr(obj, 'metadata')
+            if isinstance(metadata, Metadata):
+
+                meta_refs = [prp.value._gnode['permalink'] for name, prp\
+                             in metadata.__dict__.items()]
+                json_obj['fields']['metadata'] = meta_refs
+
+        # 7. validate if all required fields present
+        missing = []
+        for attr in app_definition['required']:
+            if not json_obj['fields'].has_key( attr ):
+                missing.append( attr )
+        if missing:
+            raise errors.ValidationError('The following params required for serialization: %s' % str(missing))
 
         return json_obj
 
@@ -275,7 +307,7 @@ class Serializer(object):
     def parse_units(cls, element):
         match = [k for k, v in units_dict.items() if element.units == v]
         if not match:
-            raise UnitsError('units % are not supported. options are %s' % \
+            raise errors.UnitsError('units % are not supported. options are %s' % \
                 (str(element.units), str(units_dict.keys())))
         return match[0]
 

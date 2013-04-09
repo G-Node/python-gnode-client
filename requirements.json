@@ -124,7 +124,6 @@
     ],
     "children": [
       "segment",
-      "recordingchannel",
       "recordingchannelgroup"
     ]
   },
@@ -368,7 +367,6 @@
       "recordingchannelgroup"
     ],
     "children": [
-      "unit",
       "analogsignal",
       "irsaanalogsignal"
     ]
@@ -395,7 +393,7 @@
       "name"
     ],
     "parents": [
-      "recordingchannel"
+      "recordingchannelgroup"
     ],
     "children": [
       "spiketrain",

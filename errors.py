@@ -60,6 +60,14 @@ class UnitsError( ValueError ):
     """ raised when units of the array object are not supported """
     pass
 
+class ValidationError( ValueError ):
+    """ raised when object validation fails """
+    pass
+
+class SyncFailed( ValueError ):
+    """ raised when sync request sent but sync fails """
+    pass
+
 #------------------Server request errors------------------------
 class Error(Exception):
     """Base class for Gnode Client's exceptions."""

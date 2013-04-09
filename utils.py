@@ -110,9 +110,13 @@ def supports_metadata(cls):
     return False
 
 
-def get_parent_attr_name(parent_name):
+def get_parent_attr_name(model_name, parent_name):
+    if parent_name == 'secion' and model_name == 'block':
+        return parent_name
     if parent_name in ['section', 'parent_section', 'parent_property']:
         return 'parent'
+    if parent_name == 'recordingchannelgroup' and model_name == 'recordingchannel':
+        return 'recordingchannelgroups'
     return parent_name
 
 def get_parent_field_name(cls, child):
@@ -125,6 +129,8 @@ def get_parent_field_name(cls, child):
 def get_children_field_name(rel_type):
     if rel_type == 'property':
         return 'properties'
+    if rel_type == 'irsaanalogsignal':
+        return 'irregularlysampledsignals'
     return rel_type + 's'
 
 
@@ -141,7 +147,7 @@ def print_status(text):
 
 
 def get_json_from_response( resp ):
-    """ some API -> Client incoming JSON preprocessing """
+    """ some API -> Client incoming JSON pre-processing """
 
     # 1. requests library handles json depending on the platform, resolve
     if type( resp.json ) == type( {} ):
