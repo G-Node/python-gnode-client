@@ -123,8 +123,8 @@
       "file_origin"
     ],
     "children": [
-      "segment",
-      "recordingchannelgroup"
+      "recordingchannelgroup",
+      "segment"
     ]
   },
   "segment": {

@@ -292,6 +292,26 @@ class Serializer(object):
         return links
 
     @classmethod
+    def update_parent_children(cls, obj, session):
+        """ when the object is synced, it's new parent relationship must be set
+        into the parent object """
+        model_name = session._get_type_by_obj(obj)
+        app_definition = session._meta.app_definitions[model_name]
+        for par_name in app_definition['parents']:
+            attr = get_parent_attr_name( model_name, par_name )
+            if hasattr(obj, attr):
+                parents = getattr(obj, attr)
+
+                if not type(parents) == type([]):
+                    parents = [ parents ]
+
+                for parent in parents:                
+                    if parent and hasattr(parent, '_gnode'):
+                        link = obj._gnode['permalink']
+                        if not link in parent._gnode[ model_name + '_set' ]:
+                            parent._gnode[ model_name + '_set' ].append( link )
+
+    @classmethod
     def parse_model(cls, json_obj, session):
         """ parses incoming JSON object representation and determines model, 
         model_name and app_name """

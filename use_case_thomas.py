@@ -18,7 +18,7 @@ def convert_to_timeseries(line):
 
 g = init() # start a session
 
-metadata_created = True
+metadata_created = False
 data_created = False
 
 if not metadata_created:
@@ -154,6 +154,7 @@ b.name = "Macaque Monkey Recordings, LFPs, V1"
 indexes = [1, 2, 4, 5, 6, 9, 10, 11, 12, 13, 14, 16]
 rcg = neo.core.RecordingChannelGroup( name='RCG', channel_indexes=indexes )
 b.recordingchannelgroups.append( rcg )
+rcg.block = b
 
 for index in rcg.channel_indexes:
     r = neo.core.RecordingChannel()
@@ -196,6 +197,9 @@ with open('/home/sobolev/data/080707/lfp_fix080707.dat', 'r') as f:
 
         signal.recordingchannel = r
         r.analogsignals.append( signal )
+
+        if i > 5: break
+
 
 # TODO import LFP SAC
 

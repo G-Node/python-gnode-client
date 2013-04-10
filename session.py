@@ -438,6 +438,11 @@ class Session( Browser ):
             success = False # flag to indicate success of the syncing
             cls = None # type of the object like 'segment' or 'section'
 
+            # bloody workaround for duplications because of NEO
+            if hasattr(obj, '_gnode') and obj._gnode['permalink'] in processed:
+                stack.remove( obj )
+                continue
+
             # 1. validate class type
             if not obj.__class__ in supported_models:
                 # skip this object completely
@@ -516,6 +521,9 @@ class Session( Browser ):
                         # update local in-memory object with newly acquired params
                         Serializer.extend( obj, raw_json['selected'][0], self )
 
+                    # update parent children list
+                    Serializer.update_parent_children(obj, self)
+
                     success = True
                     processed.append( obj._gnode['permalink'] )
                     print_status('Object at %s synced.' % obj._gnode['location'])
@@ -536,8 +544,6 @@ class Session( Browser ):
                     raise errors.SyncFailed( message )
 
             except (errors.UnitsError, errors.ValidationError, errors.SyncFailed), e:
-                import ipdb
-                ipdb.set_trace()
                 print_status('%s skipped: %s\n' % (cut_to_render(obj.__repr__(), 15), str(e)))
 
             stack.remove( obj ) # not to forget to remove processed object
@@ -557,9 +563,13 @@ class Session( Browser ):
                         if hasattr(rel, '_gnode') and rel._gnode['permalink'] in child_link_set:
                             child_link_set.remove( rel._gnode['permalink'] )
 
-                        # prepare to sync child object
-                        #stack.append( rel )
-                        stack.insert( 0, rel )
+                        # prepare to sync child object (skip already scheduled or processed)
+                        if not (hasattr(rel, '_gnode') and rel._gnode['permalink'] in processed):
+                            # and not obj in stack:
+                            # stupid NEO!! this raises error, so the workaround
+                            # would be to check if the object was processed 
+                            # before processing
+                            stack.append( rel )
 
                     par_name = get_parent_field_name(cls, child)
                     # collect permalinks of removed objects as (link, par_field_name)
