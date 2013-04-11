@@ -111,7 +111,7 @@ def supports_metadata(cls):
 
 
 def get_parent_attr_name(model_name, parent_name):
-    if parent_name == 'secion' and model_name == 'block':
+    if parent_name == 'section' and model_name == 'block':
         return parent_name
     if parent_name in ['section', 'parent_section', 'parent_property']:
         return 'parent'

@@ -181,7 +181,7 @@ class Serializer(object):
 
                 par_values = [] # collector for parent values
                 for parent in parents:                
-                    if parent and hasattr(parent, '_gnode'):
+                    if not (parent == None) and hasattr(parent, '_gnode'):
                         # actual parent was synced, take his id
                         par_values.append( parent._gnode['id'] )
 
@@ -274,6 +274,11 @@ class Serializer(object):
             fid = str(get_id_from_permalink(session._meta.host, data_link))
             obj._gnode[attr + '_id'] = fid
 
+        # 6. parse metadata
+        if fields.has_key('metadata'):
+            obj._gnode['metadata'] = fields['metadata']
+
+
     @classmethod
     def parse_data_permalinks(cls, json_obj, session):
         """ parses incoming JSON object representation and fetches all
@@ -308,8 +313,9 @@ class Serializer(object):
                 for parent in parents:                
                     if parent and hasattr(parent, '_gnode'):
                         link = obj._gnode['permalink']
-                        if not link in parent._gnode[ model_name + '_set' ]:
-                            parent._gnode[ model_name + '_set' ].append( link )
+                        if parent._gnode.has_key( model_name + '_set' ):
+                            if not link in parent._gnode[ model_name + '_set' ]:
+                                parent._gnode[ model_name + '_set' ].append( link )
 
     @classmethod
     def parse_model(cls, json_obj, session):

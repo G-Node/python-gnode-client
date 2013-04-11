@@ -20,6 +20,7 @@ g = init() # start a session
 
 metadata_created = False
 data_created = False
+annotated = False
 
 if not metadata_created:
     # 1. create METADATA
@@ -135,9 +136,12 @@ if not metadata_created:
     g.sync( experiment, cascade=True ) # sync all
 
 else:
-    pass
-    #experiment = g.pull('/mtd/sec/145')
-    #hardware = experiment.sections['Hardware']
+    experiments = g.list('section', {'parent_section__isnull': 1})
+    experiments.sort(key=lambda x: x._gnode['id'], reverse=True)
+    experiment = experiments[0]
+
+    sections = g.list('section', {'parent_section__id': experiment._gnode['id'], 'name': 'Stimulus'})
+    stimulus = g.pull( sections[0]._gnode['location'] )
 
 
 # 2. create DATA
@@ -145,71 +149,85 @@ else:
 import quantities as pq
 import neo
 
-# 1. create a dataset
-b = neo.core.Block() # LFPs only
-b.name = "Macaque Monkey Recordings, LFPs, V1"
+if not data_created:
+    # 1. create a dataset
+    b = neo.core.Block() # LFPs only
+    b.name = "Macaque Monkey Recordings, LFPs, V1"
+    b.section = experiment
+
+    # 2. create channels
+    indexes = [1, 2, 4, 5, 6, 9, 10, 11, 12, 13, 14, 16]
+    rcg = neo.core.RecordingChannelGroup( name='RCG', channel_indexes=indexes )
+    b.recordingchannelgroups.append( rcg )
+    rcg.block = b
+
+    for index in rcg.channel_indexes:
+        r = neo.core.RecordingChannel()
+        r.name = 'Channel %d' % index
+        r.index = index
+        r.recordingchannelgroups.append( rcg )
+        rcg.recordingchannels.append( r )
 
 
-# 2. create channels
-indexes = [1, 2, 4, 5, 6, 9, 10, 11, 12, 13, 14, 16]
-rcg = neo.core.RecordingChannelGroup( name='RCG', channel_indexes=indexes )
-b.recordingchannelgroups.append( rcg )
-rcg.block = b
+    # 3. create trial segments and signal data
+    with open('/home/sobolev/data/080707/lfp_fix080707.dat', 'r') as f:
 
-for index in rcg.channel_indexes:
-    r = neo.core.RecordingChannel()
-    r.name = 'Channel %d' % index
-    r.index = index
-    r.recordingchannelgroups.append( rcg )
-    rcg.recordingchannels.append( r )
+        for i, l in enumerate(f):
 
+            if i < 176: # create segment every line for first 176 lines
+                s = neo.core.Segment(name = str(i)) # create new segment
+                s.block = b
+                b.segments.append( s )
 
-# 3. create trial segments and signal data
-with open('/home/sobolev/data/080707/lfp_fix080707.dat', 'r') as f:
+            else:
+                s = b.segments[ i % 176 ]
 
-    for i, l in enumerate(f):
+            if (i % 176) == 0: # get new channel every 176 lines
+                r = rcg.recordingchannels[ i / 176 ]
 
-        if i < 176: # create segment every line for first 176 lines
-            s = neo.core.Segment(name = str(i)) # create new segment
-            s.block = b
-            b.segments.append( s )
+            # creating analogsignal
+            data = convert_to_timeseries( l ) * pq.mV
 
-        else:
-            s = b.segments[ i % 176 ]
+            kwargs = {}
+            kwargs['t_start'] = 0 * pq.ms
 
-        if (i % 176) == 0: # get new channel every 176 lines
-            r = rcg.recordingchannels[ i / 176 ]
+            sr = 500.0 #float( hardware.properties['LfpSamplingRate'].value.data )
+            sr_units = 'Hz' #hardware.properties['LfpSamplingRate'].value.unit
+            kwargs['sampling_rate'] = sr * getattr(pq, sr_units)
 
-        # creating analogsignal
-        data = convert_to_timeseries( l ) * pq.mV
+            signal = neo.core.AnalogSignal(data, **kwargs)
 
-        kwargs = {}
-        kwargs['t_start'] = 0 * pq.ms
+            signal.segment = s
+            s.analogsignals.append( signal )
 
-        sr = 500.0 #float( hardware.properties['LfpSamplingRate'].value.data )
-        sr_units = 'Hz' #hardware.properties['LfpSamplingRate'].value.unit
-        kwargs['sampling_rate'] = sr * getattr(pq, sr_units)
+            signal.recordingchannel = r
+            r.analogsignals.append( signal )
 
-        signal = neo.core.AnalogSignal(data, **kwargs)
+    # TODO import LFP SAC
 
-        signal.segment = s
-        s.analogsignals.append( signal )
+    # TODO import SUA FIX
 
-        signal.recordingchannel = r
-        r.analogsignals.append( signal )
+    # TODO import SUA SAC
 
-        if i > 5: break
+    g.sync( b, cascade=True )
 
+else:
+    blocks = g.list('block')
+    blocks.sort(key=lambda x: x._gnode['id'], reverse=True)
+    b = g.pull(blocks[0]._gnode['location'])
 
-# TODO import LFP SAC
+# 3. annotate
+#-------------------------------------------------------------------------------
 
-# TODO import SUA FIX
+for i, s in enumerate( b.segments ):
+    color_index = (i / 48) % 4
+    orient_index = (i / 12) % 4
+    cond_index = 0
 
-# TODO import SUA SAC
+    color = stimulus.properties['Colors'].values[ color_index ]
+    orient = stimulus.properties['Orientations'].values[ orient_index ]
+    cond = stimulus.properties['BehavioralConditions'].values[ cond_index ]
 
-g.sync( b, cascade=True )
-
-
-
+    g.annotate([s], [color, orient, cond])
 
 

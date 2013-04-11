@@ -597,6 +597,78 @@ class Session( Browser ):
         print_status('sync done, %d objects processed.\n' % len( processed ))
 
 
+    def annotate(self, objects, values):
+        """ annotates given objects with given values. sends requests to the 
+        backend. objects, values - are lists """
+
+        # 1. split given objects by model (class)
+        for_annotation = {}
+        for obj in objects:
+            model_name = self._get_type_by_obj( obj )
+            if not hasattr(obj, '_gnode'):
+                raise ValidationError('All objects need to be synced before annotation.')
+
+            if not model_name in for_annotation.keys():
+                for_annotation[ model_name ] = [ obj ]
+            else:
+                for_annotation[ model_name ].append( obj )
+
+        # 2. build values list to POST
+        data = {'metadata': []}
+        for value in values:
+            if not hasattr(value, '_gnode') or not hasattr(value.parent, '_gnode'):
+                raise ValidationError('All properties/values need to be synced before annotation.')
+            data['metadata'].append( value._gnode['permalink'] )
+
+
+        # 3. for every model annotate objects in bulk
+        counter = 0
+        for model_name, objects in for_annotation.items():
+            url = '%s%s/%s/' % (self._meta.host, self._meta.app_prefix_dict[model_name], str(model_name))
+            params = {'id__in': [x._gnode['id'] for x in objects], 'bulk_update': 1}
+
+            resp = requests.post(url, data=json.dumps(data), params=params, \
+                cookies=self._meta.cookie_jar)
+
+            # parse response json
+            if not resp.status_code in [200, 304]:
+                raw_json = get_json_from_response( resp )
+                message = '%s (%s)' % (raw_json['message'], raw_json['details'])
+                raise errors.error_codes[resp.status_code]( message )
+
+            if resp.status_code == 200:
+
+                for obj in objects:
+
+                    # 1. update metadata attr in obj._gnode (based on values, not 
+                    # on the response values so not to face the max_results problem)
+                    updated = set(obj._gnode['metadata'] + \
+                        [v._gnode['permalink'] for v in values])
+                    obj._gnode['metadata'] = list( updated )
+
+                    # 2. update .metadata attribute of an object
+                    if not hasattr(obj, 'metadata'):
+                        setattr(obj, 'metadata', Metadata())
+
+                    for p, v in [(v.parent, v) for v in values]:
+                        if hasattr(obj.metadata, p.name):
+                            # add a value to the existing property
+                            new = getattr(obj.metadata, p.name)
+                            new.append( v )
+                            setattr(obj.metadata, p.name, new)
+
+                        else:
+                            # clone new property
+                            cloned = p.clone(children=False)
+                            cloned.append( v.clone() )
+                            setattr( obj.metadata, cloned.name, cloned )
+
+            counter += len(objects)
+            print_status('%s(s) annotated.' % model_name)
+
+        print_status('total %d object(s) annotated.\n' % counter)
+
+
     def delete(self, obj_type, obj_id=None, *kwargs):
         """ delete (archive) one or several objects on the server """
         raise NotImplementedError
@@ -637,7 +709,7 @@ class Session( Browser ):
         server according to the arrays of the given obj. Saves datafile objects 
         to cache """
         data_refs = {} # returns all updated references to the related data
-        cls = self._get_type_by_obj( obj )
+        model_name = self._get_type_by_obj( obj )
 
         data_attrs = self._get_array_attr_names( obj ) # all array-type attrs
 
@@ -653,7 +725,7 @@ class Session( Browser ):
 
             if attr in attrs_to_sync:
                 # 1. get current array and units
-                fname = self._meta.app_definitions[cls]['data_fields'][attr][2]
+                fname = self._meta.app_definitions[model_name]['data_fields'][attr][2]
                 if fname == 'self':
                     arr = obj # some NEO objects like signal inherit array
                 else:
@@ -693,7 +765,7 @@ class Session( Browser ):
 
         return data_refs
 
-    def _fetch_metadata_by_json(self, cls, json_obj):
+    def _fetch_metadata_by_json(self, model_name, json_obj):
         """ parses incoming json object representation and fetches related 
         object metadata from the server. Returns None or the Metadata object """
         if not json_obj['fields'].has_key('metadata') or not json_obj['fields']['metadata']:
@@ -946,19 +1018,19 @@ class Session( Browser ):
             l = l[ len(item) + 1 : ]
 
         try:
-            app, cls, lid = res
+            app, model_name, lid = res
         except ValueError:
             raise ReferenceError('Cannot parse object location %s. The format \
                 should be like "metadata/section/293847/"' % str(res))
 
         if not app in self._meta.app_prefix_dict.values():
             raise TypeError('This app is not supported: %s' % app)
-        if not cls in self._meta.model_names:
-            raise TypeError('This type of object is not supported: %s' % cls)
+        if not model_name in self._meta.model_names:
+            raise TypeError('This type of object is not supported: %s' % model_name)
         if not is_valid_id( lid ):
             raise TypeError('ID of an object must be of "int" type: %s' % lid)
 
-        return app, cls, int(lid)
+        return app, model_name, int(lid)
 
 
     def _bulk_update(self, obj_type, *kwargs):
