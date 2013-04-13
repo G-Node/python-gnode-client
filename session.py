@@ -882,7 +882,7 @@ class Session( Browser ):
                 names.append( attr )
         """
 
-        # dirty alternative
+        # FIXME dirty alternative
         names = [n for n in data_fields if n in ['times', 'durations', \
             'signal', 'waveform', 'waveforms']]
 
@@ -916,6 +916,12 @@ class Session( Browser ):
                         curr_arr = obj # some NEO objects like signal inherit array
                     else:
                         curr_arr = getattr(obj, getter)
+
+                    if len(curr_arr) < 2:
+                        # we treat array with < 2 values as when object was 
+                        # fetched without data for performance reasons. in this 
+                        # case we ignore this data attribute
+                        continue
 
                     # get array from cache
                     filename = self._cache.data_map[ fid ]
