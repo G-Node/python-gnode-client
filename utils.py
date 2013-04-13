@@ -40,6 +40,7 @@ def get_id_from_permalink(host_url, permalink):
     if not permalink:
         return None
     base_url = permalink.replace(host_url, '')
+    # FIXME use urlparse for proper parsing
     return int( re.search("(?P<id>[\d]+)", base_url).group() )
 
 

@@ -8,7 +8,7 @@ class Browser(object):
         'ls_filt': {}, # dispslay filters
         'location': '', # current location, like 'metadata/section/293847/'
         'mode': 'metadata', # browsing by metadata is default
-        'ls_modes': ['data', 'metadata'] # could browse in data mode too
+        'modes': ['data', 'metadata'] # could browse in data mode too
     }
 
     def ls(self, location=None, filt={}):
@@ -16,44 +16,46 @@ class Browser(object):
         out = '' # output
         params = dict( self.ls_config['ls_filt'].items() + filt.items() )
 
-        if not location: # if not given use the current one
-            location = self.ls_config['location']
+        # case a) some model given, output results of the filtered selection 
+        if location in self._meta.model_names:
+            objs = self.list(location, params=params)
+            out = self._render( objs, out )
 
-        if location:
-            out += 'location %s:\n' % location
-            app, cls, lid = self._parse_location( location )
+        # case b) output contents of a given location
+        else:
+            if not location: # if not given use the current one
+                location = self.ls_config['location']
 
-            for child in self._meta.app_definitions[ cls ]['children']:
+            if location:
+                out += 'location %s:\n' % location
+                app, cls, lid = self._parse_location( location )
 
-                parent_name = cls
-                # FIXME dirty fix!! stupid data model inconsistency
-                if (cls == 'section' and child == 'section') or \
-                    (cls == 'property' and child == 'value'):
-                    parent_name = 'parent_' + parent_name
+                for child in self._meta.app_definitions[ cls ]['children']:
 
-                params[ parent_name + '__id' ] = lid
-                objs = self.list(child, params=params)
+                    parent_name = get_parent_field_name(cls, child)
+                    params[ parent_name + '__id' ] = lid
+                    objs = self.list(child, params=params)
+
+                    out = self._render( objs, out )
+                    params.pop( parent_name + '__id' )
+
+                # FIXME? exception case for Block -> Section
+                if cls == 'section':
+                    params[ 'section__id' ] = lid
+                    objs = self.list('block', params=params)
+                    if objs:
+                        out += '\nDATA:\n'
+                        out = self._render( objs, out )
+
+            else:
+                if self.ls_config['mode'] == 'data':
+                    objs = self.list('block', params=params)
+
+                else: # metadata mode otherwise
+                    params['parent_section__isnull'] = 1
+                    objs = self.list('section', params=params)
 
                 out = self._render( objs, out )
-                params.pop( parent_name + '__id' )
-
-            # FIXME exception case for Block -> Section
-            if cls == 'section':
-                params[ 'section__id' ] = lid
-                objs = self.list('block', params=params)
-                if objs:
-                    out += '\nDATA:\n'
-                    out = self._render( objs, out )
-
-        else:
-            if self.ls_config['mode'] == 'data':
-                objs = self.list('block', params=params)
-
-            else: # metadata mode otherwise
-                params['parent_section__isnull'] = 1
-                objs = self.list('section', params=params)
-
-            out = self._render( objs, out )
 
         print_status( out )
 
