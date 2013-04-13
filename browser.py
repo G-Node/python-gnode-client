@@ -18,7 +18,7 @@ class Browser(object):
 
         # case a) some model given, output results of the filtered selection 
         if location in self._meta.model_names:
-            objs = self.list(location, params=params)
+            objs = self.select(location, params=params)
             out = self._render( objs, out )
 
         # case b) output contents of a given location
@@ -34,7 +34,7 @@ class Browser(object):
 
                     parent_name = get_parent_field_name(cls, child)
                     params[ parent_name + '__id' ] = lid
-                    objs = self.list(child, params=params)
+                    objs = self.select(child, params=params)
 
                     out = self._render( objs, out )
                     params.pop( parent_name + '__id' )
@@ -42,18 +42,18 @@ class Browser(object):
                 # FIXME? exception case for Block -> Section
                 if cls == 'section':
                     params[ 'section__id' ] = lid
-                    objs = self.list('block', params=params)
+                    objs = self.select('block', params=params)
                     if objs:
                         out += '\nDATA:\n'
                         out = self._render( objs, out )
 
             else:
                 if self.ls_config['mode'] == 'data':
-                    objs = self.list('block', params=params)
+                    objs = self.select('block', params=params)
 
                 else: # metadata mode otherwise
                     params['parent_section__isnull'] = 1
-                    objs = self.list('section', params=params)
+                    objs = self.select('section', params=params)
 
                 out = self._render( objs, out )
 

@@ -291,7 +291,7 @@ class Session( Browser ):
         return obj
 
 
-    def list(self, cls, params={}, cascade=False, data_load=False, _top=True):
+    def select(self, cls, params={}, cascade=False, data_load=False, _top=True):
         """ requests objects of a given type from server in bulk mode. 
         caching:    no
         cascade:    yes
@@ -400,7 +400,7 @@ class Session( Browser ):
                     filt = dict(filt, **{"at_time": params['at_time']})
 
                 # fetching *child*-type objects
-                rel_objs = self.list( child, params=filt, data_load=data_load, _top=False )
+                rel_objs = self.select( child, params=filt, data_load=data_load, _top=False )
 
                 if rel_objs:
                     for obj in objects: # parse children into parent attrs
