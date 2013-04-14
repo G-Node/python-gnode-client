@@ -105,8 +105,6 @@ class Serializer(object):
                     ...
                     }
 
-        meta_refs - list of permalinks of the related metadata values.
-
         serialized object should look like this:
         {
             "fields": {

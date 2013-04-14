@@ -230,8 +230,6 @@ class Session( Browser ):
         Args:
         cls: type of the object (like 'block', 'segment' or 'section'.)
 
-        obj_id: id of the single object to retrieve (caching works here)
-
         params: dict that can contain several categories of key-value pairs:
 
         1. filters, like:
@@ -269,7 +267,7 @@ class Session( Browser ):
                     cascade (recursive) mode. This is needed to save cache and
                     make correct printing after new objects are fetched.
         Examples:
-        get('analogsignal', obj_id=38551, params={'downsample': 100})
+        get('analogsignal', params={'id__in': [38551], 'downsample': 100})
         get('analogsignal', params={'segment__id': 93882, 'start_time': 500.0})
         get('section', params={'odml_type': 'experiment', 'date_created': '2013-02-22'})
 
@@ -387,7 +385,6 @@ class Session( Browser ):
                 status = 200
 
             else: # new object, create
-                attrs_to_sync = [] # all data should be pushed
                 headers, params = {}, {} # not needed for new objects
                 url = '%s%s/%s/' % (self._meta.host, app, cls)
                 status = 201
