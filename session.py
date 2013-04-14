@@ -348,12 +348,6 @@ class Session( Browser ):
         return objects
 
 
-    def sync_all(self, *args, **kwargs):
-        """ sync a given object with all nested objects recursively """
-        kwargs['cascade'] = True
-        return self.sync( args, kwargs )
-
-
     def sync(self, obj_to_sync, cascade=False):
         """ bla bla """
 

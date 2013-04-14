@@ -8,8 +8,8 @@
     "username": "bob",
     "password": "pass",
     
-    "host": "predata.g-node.org",
-    "port": 80,
+    "host": "localhost",
+    "port": 8010,
     "https": false,
     "prefix": "",
     "prefixData": "electrophysiology",
