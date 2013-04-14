@@ -87,10 +87,10 @@ class Browser(object):
             out += self._strip_location(location) + '\t'
 
             # safety level
-            out += str(obj._gnode['safety_level']) + ' '
+            out += str(obj._gnode['fields']['safety_level']) + ' '
 
             # object owner
-            out += obj._gnode['owner'].replace(self._meta.host, '') + '\t'
+            out += obj._gnode['fields']['owner'].replace(self._meta.host, '') + '\t'
 
             # object __repr__
             out += obj.__repr__()[ : self._meta.max_line_out ] + '\n'

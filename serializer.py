@@ -83,8 +83,8 @@ class Serializer(object):
         if metadata:
             setattr(obj, 'metadata', metadata) # tagged Metadata() object
 
-        # 6. adds _gnode attr to the object as a dict with reserved attributes
-        Serializer.extend(obj, json_obj, session)
+        # 6. adds _gnode attr to the object as it's JSON representation
+        setattr(obj, '_gnode', json_obj)
 
         return obj
 
@@ -190,10 +190,10 @@ class Serializer(object):
                         par_values = par_values[0]
                     json_obj['fields'][ par_name ] = par_values
 
-                elif hasattr(obj, '_gnode') and obj._gnode.has_key(par_name):
+                elif hasattr(obj, '_gnode') and obj._gnode['fields'].has_key(par_name):
                     # most probably object was pulled without parent, keep old 
                     # parent and do not change anything
-                    json_obj['fields'][ par_name ] = obj._gnode[ par_name ]
+                    json_obj['fields'][ par_name ] = obj._gnode['fields'][ par_name ]
 
                 elif not parents:
                     # reset parent as no actual parent and obj has no parent in 
@@ -222,61 +222,6 @@ class Serializer(object):
         #    raise errors.ValidationError('The following params required for serialization: %s' % str(missing))
 
         return json_obj
-
-    @classmethod
-    def extend(cls, obj, json_obj, session):
-        """ extends object by adding _gnode attribute as a dict with reserved 
-        gnode attributes like date_created, id, safety_level etc. """
-        setattr(obj, '_gnode', {}) # reserved info
-
-        model_name = session._get_type_by_obj(obj)
-        app_definition = session._meta.app_definitions[model_name]
-        fields = json_obj['fields']
-
-        # 1. parse id from permalink and save it into obj._gnode
-        permalink = json_obj['permalink']
-        obj_id = get_id_from_permalink(session._meta.host, permalink)
-        obj._gnode['id'] = obj_id
-        obj._gnode['location'] = permalink.replace(session._meta.host, '')
-        obj._gnode['permalink'] = permalink
-
-        # 2. parse special fields, including ACLs into obj._gnode
-        for attr in app_definition['reserved']:
-            if fields.has_key( attr ):
-                obj._gnode[attr] = fields[ attr ]
-
-        # 3. assign parents permalinks/ids into obj._gnode
-        for par_attr in app_definition['parents']:
-            if fields.has_key( par_attr ):
-
-                par_val = fields[ par_attr ]
-
-                if type( par_val ) == type([]):
-                    # m2m parent, assign a list of parents
-                    ids = [get_id_from_permalink(session._meta.host, v) for v in par_val]
-                    obj._gnode[par_attr + '_id'] = ids
-                    obj._gnode[par_attr] = par_val
-
-                else: # single FK parent object
-                    obj._gnode[par_attr + '_id'] = get_id_from_permalink(session._meta.host, par_val)
-                    obj._gnode[par_attr] = par_val
-
-        # 4. parse children permalinks into obj._gnode
-        for child in app_definition['children']:
-            field_name = child + '_set'
-            if fields.has_key( field_name ):
-                obj._gnode[ field_name ] = fields[ field_name ]
-
-        # 5. parse data ids into obj._gnode (required to reference cache.data_map)
-        data_links = Serializer.parse_data_permalinks(json_obj, session)
-
-        for attr, data_link in data_links.items():
-            fid = str(get_id_from_permalink(session._meta.host, data_link))
-            obj._gnode[attr + '_id'] = fid
-
-        # 6. parse metadata
-        if fields.has_key('metadata'):
-            obj._gnode['metadata'] = fields['metadata']
 
 
     @classmethod
@@ -313,9 +258,9 @@ class Serializer(object):
                 for parent in parents:                
                     if parent and hasattr(parent, '_gnode'):
                         link = obj._gnode['permalink']
-                        if parent._gnode.has_key( model_name + '_set' ):
-                            if not link in parent._gnode[ model_name + '_set' ]:
-                                parent._gnode[ model_name + '_set' ].append( link )
+                        if parent._gnode['fields'].has_key( model_name + '_set' ):
+                            if not link in parent._gnode['fields'][ model_name + '_set' ]:
+                                parent._gnode['fields'][ model_name + '_set' ].append( link )
 
     @classmethod
     def parse_model(cls, json_obj, session):

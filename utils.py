@@ -9,6 +9,7 @@ import re
 import sys
 import requests
 import errors
+import urlparse
 
 import simplejson as json
 
@@ -35,12 +36,11 @@ def is_permalink( link ):
     return str(link).find("http://") > -1
 
 
-def get_id_from_permalink(host_url, permalink):
+def get_id_from_permalink(permalink):
     """ parses permalink and extracts ID of the object """
     if not permalink:
         return None
-    base_url = permalink.replace(host_url, '')
-    # FIXME use urlparse for proper parsing
+    base_url = urlparse.urlparse(permalink).path
     return int( re.search("(?P<id>[\d]+)", base_url).group() )
 
 
@@ -125,7 +125,7 @@ def get_parent_field_name(cls, child):
     if (cls == 'section' and child == 'section') or \
         (cls == 'property' and child == 'value'):
         parent_name = 'parent_' + parent_name
-    return cls
+    return parent_name
 
 def get_children_field_name(rel_type):
     if rel_type == 'property':

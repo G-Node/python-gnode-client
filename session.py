@@ -201,10 +201,11 @@ class Session( Browser ):
             for child in children: # 'child' is like 'segment', 'event' etc.
 
                 field_name = child + '_set'
-                if obj._gnode.has_key( field_name ) and obj._gnode[ field_name ]:
+                if obj._gnode['fields'].has_key( field_name ) and \
+                    obj._gnode['fields'][ field_name ]:
                     rel_objs = []
 
-                    for rel_link in obj._gnode[ field_name ]:
+                    for rel_link in obj._gnode['fields'][ field_name ]:
                         # fetching *child*-type objects
                         ch = self.pull( rel_link, params=params, data_load=data_load, _top=False )
                         rel_objs.append( ch )
@@ -334,7 +335,7 @@ class Session( Browser ):
                 if rel_objs:
                     for obj in objects: # parse children into parent attrs
                         related = [x for x in rel_objs if \
-                            getattr(x, '_gnode')[parent_name + '_id'] == obj._gnode['id']]
+                            getattr(x, '_gnode')['fields'][parent_name + '_id'] == obj._gnode['id']]
                         # a way to assign kids depends on object type
                         self._assign_child( child, obj, related )
 
@@ -379,7 +380,7 @@ class Session( Browser ):
             
             if hasattr(obj, '_gnode'): # existing object, sync if possible
                 # update object on the server (with ETag)
-                headers = {'If-Match': obj._gnode['guid']}
+                headers = {'If-Match': obj._gnode['fields']['guid']}
                 params = {'m2m_append': 0}
                 lid = obj._gnode['id'] # get the full permalink from _gnode?
                 url = '%s%s/%s/%s/' % (self._meta.host, app, cls, str(lid))
@@ -442,7 +443,7 @@ class Session( Browser ):
                         raw_json = get_json_from_response( resp )
 
                         # update local in-memory object with newly acquired params
-                        Serializer.extend( obj, raw_json['selected'][0], self )
+                        setattr(obj, '_gnode', raw_json['selected'][0])
 
                     # update parent children list
                     Serializer.update_parent_children(obj, self)
@@ -478,7 +479,7 @@ class Session( Browser ):
                 for child in children: # 'child' is like 'segment', 'event' etc.
 
                     # cached children references
-                    child_link_set = list( obj._gnode[ child + '_set' ] )
+                    child_link_set = list( obj._gnode['fields'][ child + '_set' ] )
 
                     for rel in getattr(obj, get_children_field_name( child )):
 
@@ -565,9 +566,9 @@ class Session( Browser ):
 
                     # 1. update metadata attr in obj._gnode (based on values, not 
                     # on the response values so not to face the max_results problem)
-                    updated = set(obj._gnode['metadata'] + \
+                    updated = set(obj._gnode['fields']['metadata'] + \
                         [v._gnode['permalink'] for v in values])
-                    obj._gnode['metadata'] = list( updated )
+                    obj._gnode['fields']['metadata'] = list( updated )
 
                     # 2. update .metadata attribute of an object
                     if not hasattr(obj, 'metadata'):
@@ -675,7 +676,7 @@ class Session( Browser ):
 
                     # save filepath to the cache
                     link = raw_json['selected'][0]['permalink']
-                    fid = str(get_id_from_permalink(self._meta.host, link))
+                    fid = str(get_id_from_permalink( link ))
                     self._cache.data_map[ fid ] = cache_dir + temp_name + '.h5'
 
                     print 'done.'
@@ -747,7 +748,7 @@ class Session( Browser ):
 
         for attr, data_link in data_links.items():
 
-            fid = str(get_id_from_permalink(self._meta.host, data_link))
+            fid = str(get_id_from_permalink( data_link ))
 
             if data_load:
                 if fid in self._cache.data_map.keys(): # get data from cache
@@ -759,7 +760,7 @@ class Session( Browser ):
 
                     r = requests.get(data_link, cookies=self._meta.cookie_jar)
 
-                    temp_name = str(get_id_from_permalink(self._meta.host, data_link)) + '.h5'
+                    temp_name = str(get_id_from_permalink( data_link )) + '.h5'
                     with open( self._cache.cache_dir + temp_name, "w" ) as f:
                         f.write( r.content )
 
@@ -828,8 +829,9 @@ class Session( Browser ):
         for attr in data_attrs:
 
             fname = attr + '_id'
-            if obj._gnode.has_key( fname ) and obj._gnode[ fname ]:
-                fid = obj._gnode[ fname ] # id of the cached file
+            if obj._gnode['fields'].has_key( fname ) and obj._gnode['fields'][ fname ]:
+                # id of the cached file
+                fid = get_id_from_permalink(obj._gnode['fields'][ fname ])
 
                 if fid in self._cache.data_map.keys():
 
