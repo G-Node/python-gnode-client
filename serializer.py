@@ -213,13 +213,13 @@ class Serializer(object):
                              in metadata.__dict__.items()]
                 json_obj['fields']['metadata'] = meta_refs
 
-        # 7. validate if all required fields present
-        missing = []
-        for attr in app_definition['required']:
-            if not json_obj['fields'].has_key( attr ):
-                missing.append( attr )
-        if missing:
-            raise errors.ValidationError('The following params required for serialization: %s' % str(missing))
+        # 7. validate if all required fields present - only when create?
+        #missing = []
+        #for attr in app_definition['required']:
+        #    if not json_obj['fields'].has_key( attr ):
+        #        missing.append( attr )
+        #if missing:
+        #    raise errors.ValidationError('The following params required for serialization: %s' % str(missing))
 
         return json_obj
 

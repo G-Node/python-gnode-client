@@ -308,7 +308,7 @@ if 0: # not implemented yet
 
     import matplotlib.pyplot as plt
     criteria = {
-        "recordingchannel": gnode.select("recordingchannel", block=b, index=5)
+        "recordingchannel": gnode.select("recordingchannel", block=b, index=5),
         "metadata1": (p_cond, "fixation"),
         "metadata2": (p_color, "red"),
         "metadata3": (p_orient, "45")

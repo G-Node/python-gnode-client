@@ -862,9 +862,10 @@ class Session( Browser ):
                     if not np.array_equal(init_arr, curr_arr):
                         attrs_to_sync.append( attr )
 
-                else: # nothing to compare with! do nothing
-                    print 'Reference to a cached %s array is broken for %s.' % \
-                        (attr, obj._gnode['location'])
+                else: # nothing to compare with!
+                    # this could happen when an object was fetched without data.
+                    # ignore, treat as data was not changed
+                    pass
 
             else: # no real reference! treat as array was changed
                 attrs_to_sync.append( attr )
