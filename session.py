@@ -20,7 +20,7 @@ from utils import *
 from serializer import Serializer
 from browser import Browser
 from cache import Cache
-from models import Metadata, models_map, supported_models, units_dict
+from models import Metadata, models_map, supported_models, units_dict, get_type_by_obj
 
 
 #-------------------------------------------------------------------------------
@@ -87,7 +87,18 @@ def authenticate(url, username=None, password=None):
 
 class Meta( object ):
     """ abstract class to handle settings, auth information for Session """
-    pass
+
+    def get_array_attr_names(self, obj):
+        """ return attr names that are arrays with ndim > 0 """
+        names = []
+        model_name = get_type_by_obj( obj )
+        data_fields = self.app_definitions[model_name]['data_fields']
+
+        # FIXME dirty alternative
+        names = [n for n in data_fields if n in ['times', 'durations', \
+            'signal', 'waveform', 'waveforms']]
+
+        return names
 
 
 class Session( Browser ):
@@ -373,7 +384,7 @@ class Session( Browser ):
                 continue
 
             # 2. detect create/update and set request params
-            cls = self._get_type_by_obj( obj )
+            cls = get_type_by_obj( obj )
             app = self._meta.app_prefix_dict[cls]
             
             if hasattr(obj, '_gnode'): # existing object, sync if possible
@@ -525,7 +536,7 @@ class Session( Browser ):
         # 1. split given objects by model (class)
         for_annotation = {}
         for obj in objects:
-            model_name = self._get_type_by_obj( obj )
+            model_name = get_type_by_obj( obj )
             if not hasattr(obj, '_gnode'):
                 raise ValidationError('All objects need to be synced before annotation.')
 
@@ -629,10 +640,10 @@ class Session( Browser ):
         """ saves array data to disk in HDF5 and uploads new datafiles to the 
         server according to the arrays of the given obj. Saves datafile objects 
         to cache """
-        data_refs = {} # returns all updated references to the related data
-        model_name = self._get_type_by_obj( obj )
+        data_refs = {} # collects all updated references to the related data
+        model_name = get_type_by_obj( obj )
 
-        data_attrs = self._get_array_attr_names( obj ) # all array-type attrs
+        data_attrs = self._meta.get_array_attr_names( obj ) # all array-type attrs
 
         if not hasattr(obj, '_gnode'): # True if object never synced
             # sync all arrays
@@ -640,7 +651,7 @@ class Session( Browser ):
 
         else:
             # sync only changed arrays
-            attrs_to_sync = self._detect_changed_data_fields( obj )
+            attrs_to_sync = self.detect_changed_data_fields( obj )
 
         for attr in data_attrs: # attr is like 'times', 'signal' etc.
 
@@ -685,6 +696,7 @@ class Session( Browser ):
                 data_refs[ attr ] = None
 
         return data_refs
+
 
     def _fetch_metadata_by_json(self, model_name, json_obj):
         """ parses incoming json object representation and fetches related 
@@ -782,32 +794,6 @@ class Session( Browser ):
     # helper functions that DO NOT send HTTP requests
     #---------------------------------------------------------------------------
 
-    def _get_array_attr_names(self, obj):
-        """ return attr names that are arrays with ndim > 0 """
-
-        names = []
-        model_name = self._get_type_by_obj( obj )
-        data_fields = self._meta.app_definitions[model_name]['data_fields']
-
-        """
-        # this how it could be derived from obj. fails when attr None
-        for attr in data_fields.keys():
-
-            # detect if it's an array field
-            fname = data_fields[attr][2]
-            if fname == 'self':
-                curr_arr = obj # some NEO objects like signal inherit array
-            else:
-                curr_arr = getattr(obj, fname)
-            if curr_arr.ndim > 0: # otherwise it's just a plain data attribute
-                names.append( attr )
-        """
-
-        # FIXME dirty alternative
-        names = [n for n in data_fields if n in ['times', 'durations', \
-            'signal', 'waveform', 'waveforms']]
-
-        return names
 
 
     def _detect_changed_data_fields(self, obj):
@@ -819,9 +805,9 @@ class Session( Browser ):
             raise TypeError('This object was never synced, cannot detect changes')
 
         attrs_to_sync = []
-        model_name = self._get_type_by_obj( obj )
+        model_name = get_type_by_obj( obj )
         data_fields = self._meta.app_definitions[model_name]['data_fields']
-        data_attrs = self._get_array_attr_names( obj )
+        data_attrs = self._meta.get_array_attr_names( obj )
 
         for attr in data_attrs:
 
@@ -883,7 +869,7 @@ class Session( Browser ):
             setattr(obj, child + 's', related) # replace all
 
             # 2. assign parent to every child
-            model_name = self._get_type_by_obj( obj )
+            model_name = get_type_by_obj( obj )
             for rel in related:
                 setattr(rel, model_name, obj)
 
@@ -966,12 +952,6 @@ class Session( Browser ):
         """ update several homogenious objects on the server """
         raise NotImplementedError
 
-
-    def _get_type_by_obj(self, obj):
-        types = [k for k, v in models_map.items() if isinstance(obj, v)]
-        if len(types) > 0:
-            return types[0]
-        return None
 
 
 

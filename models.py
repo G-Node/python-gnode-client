@@ -49,6 +49,14 @@ models_map = {
 
 supported_models = models_map.values()
 
+def get_type_by_obj( obj ):
+    types = [k for k, v in models_map.items() if isinstance(obj, v)]
+    if len(types) > 0:
+        return types[0]
+    return None
+
+
+
 class Metadata(object):
     """ class containing metadata property-value pairs for a single object. """
 

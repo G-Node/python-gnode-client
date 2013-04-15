@@ -10,6 +10,8 @@ import sys
 import requests
 import errors
 import urlparse
+import string
+import random
 
 import simplejson as json
 
@@ -17,9 +19,22 @@ import simplejson as json
 #	for methos using permissions
 safety_level_dict = {1: 'public', 2:'friendly', 3:'private'}
 
+alphabet = list( string.ascii_letters + string.digits )
 
-def Property(func): # FIXME what do we need it here for?
-    return property(**func())
+def get_uid():
+    uid = ''
+    for i in range(10):
+        uid += random.choice( alphabet )
+    return uid
+    
+
+
+def sizeof_fmt(num):
+    for x in ['bytes','KB','MB','GB']:
+        if num < 1024.0 and num > -1024.0:
+            return "%3.1f%s" % (num, x)
+        num /= 1024.0
+    return "%3.1f%s" % (num, 'TB')
 
 
 def has_data(app_definitions, model_name):
