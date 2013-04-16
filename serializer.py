@@ -19,7 +19,7 @@ from neo.core import *
 class Serializer(object):
 
     @classmethod
-    def deserialize(cls, json_obj, session, data_refs={}, metadata=None):
+    def deserialize(cls, json_obj, meta, data_refs={}, metadata=None):
         """
         Instantiates a new python object from a given JSON representation.
 
@@ -27,11 +27,10 @@ class Serializer(object):
 
         json_obj  - a JSON representaion of the object fetched from the server.
 
-        session   - current user session.
+        meta      - meta information from the current session.
 
-        data_refs - a dict with references to the downloaded datafiles, required
-                    to instantiate a new object, like 
-                    {'signal': ('28374', '/tmp/28374.h5'), ...}
+        data_refs - a dict with arrays, required to instantiate new object, like 
+                    {'signal': <array...>, ...}
 
         metadata  - Metadata() object containing properties and values by which
                     object is tagged.
@@ -41,10 +40,10 @@ class Serializer(object):
         kwargs = {} # kwargs to init an object
 
         # 1. define a model
-        app_name, model_name, model = Serializer.parse_model(json_obj, session)
+        app_name, model_name, model = parse_model(json_obj)
 
         # 2. parse plain attrs into dict
-        app_definition = session._meta.app_definitions[model_name]
+        app_definition = meta.app_definitions[model_name]
         fields = json_obj['fields']
         for attr in app_definition['attributes']:
             if fields.has_key( attr ) and fields[ attr ]:
@@ -88,14 +87,15 @@ class Serializer(object):
 
         return obj
 
+
     @classmethod
-    def serialize(cls, obj, session, data_refs={}):
+    def serialize(cls, obj, meta, data_refs={}):
         """ 
         Instantiates a new python object from a given JSON representation.
 
         obj       - python object to serialize.
 
-        session   - current user session.
+        meta      - meta information from the current session.
 
         data_refs - a dict with references to the related datafiles and units
                     {'signal': {
@@ -133,23 +133,28 @@ class Serializer(object):
             raise TypeError('Object %s is not supported.' % \
                 cut_to_render( obj.__repr__() ))
 
-        if hasattr(obj, '_gnode'):
+        if hasattr(obj, '_gnode'): # existing object
             json_obj = obj._gnode
 
-        else:
+        else: # new object (never saved or synced)
             # 1. define a model
             json_obj = {'fields': {}, 'model': ''}
-            model_name = session._get_type_by_obj(obj)
-            app_name = session._meta.app_prefix_dict[ model_name ]
+            model_name = get_type_by_obj(obj)
+            app_name = meta.app_prefix_dict[ model_name ]
             json_obj['model'] = '%s.%s' % (app_name, model_name)
 
             # 2. define id, location and permalink
-            lid = get_uid()
-            location = "/%s/%s/%s/" % (app_name, model_name, lid)
-            permalink = urlparse.urljoin(session._meta.host, location)
+            json_obj['lid'] = get_uid()
+            json_obj['location'] = "/%s/%s/%s/" % (app_name, model_name, lid)
+            json_obj['permalink'] = "/%s/%s/%s/" % (app_name, model_name, lid)
+
+            # 3. create empty children lists
+            children = meta.app_definitions[model_name]['children']
+            for child in children:
+                json_obj['fields'][ child + '_set' ] = []
 
         # 3. parse simple fields into JSON dict
-        app_definition = session._meta.app_definitions[model_name]
+        app_definition = meta.app_definitions[model_name]
         for attr in app_definition['attributes']:
             if hasattr(obj, attr) and getattr(obj, attr):
                 value = Serializer._datetime_to_str( getattr(obj, attr) )
@@ -235,7 +240,7 @@ class Serializer(object):
         data-related permalinks """
         links = {} # dict like {'signal': 'http://host/datafiles/388109/', ...}
 
-        app_name, model_name, model = Serializer.parse_model(json_obj, session)
+        app_name, model_name, model = parse_model(json_obj)
         app_definition = session._meta.app_definitions[model_name]
 
         if has_data( session._meta.app_definitions, model_name ):
@@ -267,17 +272,6 @@ class Serializer(object):
                             if not link in parent._gnode['fields'][ model_name + '_set' ]:
                                 parent._gnode['fields'][ model_name + '_set' ].append( link )
 
-    @classmethod
-    def parse_model(cls, json_obj, session):
-        """ parses incoming JSON object representation and determines model, 
-        model_name and app_name """
-
-        model_base = json_obj['model']
-        app_name = model_base[ : model_base.find('.') ]
-        model_name = model_base[ model_base.find('.') + 1 : ]
-        model = models_map[ model_name ]
-
-        return app_name, model_name, model
 
     @classmethod
     def parse_units(cls, element):

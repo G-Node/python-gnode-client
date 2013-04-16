@@ -88,10 +88,8 @@ def authenticate(url, username=None, password=None):
 class Meta( object ):
     """ abstract class to handle settings, auth information for Session """
 
-    def get_array_attr_names(self, obj):
+    def get_array_attr_names(self, model_name):
         """ return attr names that are arrays with ndim > 0 """
-        names = []
-        model_name = get_type_by_obj( obj )
         data_fields = self.app_definitions[model_name]['data_fields']
 
         # FIXME dirty alternative

@@ -21,6 +21,17 @@ safety_level_dict = {1: 'public', 2:'friendly', 3:'private'}
 
 alphabet = list( string.ascii_uppercase + '234567' )
 
+def parse_model( json_obj ):
+    """ parses incoming JSON object representation and determines model, 
+    model_name and app_name """
+    model_base = json_obj['model']
+    app_name = model_base[ : model_base.find('.') ]
+    model_name = model_base[ model_base.find('.') + 1 : ]
+    model = models_map[ model_name ]
+
+    return app_name, model_name, model
+
+
 def get_uid():
     uid = ''
     for i in range(10):

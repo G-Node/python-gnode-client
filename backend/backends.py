@@ -30,22 +30,53 @@ class Local( BaseBackend ):
         self._meta = meta # FIXME bad to reference the same object with session
         self.init_hdf5_storage()
 
+    def init_hdf5_storage(self):
+        """ checks a cache file exists on disk """
+        try:
+            if os.path.exists( self.path ) and tb.isHDF5( self.path ):
+                print_status( 'Cache file with %s data found.' %  \
+                    sizeof_fmt( os.path.getsize( self.path )))
+
+        except IOError:
+            print 'No saved cached data found, cache is empty.'
+        except ValueError:
+            print 'Cache file cannot be parsed. Skip loading cached data.'
+
+
     def get(self, location, params={}, data_load=False, mode='obj'):
-        """ returns a single object or it's JSON representation """
-        json_obj = _get_by_location( location )
+        """ returns a single object or it's JSON representation (mode='json')"""
+        json_obj = self._get_by_location( location )
+        if json_obj == None:
+            return None
 
-        if data_load and mode == 'obj':
-            
+        app_name, model_name, model = parse_model(json_obj)
+
+        if mode == 'obj': # construct a python object
+
+            data_refs = {} # is a dict like {'signal': <array...>, ...}
+            if data_load:
+                for array_attr in self._meta.get_array_attr_names( model_name ):
+                    arr_loc = json_obj['fields'][ array_attr ]['data']
+                    data = self._get_by_location( arr_loc )
+                    if not data == None:
+                        data_refs['array_attr'] = data
+
+            return Serializer.deserialize( json_obj, self._meta, data_refs )
+
+        else: # just return JSON representation
+            return json_obj
 
 
-        if mode == obj:
+    def get_list(self, cls, params={}, data_load=False):
+
+
 
 
 
     def save(self, obj):
         """ creates/updates an object, returns updated JSON representation """
         data_refs = self.save_data( obj )
-        json_obj = Serializer.serialize(obj, self, data_refs)
+        json_obj = Serializer.serialize(obj, self._meta, data_refs)
 
         cls = get_type_by_obj( obj )
         app = self._meta.app_prefix_dict[cls]
@@ -58,12 +89,18 @@ class Local( BaseBackend ):
                 if json_cached == json_obj:
                     return 304 # object not modified
 
+            # remove host from the permalink to indicate that object has changes
+            json_obj['permalink'] = urlparse.urlparse( json_obj['permalink'] ).path
             self._save_to_location(location, name, json_obj)
             return 200 # successfuly saved
 
         else: # new object, create
             self._save_to_location(location, name, json_obj)
             return 201 # successfully created
+
+        # return JSON?
+        # update parent children, in the cache, in memory?
+
 
     def save_data(self, obj):
         """ saves array data to disk in HDF5 and uploads new datafiles to the 
@@ -83,9 +120,9 @@ class Local( BaseBackend ):
 
         model_name = get_type_by_obj( obj )
         data_fields = self._meta.app_definitions[model_name]['data_fields']
-        data_attrs = self._meta.get_array_attr_names( obj ) # all array-type attrs
+        array_attrs = self._meta.get_array_attr_names( model_name )
 
-        for attr in data_attrs: # attr is like 'times', 'signal' etc.
+        for attr in array_attrs: # attr is like 'times', 'signal' etc.
 
             # 1. get current array and units
             getter = data_fields[attr][2]
@@ -121,19 +158,6 @@ class Local( BaseBackend ):
 
         return data_refs
 
-
-    def init_hdf5_storage(self):
-        """ checks a cache file exists on disk """
-        try:
-            if os.path.exists( self.path ) and tb.isHDF5( self.path ):
-                print_status( 'Cache file with %s data found.' %  \
-                    sizeof_fmt( os.path.getsize( self.path )))
-
-        except IOError:
-            print 'No saved cached data found, cache is empty.'
-        except ValueError:
-            print 'Cache file cannot be parsed. Skip loading cached data.'
-
     #---------------------------------------------------------------------------
     # cache file operations
     #---------------------------------------------------------------------------
@@ -149,7 +173,6 @@ class Local( BaseBackend ):
             pass # array given
 
         with tb.openFile( self.path, "a" ) as f:
-            # FIXME overwrite if exists
             try:
                 f.removeNode( location, name )
             except NoSuchNodeError:
@@ -159,7 +182,11 @@ class Local( BaseBackend ):
 
 
     def _get_by_location(self, location):
-        """ """
+        """ returns a JSON or array object from the object at a given location
+        in the cache file. None if not exist """
+        if is_permalink( location ):
+            location = urlparse.urlparse( location ).path
+
         try:
             with tb.openFile( self.path, "r" ) as f:
                 node = f.getNode(location)
