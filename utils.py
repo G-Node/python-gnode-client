@@ -19,7 +19,7 @@ import simplejson as json
 #	for methos using permissions
 safety_level_dict = {1: 'public', 2:'friendly', 3:'private'}
 
-alphabet = list( string.ascii_letters + string.digits )
+alphabet = list( string.ascii_uppercase + '234567' )
 
 def get_uid():
     uid = ''

@@ -99,7 +99,7 @@ class Serializer(object):
 
         data_refs - a dict with references to the related datafiles and units
                     {'signal': {
-                            'data': http://host/datafiles/28374,
+                            'data': '/datafiles/28374',
                             'units': 'mV'
                         },
                     ...
@@ -124,22 +124,29 @@ class Serializer(object):
                 "name": "Perceptual evidence for saccadic updating of color stimuli"
             },
             "model": "metadata.section",
+            "id": "20",
+            "location": "/metadata/section/20",
             "permalink": "http://predata.g-node.org:8010/metadata/section/20"
         }
         """
-        json_obj = {'fields': {}, 'model': ''}
         if not obj.__class__ in supported_models:
             raise TypeError('Object %s is not supported.' % \
                 cut_to_render( obj.__repr__() ))
 
-        # 1. define a model
-        model_name = session._get_type_by_obj(obj)
-        app_name = session._meta.app_prefix_dict[ model_name ]
-        json_obj['model'] = '%s.%s' % (app_name, model_name)
+        if hasattr(obj, '_gnode'):
+            json_obj = obj._gnode
 
-        # 2. put permalink if exist
-        if hasattr(obj, '_gnode') and obj._gnode.has_key('permalink'):
-            json_obj['permalink'] = obj._gnode['permalink']
+        else:
+            # 1. define a model
+            json_obj = {'fields': {}, 'model': ''}
+            model_name = session._get_type_by_obj(obj)
+            app_name = session._meta.app_prefix_dict[ model_name ]
+            json_obj['model'] = '%s.%s' % (app_name, model_name)
+
+            # 2. define id, location and permalink
+            lid = get_uid()
+            location = "/%s/%s/%s/" % (app_name, model_name, lid)
+            permalink = urlparse.urljoin(session._meta.host, location)
 
         # 3. parse simple fields into JSON dict
         app_definition = session._meta.app_definitions[model_name]
@@ -153,7 +160,7 @@ class Serializer(object):
             api_attr = app_definition['data_fields'][ attr ][0]
             obj_attr = app_definition['data_fields'][ attr ][2]
 
-            if data_refs.has_key( attr ): # it's an array, preprocessed
+            if data_refs.has_key( attr ): # it's an array, use location
                 if data_refs[ attr ]:
                     json_obj['fields'][ api_attr ] = data_refs[ attr ]
 
