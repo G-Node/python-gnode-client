@@ -19,7 +19,7 @@ from neo.core import *
 class Serializer(object):
 
     @classmethod
-    def deserialize(cls, json_obj, meta, data_refs={}, metadata=None):
+    def deserialize(cls, json_obj, meta, data_refs={}):
         """
         Instantiates a new python object from a given JSON representation.
 
@@ -31,9 +31,6 @@ class Serializer(object):
 
         data_refs - a dict with arrays, required to instantiate new object, like 
                     {'signal': <array...>, ...}
-
-        metadata  - Metadata() object containing properties and values by which
-                    object is tagged.
         """
 
         args = [] # args to init an object
@@ -51,14 +48,13 @@ class Serializer(object):
 
         # 3. resolve data fields
         for attr in app_definition['data_fields'].keys():
+            array_attrs = meta.get_array_attr_names( model_name )
+
             if fields.has_key( attr ) and fields[ attr ]['data']:
 
-                if data_refs.has_key( attr ): # extract array from datafile
-
-                    if data_refs[ attr ]:
-                        with tb.openFile(data_refs[ attr ][1], 'r') as f:
-                            carray = f.listNodes( "/" )[0]
-                            data_value = np.array( carray[:] )
+                if attr in array_attrs: # array-data
+                    if data_refs.has_key( attr ):
+                        data_value = data_refs[ attr ]
 
                     else: # init a dummy array for 'no-data' requests
                         data_value = np.array( [0] )
@@ -78,11 +74,7 @@ class Serializer(object):
         # 4. init object
         obj = model( *args, **kwargs )
 
-        # 5. attach metadata if exists
-        if metadata:
-            setattr(obj, 'metadata', metadata) # tagged Metadata() object
-
-        # 6. adds _gnode attr to the object as it's JSON representation
+        # 5. adds _gnode attr to the object as it's JSON representation
         setattr(obj, '_gnode', json_obj)
 
         return obj

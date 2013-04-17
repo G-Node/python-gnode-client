@@ -792,8 +792,6 @@ class Session( Browser ):
     # helper functions that DO NOT send HTTP requests
     #---------------------------------------------------------------------------
 
-
-
     def _detect_changed_data_fields(self, obj):
         """ compares all current in-memory data fields (arrays) for a given 
         object with cached (on-disk) versions of these data arrays and returns

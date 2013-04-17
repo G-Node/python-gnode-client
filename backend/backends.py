@@ -27,7 +27,7 @@ class Local( BaseBackend ):
         self.cache_dir = cache_dir
         self.cache_file_name = cache_file_name
         self.path = cache_dir + cache_file_name
-        self._meta = meta # FIXME bad to reference the same object with session
+        self._meta = meta # FIXME attrs above not needed
         self.init_hdf5_storage()
 
     def init_hdf5_storage(self):
@@ -43,37 +43,76 @@ class Local( BaseBackend ):
             print 'Cache file cannot be parsed. Skip loading cached data.'
 
 
-    def get(self, location, params={}, data_load=False, mode='obj'):
+    def get(self, location, params={}, cascade=True, data_load=True, mode='obj'):
         """ returns a single object or it's JSON representation (mode='json')"""
-        json_obj = self._get_by_location( location )
-        if json_obj == None:
-            return None
 
-        app_name, model_name, model = parse_model(json_obj)
+        f = tb.openFile( self.path, "r" )
+        processed = [] # collector of permalinks of processed objects
+        stack = [ location ] # a stack of objects to sync
 
-        if mode == 'obj': # construct a python object
+        while len( stack ) > 0:
 
-            data_refs = {} # is a dict like {'signal': <array...>, ...}
-            if data_load:
-                for array_attr in self._meta.get_array_attr_names( model_name ):
-                    arr_loc = json_obj['fields'][ array_attr ]['data']
-                    data = self._get_by_location( arr_loc )
-                    if not data == None:
-                        data_refs['array_attr'] = data
+            location = stack[0] # take first object from stack
 
-            return Serializer.deserialize( json_obj, self._meta, data_refs )
+            # 1. process core location
+            json_obj = self._get_by_location( location, f )
+            if json_obj == None:
+                continue
 
-        else: # just return JSON representation
-            return json_obj
+            app_name, model_name, model = parse_model(json_obj)
+
+            if mode == 'obj': # construct a python object
+
+                data_refs = {} # is a dict like {'signal': <array...>, ...}
+                if data_load:
+                    for array_attr in self._meta.get_array_attr_names( model_name ):
+                        arr_loc = json_obj['fields'][ array_attr ]['data']
+                        data = self._get_by_location( arr_loc, f )
+                        if not data == None:
+                            data_refs['array_attr'] = data
+
+                obj = Serializer.deserialize( json_obj, self._meta, data_refs )
+
+            else: # just keep JSON representation
+                obj = json_obj
+
+            # 2. put children in the stack???
+            children = self._meta.app_definitions[model_name]['children']
+            if cascade and children:
+                for child in children: # 'child' is like 'segment', 'event' etc.
+
+                    field_name = child + '_set'
+                    if obj._gnode['fields'].has_key( field_name ) and \
+                        obj._gnode['fields'][ field_name ]:
+                        rel_objs = []
+
+                        for rel_link in obj._gnode['fields'][ field_name ]:
+                            # fetching *child*-type objects
+                            ch = self.pull( rel_link, params=params, data_load=data_load, _top=False )
+                            rel_objs.append( ch )
+
+                        if rel_objs: # parse children into parent attrs
+                            # a way to assign kids depends on object type
+                            self._assign_child( child, obj, rel_objs )
 
 
-    def get_list(self, cls, params={}, data_load=False):
+        f.close()
+
+        return obj
+
+
+
+
+    def get_list(self, cls, params={}, data_load=False, mode='obj'):
+        """ get a list of objects of a certain type from the cache file """
+        app = self._meta.app_prefix_dict[ cls ]
+        
 
 
 
 
 
-    def save(self, obj):
+    def save(self, obj, cascade=True): # FIXME
         """ creates/updates an object, returns updated JSON representation """
         data_refs = self.save_data( obj )
         json_obj = Serializer.serialize(obj, self._meta, data_refs)
@@ -83,7 +122,7 @@ class Local( BaseBackend ):
         location = json_obj['location']
 
         if hasattr(obj, '_gnode'): # existing object, should be in cache
-            json_cached = self._get_by_location( location )
+            json_cached = self._get_by_location( location, f )
 
             if not json_cached == None:
                 if json_cached == json_obj:
@@ -181,16 +220,14 @@ class Local( BaseBackend ):
             f.createArray(location, name, arr)
 
 
-    def _get_by_location(self, location):
+    def _get_by_location(self, location, f):
         """ returns a JSON or array object from the object at a given location
-        in the cache file. None if not exist """
+        in the cache file f. None if not exist """
         if is_permalink( location ):
             location = urlparse.urlparse( location ).path
 
         try:
-            with tb.openFile( self.path, "r" ) as f:
-                node = f.getNode(location)
-
+            node = f.getNode(location)
         except NoSuchNodeError:
             return None
 
