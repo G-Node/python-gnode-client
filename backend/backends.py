@@ -6,109 +6,138 @@ from models import get_type_by_obj
 from tables.exceptions import NoSuchNodeError
 
 class BaseBackend( object ):
-    """ abstract class for a client backend """
+    """ abstract class for a client backend. Backend talks JSON + HDF5. """
 
-    def get(self, location, params={}, data_load=False):
-        """ returns a single object or it's JSON representation """
+    #---------------------------------------------------------------------------
+    # open/close backend (authenticate etc.)
+    #---------------------------------------------------------------------------
+
+    def open(self):
+        """ opens the backend for writing """
         raise NotImplementedError
 
-    def get_list(self, cls, params={}, data_load=False):
-        """ returns a list of objects or their JSON representations """
+    def close(self):
+        """ closes the backend """
         raise NotImplementedError
 
-    def save(self, obj):
+    #---------------------------------------------------------------------------
+    # backend supported operations
+    #---------------------------------------------------------------------------
+
+    def get(self, location):
+        """ returns a JSON representation of a single object """
+        raise NotImplementedError
+
+    def get_list(self, model_name, params={}):
+        """ returns a list of object JSON representations """
+        raise NotImplementedError
+
+    def get_data(self, location):
+        """ returns a filepath + path in the file to the data array """
+        raise NotImplementedError
+
+    def save(self, json_obj):
         """ creates/updates an object, returns updated JSON representation """
+        raise NotImplementedError
+
+    def save_data(self, filepath, location):
+        """ saves array located at a given filepath/location to the backend. 
+        returns an id of the saved object """
         raise NotImplementedError
 
 
 class Local( BaseBackend ):
 
-    def __init__(self, cache_dir, cache_file_name, meta):
-        self.cache_dir = cache_dir
-        self.cache_file_name = cache_file_name
-        self.path = cache_dir + cache_file_name
-        self._meta = meta # FIXME attrs above not needed
+    def __init__(self, meta):
+        self._meta = meta
         self.init_hdf5_storage()
 
     def init_hdf5_storage(self):
         """ checks a cache file exists on disk """
         try:
-            if os.path.exists( self.path ) and tb.isHDF5( self.path ):
+            if os.path.exists( self._meta.cache_path ) and tb.isHDF5( self._meta.cache_path ):
                 print_status( 'Cache file with %s data found.' %  \
-                    sizeof_fmt( os.path.getsize( self.path )))
+                    sizeof_fmt( os.path.getsize( self._meta.cache_path )))
 
         except IOError:
             print 'No saved cached data found, cache is empty.'
         except ValueError:
             print 'Cache file cannot be parsed. Skip loading cached data.'
 
+    #---------------------------------------------------------------------------
+    # open/close backend (authenticate etc.)
+    #---------------------------------------------------------------------------
 
-    def get(self, location, params={}, cascade=True, data_load=True, mode='obj'):
-        """ returns a single object or it's JSON representation (mode='json')"""
+    def open(self):
+        """ opens the backend for writing """
+        self.f = tb.openFile( self._meta.cache_path, "a" )
 
-        f = tb.openFile( self.path, "r" )
-        processed = [] # collector of permalinks of processed objects
-        stack = [ location ] # a stack of objects to sync
+    def close(self):
+        """ closes the backend """
+        self.f.close()
+        del(self.f)
 
-        while len( stack ) > 0:
+    #---------------------------------------------------------------------------
+    # backend supported operations
+    #---------------------------------------------------------------------------
 
-            location = stack[0] # take first object from stack
+    def get_list(self, model_name, params={}):
+        """ get a list of objects of a certain type from the cache file """
+        app = self._meta.app_prefix_dict[ model_name ]
 
-            # 1. process core location
-            json_obj = self._get_by_location( location, f )
-            if json_obj == None:
-                continue
+        path = "/%s/%s/" % (app, model_name)
 
-            app_name, model_name, model = parse_model(json_obj)
+        try:
+            nodes = self.f.listNodes()
+        except NoSuchNodeError:
+            return None
 
-            if mode == 'obj': # construct a python object
+        json_list = []
+        for node in nodes:
+            json_list.append( json.loads( str(node.read()) ) )
 
-                data_refs = {} # is a dict like {'signal': <array...>, ...}
-                if data_load:
-                    for array_attr in self._meta.get_array_attr_names( model_name ):
-                        arr_loc = json_obj['fields'][ array_attr ]['data']
-                        data = self._get_by_location( arr_loc, f )
-                        if not data == None:
-                            data_refs['array_attr'] = data
+        return json_list
+        
 
-                obj = Serializer.deserialize( json_obj, self._meta, data_refs )
+    def get(self, location):
+        """ returns a JSON or array object from the object at a given location
+        in the cache file. None if not exist """
+        if is_permalink( location ):
+            location = urlparse.urlparse( location ).path
 
-            else: # just keep JSON representation
-                obj = json_obj
+        try:
+            node = self.f.getNode(location)
+        except NoSuchNodeError:
+            return None
 
-            # 2. put children in the stack???
-            children = self._meta.app_definitions[model_name]['children']
-            if cascade and children:
-                for child in children: # 'child' is like 'segment', 'event' etc.
+        try: # JSON data
+            obj = json.loads( str(node.read()) )
 
-                    field_name = child + '_set'
-                    if obj._gnode['fields'].has_key( field_name ) and \
-                        obj._gnode['fields'][ field_name ]:
-                        rel_objs = []
-
-                        for rel_link in obj._gnode['fields'][ field_name ]:
-                            # fetching *child*-type objects
-                            ch = self.pull( rel_link, params=params, data_load=data_load, _top=False )
-                            rel_objs.append( ch )
-
-                        if rel_objs: # parse children into parent attrs
-                            # a way to assign kids depends on object type
-                            self._assign_child( child, obj, rel_objs )
-
-
-        f.close()
+        except ValueError: # array data
+            obj = np.array( node.read() )
 
         return obj
 
 
+    def _save_to_location(self, location, name, obj)
+        """ saves (ovewrites if exists) a given JSON or array obj to the cache 
+        file at a given location with a given name """
+        if not self.f:
+            raise IOError('Open the backend first.')
 
+        try: # JSON object
+            to_save = json.dumps(obj)
+            to_save = np.array( to_save )
 
-    def get_list(self, cls, params={}, data_load=False, mode='obj'):
-        """ get a list of objects of a certain type from the cache file """
-        app = self._meta.app_prefix_dict[ cls ]
-        
+        except TypeError:
+            pass # array given
 
+        try:
+            self.f.removeNode( location, name )
+        except NoSuchNodeError:
+            pass
 
+        self.f.createArray(location, name, arr)
 
 
 
@@ -122,7 +151,7 @@ class Local( BaseBackend ):
         location = json_obj['location']
 
         if hasattr(obj, '_gnode'): # existing object, should be in cache
-            json_cached = self._get_by_location( location, f )
+            json_cached = self.get( location, f )
 
             if not json_cached == None:
                 if json_cached == json_obj:
@@ -181,7 +210,7 @@ class Local( BaseBackend ):
             # 2. search for cached array
             link = obj._gnode['fields'][ attr ]['data']
             location = urlparse.urlparse( link ).path
-            init_arr = self._get_by_location( location )
+            init_arr = self.get( location )
 
             if not init_arr == None: # cached array exists
                 # compare cached (original) and current data
@@ -193,51 +222,69 @@ class Local( BaseBackend ):
             name = get_uid()
             self._save_to_location( location, name, curr_arr )
 
-            data_refs[ attr ] = {'data': location, 'units': units}
+            data_refs[ attr ] = {'data': location + name + '/', 'units': units}
 
         return data_refs
 
     #---------------------------------------------------------------------------
-    # cache file operations
+    # bad attempts
     #---------------------------------------------------------------------------
 
-    def _save_to_location(self, location, name, obj)
-        """ saves (ovewrites if exists) a given JSON or array obj to the cache 
-        file at a given location with a given name """
-        try: # JSON object
-            to_save = json.dumps(obj)
-            to_save = np.array( to_save )
+    def fake_get(self, location, params={}, cascade=True, data_load=True, mode='obj'):
+        """ returns a single object or it's JSON representation (mode='json')"""
 
-        except TypeError:
-            pass # array given
+        f = tb.openFile( self._meta.cache_path, "r" )
+        processed = [] # collector of permalinks of processed objects
+        stack = [ location ] # a stack of objects to sync
 
-        with tb.openFile( self.path, "a" ) as f:
-            try:
-                f.removeNode( location, name )
-            except NoSuchNodeError:
-                pass
+        while len( stack ) > 0:
 
-            f.createArray(location, name, arr)
+            location = stack[0] # take first object from stack
 
+            # 1. process core location
+            json_obj = self.get( location, f )
+            if json_obj == None:
+                continue
 
-    def _get_by_location(self, location, f):
-        """ returns a JSON or array object from the object at a given location
-        in the cache file f. None if not exist """
-        if is_permalink( location ):
-            location = urlparse.urlparse( location ).path
+            app_name, model_name, model = parse_model(json_obj)
 
-        try:
-            node = f.getNode(location)
-        except NoSuchNodeError:
-            return None
+            if mode == 'obj': # construct a python object
 
-        try: # JSON data
-            obj = json.loads( str(node.read()) )
+                data_refs = {} # is a dict like {'signal': <array...>, ...}
+                if data_load:
+                    for array_attr in self._meta.get_array_attr_names( model_name ):
+                        arr_loc = json_obj['fields'][ array_attr ]['data']
+                        data = self.get( arr_loc, f )
+                        if not data == None:
+                            data_refs['array_attr'] = data
 
-        except ValueError: # array data
-            obj = np.array( node.read() )
+                obj = Serializer.deserialize( json_obj, self._meta, data_refs )
 
+            else: # just keep JSON representation
+                obj = json_obj
+
+            # 2. put children in the stack???
+            children = self._meta.app_definitions[model_name]['children']
+            if cascade and children:
+                for child in children: # 'child' is like 'segment', 'event' etc.
+
+                    field_name = child + '_set'
+                    if obj._gnode['fields'].has_key( field_name ) and \
+                        obj._gnode['fields'][ field_name ]:
+                        rel_objs = []
+
+                        for rel_link in obj._gnode['fields'][ field_name ]:
+                            # fetching *child*-type objects
+                            ch = self.pull( rel_link, params=params, data_load=data_load, _top=False )
+                            rel_objs.append( ch )
+
+                        if rel_objs: # parse children into parent attrs
+                            # a way to assign kids depends on object type
+                            self._assign_child( child, obj, rel_objs )
+        f.close()
         return obj
+
+
 
 
 

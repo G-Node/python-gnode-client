@@ -1,4 +1,5 @@
 from utils import *
+import os
 
 class Cache( object ):
     """ a class to handle cached objects and data for Session """

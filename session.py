@@ -120,6 +120,11 @@ class Session( Browser ):
 
         meta.app_aliases, meta.cls_aliases = build_alias_dicts( profile_data['alias_map'] )
         meta.cookie_jar = authenticate(meta.host, meta.username, meta.password)
+        if meta.cookie_jar:
+            self.mode = 'online'
+        else:
+            self.mode = 'offline'
+        meta.cache_path = os.path.join( profile_data['cacheDir'], profile_data['cache_file_name'] )
         self._meta = meta
 
         # 2. load cache
