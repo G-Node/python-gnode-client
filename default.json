@@ -9,7 +9,7 @@
     "password": "pass",
     
     "host": "predata.g-node.org",
-    "port": 80,
+    "port": 8010,
     "https": false,
     "prefix": "",
     "prefixData": "electrophysiology",
@@ -17,7 +17,7 @@
     "apiDefinition": "./requirements.json",
 
     "cacheDir": "./cache/",
-    "cache_file_name": "gnode_cache.json",
+    "cache_file_name": "gnode_cache.h5",
     "load_cached_data" : 1,
     "tempDir": "/tmp/",
 

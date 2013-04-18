@@ -136,11 +136,11 @@ if not metadata_created:
     g.sync( experiment, cascade=True ) # sync all
 
 else:
-    experiments = g.list('section', {'parent_section__isnull': 1})
+    experiments = g.select('section', {'parent_section__isnull': 1})
     experiments.sort(key=lambda x: x._gnode['id'], reverse=True)
     experiment = experiments[0]
 
-    sections = g.list('section', {'parent_section__id': experiment._gnode['id'], 'name': 'Stimulus'})
+    sections = g.select('section', {'parent_section__id': experiment._gnode['id'], 'name': 'Stimulus'})
     stimulus = g.pull( sections[0]._gnode['location'] )
 
 
@@ -170,7 +170,7 @@ if not data_created:
 
 
     # 3. create trial segments and signal data
-    with open('/home/sobolev/data/080707/lfp_fix080707.dat', 'r') as f:
+    with open('/home/andrey/data/080707/lfp_fix080707.dat', 'r') as f:
 
         for i, l in enumerate(f):
 
@@ -213,7 +213,7 @@ if not data_created:
     g.sync( b, cascade=True )
 
 else:
-    blocks = g.list('block')
+    blocks = g.select('block')
     blocks.sort(key=lambda x: x._gnode['id'], reverse=True)
     b = g.pull(blocks[0]._gnode['location'])
 
@@ -308,7 +308,7 @@ if 0: # not implemented yet
 
     import matplotlib.pyplot as plt
     criteria = {
-        "recordingchannel": gnode.select("recordingchannel", block=b, index=5)
+        "recordingchannel": gnode.select("recordingchannel", block=b, index=5),
         "metadata1": (p_cond, "fixation"),
         "metadata2": (p_color, "red"),
         "metadata3": (p_orient, "45")

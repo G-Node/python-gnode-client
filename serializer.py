@@ -19,7 +19,7 @@ from neo.core import *
 class Serializer(object):
 
     @classmethod
-    def deserialize(cls, json_obj, session, data_refs={}, metadata=None):
+    def deserialize(cls, json_obj, meta, data_refs={}):
         """
         Instantiates a new python object from a given JSON representation.
 
@@ -27,24 +27,20 @@ class Serializer(object):
 
         json_obj  - a JSON representaion of the object fetched from the server.
 
-        session   - current user session.
+        meta      - meta information from the current session.
 
-        data_refs - a dict with references to the downloaded datafiles, required
-                    to instantiate a new object, like 
-                    {'signal': ('28374', '/tmp/28374.h5'), ...}
-
-        metadata  - Metadata() object containing properties and values by which
-                    object is tagged.
+        data_refs - a dict with arrays, required to instantiate new object, like 
+                    {'signal': <array...>, ...}
         """
 
         args = [] # args to init an object
         kwargs = {} # kwargs to init an object
 
         # 1. define a model
-        app_name, model_name, model = Serializer.parse_model(json_obj, session)
+        app_name, model_name, model = parse_model(json_obj)
 
         # 2. parse plain attrs into dict
-        app_definition = session._meta.app_definitions[model_name]
+        app_definition = meta.app_definitions[model_name]
         fields = json_obj['fields']
         for attr in app_definition['attributes']:
             if fields.has_key( attr ) and fields[ attr ]:
@@ -52,14 +48,13 @@ class Serializer(object):
 
         # 3. resolve data fields
         for attr in app_definition['data_fields'].keys():
+            array_attrs = meta.get_array_attr_names( model_name )
+
             if fields.has_key( attr ) and fields[ attr ]['data']:
 
-                if data_refs.has_key( attr ): # extract array from datafile
-
-                    if data_refs[ attr ]:
-                        with tb.openFile(data_refs[ attr ][1], 'r') as f:
-                            carray = f.listNodes( "/" )[0]
-                            data_value = np.array( carray[:] )
+                if attr in array_attrs: # array-data
+                    if data_refs.has_key( attr ):
+                        data_value = data_refs[ attr ]
 
                     else: # init a dummy array for 'no-data' requests
                         data_value = np.array( [0] )
@@ -79,33 +74,28 @@ class Serializer(object):
         # 4. init object
         obj = model( *args, **kwargs )
 
-        # 5. attach metadata if exists
-        if metadata:
-            setattr(obj, 'metadata', metadata) # tagged Metadata() object
-
-        # 6. adds _gnode attr to the object as a dict with reserved attributes
-        Serializer.extend(obj, json_obj, session)
+        # 5. adds _gnode attr to the object as it's JSON representation
+        setattr(obj, '_gnode', json_obj)
 
         return obj
 
+
     @classmethod
-    def serialize(cls, obj, session, data_refs={}):
+    def serialize(cls, obj, meta, data_refs={}):
         """ 
         Instantiates a new python object from a given JSON representation.
 
         obj       - python object to serialize.
 
-        session   - current user session.
+        meta      - meta information from the current session.
 
         data_refs - a dict with references to the related datafiles and units
                     {'signal': {
-                            'data': http://host/datafiles/28374,
+                            'data': '/datafiles/28374',
                             'units': 'mV'
                         },
                     ...
                     }
-
-        meta_refs - list of permalinks of the related metadata values.
 
         serialized object should look like this:
         {
@@ -126,25 +116,37 @@ class Serializer(object):
                 "name": "Perceptual evidence for saccadic updating of color stimuli"
             },
             "model": "metadata.section",
+            "id": "20",
+            "location": "/metadata/section/20",
             "permalink": "http://predata.g-node.org:8010/metadata/section/20"
         }
         """
-        json_obj = {'fields': {}, 'model': ''}
         if not obj.__class__ in supported_models:
             raise TypeError('Object %s is not supported.' % \
                 cut_to_render( obj.__repr__() ))
 
-        # 1. define a model
-        model_name = session._get_type_by_obj(obj)
-        app_name = session._meta.app_prefix_dict[ model_name ]
-        json_obj['model'] = '%s.%s' % (app_name, model_name)
+        if hasattr(obj, '_gnode'): # existing object
+            json_obj = obj._gnode
 
-        # 2. put permalink if exist
-        if hasattr(obj, '_gnode') and obj._gnode.has_key('permalink'):
-            json_obj['permalink'] = obj._gnode['permalink']
+        else: # new object (never saved or synced)
+            # 1. define a model
+            json_obj = {'fields': {}, 'model': ''}
+            model_name = get_type_by_obj(obj)
+            app_name = meta.app_prefix_dict[ model_name ]
+            json_obj['model'] = '%s.%s' % (app_name, model_name)
+
+            # 2. define id, location and permalink
+            json_obj['lid'] = get_uid()
+            json_obj['location'] = "/%s/%s/%s/" % (app_name, model_name, lid)
+            json_obj['permalink'] = "/%s/%s/%s/" % (app_name, model_name, lid)
+
+            # 3. create empty children lists
+            children = meta.app_definitions[model_name]['children']
+            for child in children:
+                json_obj['fields'][ child + '_set' ] = []
 
         # 3. parse simple fields into JSON dict
-        app_definition = session._meta.app_definitions[model_name]
+        app_definition = meta.app_definitions[model_name]
         for attr in app_definition['attributes']:
             if hasattr(obj, attr) and getattr(obj, attr):
                 value = Serializer._datetime_to_str( getattr(obj, attr) )
@@ -155,7 +157,7 @@ class Serializer(object):
             api_attr = app_definition['data_fields'][ attr ][0]
             obj_attr = app_definition['data_fields'][ attr ][2]
 
-            if data_refs.has_key( attr ): # it's an array, preprocessed
+            if data_refs.has_key( attr ): # it's an array, use location
                 if data_refs[ attr ]:
                     json_obj['fields'][ api_attr ] = data_refs[ attr ]
 
@@ -190,10 +192,10 @@ class Serializer(object):
                         par_values = par_values[0]
                     json_obj['fields'][ par_name ] = par_values
 
-                elif hasattr(obj, '_gnode') and obj._gnode.has_key(par_name):
+                elif hasattr(obj, '_gnode') and obj._gnode['fields'].has_key(par_name):
                     # most probably object was pulled without parent, keep old 
                     # parent and do not change anything
-                    json_obj['fields'][ par_name ] = obj._gnode[ par_name ]
+                    json_obj['fields'][ par_name ] = obj._gnode['fields'][ par_name ]
 
                 elif not parents:
                     # reset parent as no actual parent and obj has no parent in 
@@ -213,70 +215,15 @@ class Serializer(object):
                              in metadata.__dict__.items()]
                 json_obj['fields']['metadata'] = meta_refs
 
-        # 7. validate if all required fields present
-        missing = []
-        for attr in app_definition['required']:
-            if not json_obj['fields'].has_key( attr ):
-                missing.append( attr )
-        if missing:
-            raise errors.ValidationError('The following params required for serialization: %s' % str(missing))
+        # 7. validate if all required fields present - only when create?
+        #missing = []
+        #for attr in app_definition['required']:
+        #    if not json_obj['fields'].has_key( attr ):
+        #        missing.append( attr )
+        #if missing:
+        #    raise errors.ValidationError('The following params required for serialization: %s' % str(missing))
 
         return json_obj
-
-    @classmethod
-    def extend(cls, obj, json_obj, session):
-        """ extends object by adding _gnode attribute as a dict with reserved 
-        gnode attributes like date_created, id, safety_level etc. """
-        setattr(obj, '_gnode', {}) # reserved info
-
-        model_name = session._get_type_by_obj(obj)
-        app_definition = session._meta.app_definitions[model_name]
-        fields = json_obj['fields']
-
-        # 1. parse id from permalink and save it into obj._gnode
-        permalink = json_obj['permalink']
-        obj_id = get_id_from_permalink(session._meta.host, permalink)
-        obj._gnode['id'] = obj_id
-        obj._gnode['location'] = permalink.replace(session._meta.host, '')
-        obj._gnode['permalink'] = permalink
-
-        # 2. parse special fields, including ACLs into obj._gnode
-        for attr in app_definition['reserved']:
-            if fields.has_key( attr ):
-                obj._gnode[attr] = fields[ attr ]
-
-        # 3. assign parents permalinks/ids into obj._gnode
-        for par_attr in app_definition['parents']:
-            if fields.has_key( par_attr ):
-
-                par_val = fields[ par_attr ]
-
-                if type( par_val ) == type([]):
-                    # m2m parent, assign a list of parents
-                    ids = [get_id_from_permalink(session._meta.host, v) for v in par_val]
-                    obj._gnode[par_attr + '_id'] = ids
-                    obj._gnode[par_attr] = par_val
-
-                else: # single FK parent object
-                    obj._gnode[par_attr + '_id'] = get_id_from_permalink(session._meta.host, par_val)
-                    obj._gnode[par_attr] = par_val
-
-        # 4. parse children permalinks into obj._gnode
-        for child in app_definition['children']:
-            field_name = child + '_set'
-            if fields.has_key( field_name ):
-                obj._gnode[ field_name ] = fields[ field_name ]
-
-        # 5. parse data ids into obj._gnode (required to reference cache.data_map)
-        data_links = Serializer.parse_data_permalinks(json_obj, session)
-
-        for attr, data_link in data_links.items():
-            fid = str(get_id_from_permalink(session._meta.host, data_link))
-            obj._gnode[attr + '_id'] = fid
-
-        # 6. parse metadata
-        if fields.has_key('metadata'):
-            obj._gnode['metadata'] = fields['metadata']
 
 
     @classmethod
@@ -285,7 +232,7 @@ class Serializer(object):
         data-related permalinks """
         links = {} # dict like {'signal': 'http://host/datafiles/388109/', ...}
 
-        app_name, model_name, model = Serializer.parse_model(json_obj, session)
+        app_name, model_name, model = parse_model(json_obj)
         app_definition = session._meta.app_definitions[model_name]
 
         if has_data( session._meta.app_definitions, model_name ):
@@ -313,21 +260,10 @@ class Serializer(object):
                 for parent in parents:                
                     if parent and hasattr(parent, '_gnode'):
                         link = obj._gnode['permalink']
-                        if parent._gnode.has_key( model_name + '_set' ):
-                            if not link in parent._gnode[ model_name + '_set' ]:
-                                parent._gnode[ model_name + '_set' ].append( link )
+                        if parent._gnode['fields'].has_key( model_name + '_set' ):
+                            if not link in parent._gnode['fields'][ model_name + '_set' ]:
+                                parent._gnode['fields'][ model_name + '_set' ].append( link )
 
-    @classmethod
-    def parse_model(cls, json_obj, session):
-        """ parses incoming JSON object representation and determines model, 
-        model_name and app_name """
-
-        model_base = json_obj['model']
-        app_name = model_base[ : model_base.find('.') ]
-        model_name = model_base[ model_base.find('.') + 1 : ]
-        model = models_map[ model_name ]
-
-        return app_name, model_name, model
 
     @classmethod
     def parse_units(cls, element):

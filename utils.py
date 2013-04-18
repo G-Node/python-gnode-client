@@ -10,6 +10,8 @@ import sys
 import requests
 import errors
 import urlparse
+import string
+import random
 
 try:
     import simplejson as json
@@ -20,9 +22,33 @@ except ImportError:
 #	for methos using permissions
 safety_level_dict = {1: 'public', 2:'friendly', 3:'private'}
 
+alphabet = list( string.ascii_uppercase + '234567' )
 
-def Property(func): # FIXME what do we need it here for?
-    return property(**func())
+def parse_model( json_obj ):
+    """ parses incoming JSON object representation and determines model, 
+    model_name and app_name """
+    model_base = json_obj['model']
+    app_name = model_base[ : model_base.find('.') ]
+    model_name = model_base[ model_base.find('.') + 1 : ]
+    model = models_map[ model_name ]
+
+    return app_name, model_name, model
+
+
+def get_uid():
+    uid = ''
+    for i in range(10):
+        uid += random.choice( alphabet )
+    return uid
+    
+
+
+def sizeof_fmt(num):
+    for x in ['bytes','KB','MB','GB']:
+        if num < 1024.0 and num > -1024.0:
+            return "%3.1f%s" % (num, x)
+        num /= 1024.0
+    return "%3.1f%s" % (num, 'TB')
 
 
 def has_data(app_definitions, model_name):
@@ -39,11 +65,11 @@ def is_permalink( link ):
     return str(link).find("http://") > -1
 
 
-def get_id_from_permalink(host_url, permalink):
+def get_id_from_permalink(permalink):
     """ parses permalink and extracts ID of the object """
     if not permalink:
         return None
-    base_url = permalink.replace(host_url, '')
+    base_url = urlparse.urlparse(permalink).path
     return int( re.search("(?P<id>[\d]+)", base_url).group() )
 
 
@@ -128,7 +154,7 @@ def get_parent_field_name(cls, child):
     if (cls == 'section' and child == 'section') or \
         (cls == 'property' and child == 'value'):
         parent_name = 'parent_' + parent_name
-    return cls
+    return parent_name
 
 def get_children_field_name(rel_type):
     if rel_type == 'property':
