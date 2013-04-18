@@ -9,8 +9,12 @@ import re
 import sys
 import requests
 import errors
+import urlparse
 
-import simplejson as json
+try:
+    import simplejson as json
+except ImportError:
+    import json
 
 # 'bidirectional dictionary to convert between the two nomenclatures used
 #	for methos using permissions
@@ -168,4 +172,8 @@ def get_json_from_response( resp ):
 
     return json.loads( jstr )
 
+
+def extract_location( permalink ):
+    """ parses permalink and returns obj location, like /metadata/section/4 """
+    return urlparse.urlparse( permalink ).path
 
