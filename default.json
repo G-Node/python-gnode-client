@@ -8,7 +8,7 @@
     "username": "bob",
     "password": "pass",
     
-    "host": "localhost",
+    "host": "predata.g-node.org",
     "port": 8010,
     "https": false,
     "prefix": "",

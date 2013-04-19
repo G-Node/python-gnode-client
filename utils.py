@@ -13,7 +13,10 @@ import urlparse
 import string
 import random
 
-import simplejson as json
+try:
+    import simplejson as json
+except ImportError:
+    import json
 
 # 'bidirectional dictionary to convert between the two nomenclatures used
 #	for methos using permissions
@@ -194,4 +197,8 @@ def get_children_field_name(rel_type):
 
 
 
+
+def extract_location( permalink ):
+    """ parses permalink and returns obj location, like /metadata/section/4 """
+    return urlparse.urlparse( permalink ).path
 

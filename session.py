@@ -113,6 +113,7 @@ class Session( Browser ):
         meta.max_line_out = profile_data['max_line_out']
         meta.verbose = bool( profile_data['verbose'] )
         meta.host = build_hostname( profile_data )
+        meta.port = profile_data['port']
         meta.app_definitions, meta.model_names, meta.app_prefix_dict = \
             load_app_definitions(model_data)
         # a) app_definitions is a dict parsed from requirements.json
@@ -266,7 +267,7 @@ class Session( Browser ):
                     make correct printing after new objects are fetched.
         """
         if is_permalink( location ):
-            location = location.replace(self._meta.host, '')
+            location = extract_location( location )
         location = self._restore_location( location )
         app, cls, lid = self._parse_location( location )
 

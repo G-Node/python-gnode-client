@@ -83,14 +83,14 @@ class Browser(object):
         for obj in objs:
 
             # object location
-            location = obj._gnode['permalink'].replace(self._meta.host, '')
+            location = extract_location( obj._gnode['permalink'] )
             out += self._strip_location(location) + '\t'
 
             # safety level
             out += str(obj._gnode['fields']['safety_level']) + ' '
 
             # object owner
-            out += obj._gnode['fields']['owner'].replace(self._meta.host, '') + '\t'
+            out += extract_location( obj._gnode['owner'] ) + '\t'
 
             # object __repr__
             out += obj.__repr__()[ : self._meta.max_line_out ] + '\n'
