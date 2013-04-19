@@ -20,6 +20,11 @@ class BaseBackend( object ):
         """ closes the backend """
         raise NotImplementedError
 
+    @property
+    def is_active(self):
+        """ is opened or not """
+        raise NotImplementedError
+
     #---------------------------------------------------------------------------
     # backend supported operations
     #---------------------------------------------------------------------------
@@ -76,6 +81,11 @@ class Local( BaseBackend ):
         """ closes the backend """
         self.f.close()
         del(self.f)
+
+    @property
+    def is_active(self):
+        """ is opened or not """
+        return hasattr(self, 'f')
 
     #---------------------------------------------------------------------------
     # backend supported operations

@@ -20,6 +20,7 @@ from utils import *
 from serializer import Serializer
 from browser import Browser
 from cache import Cache
+from backend.backends import Local
 from models import Metadata, models_map, supported_models, units_dict, get_type_by_obj
 
 
@@ -120,18 +121,13 @@ class Session( Browser ):
 
         meta.app_aliases, meta.cls_aliases = build_alias_dicts( profile_data['alias_map'] )
         meta.cookie_jar = authenticate(meta.host, meta.username, meta.password)
-        if meta.cookie_jar:
-            self.mode = 'online'
-        else:
-            self.mode = 'offline'
         meta.cache_path = os.path.join( profile_data['cacheDir'], profile_data['cache_file_name'] )
         self._meta = meta
 
-        # 2. load cache
-        cache_dir = os.path.abspath( profile_data['cacheDir'] ) + '/'
-        load_cached_data = bool( profile_data['load_cached_data'] )
-        cache_file_name = profile_data['cache_file_name']
-        self._cache = Cache( cache_dir, cache_file_name, load_cached_data )
+        # 2. init Local/Remote backends
+        self._local = Local( meta )
+        #self._remote = Remote( meta )
+        #self._remote.open() # authenticate at the remote
 
         # 3. load odML terminologies
         # TODO make odML to load terms into our cache folder, not default /tmp
@@ -140,15 +136,124 @@ class Session( Browser ):
 
         print "Session initialized."
 
-        #TODO: parse prefixData, apiDefinition, caching, DB
-        # M.Pereira:
-        # the auth cookie is actually not necessary; the cookie jar should be
-        # sent instead
-        # self.auth_cookie = meta.cookie_jar['sessionid']
 
-    def clear_cache(self):
-        """ removes all objects from the cache """
-        self._cache.clear_cache()
+    def list(self, model_name, params={}, data_load=False, mode='obj'):
+        """ 
+        requests objects of a given type from cache in bulk mode. 
+
+        Args:
+        model_name: type of the object (like 'block', 'segment' or 'section'.)
+
+        params:     dict that can contain several categories of key-value pairs.
+        data_load:  fetch the data or not (if mode == 'obj')
+        mode:       return mode, python object or JSON.
+        """
+        if model_name in self._meta.cls_aliases.values():
+            model_name = [k for k, v in self._meta.cls_aliases.items() if v==model_name][0]
+
+        if not model_name in self._meta.model_names:
+            raise TypeError('Objects of that type are not supported.')
+
+        self._local.open()
+
+        json_objs = self._local.get_list( model_name, params )
+
+        if mode == 'json':
+            # return JSON if requested
+            objects = json_objs
+
+        else:
+            # convert to objects in 'obj' mode
+            app = self._meta.app_prefix_dict[ model_name ]
+            model = models_map[ model_name ]
+
+            objects = []
+            for json_obj in json_objs:
+                data_refs = {} # is a dict like {'signal': <array...>, ...}
+                if data_load:
+                    for array_attr in self._meta.get_array_attr_names( model_name ):
+                        arr_loc = json_obj['fields'][ array_attr ]['data']
+                        data = self._local.get( arr_loc )
+                        if not data == None:
+                            data_refs['array_attr'] = data
+
+                obj = Serializer.deserialize( json_obj, self._meta, data_refs )
+                objects.append( obj )
+
+        self._local.close()
+        return objects
+
+
+    def glist(self, model_name, params={}, data_load=False, mode='obj'):
+        """ 
+        requests objects of a given type from cache in bulk mode. 
+
+        Args:
+        model_name: type of the object (like 'block', 'segment' or 'section'.)
+
+        params:     dict that can contain several categories of key-value pairs.
+        data_load:  fetch the data or not (if mode == 'obj')
+        mode:       return mode, python object or JSON.
+        """
+        if model_name in self._meta.cls_aliases.values(): # FIXME put into model_safe decorator
+            model_name = [k for k, v in self._meta.cls_aliases.items() if v==model_name][0]
+
+        if not model_name in self._meta.model_names:
+            raise TypeError('Objects of that type are not supported.')
+
+        if not self._remote.is_active:
+            self._remote.open()
+
+        json_objs = self._remote.get_list( model_name, params )
+
+        # save fetched objects to cache
+        for json_obj in json_objs:
+            local_obj = self._local.get( json_obj['permalink'] )
+
+            if local_obj == None: # new object, save
+                self._local.save( json_obj )
+
+            elif self._is_modified( local_obj ):
+                print "object %s has local changes and was not modified." % \
+                    json_obj['location']
+
+            else: # exists but not modified, update
+                self._local.save( json_obj )
+
+        if mode == 'json':
+            # return JSON if requested
+            objects = json_objs
+
+        else:
+            # convert to objects in 'obj' mode
+            app = self._meta.app_prefix_dict[ model_name ]
+            model = models_map[ model_name ]
+
+            objects = []
+            for json_obj in json_objs:
+                data_refs = {} # is a dict like {'signal': <array...>, ...}
+                if data_load:
+                    for array_attr in self._meta.get_array_attr_names( model_name ):
+                        arr_loc = json_obj['fields'][ array_attr ]['data']
+                        data = self._local.get( arr_loc )
+
+                        if data == None: # no data locally, fetch from remote
+                            data = self._remote.get( arr_loc )
+                            if data:
+                                self._local.save_data( arr_loc, data )
+
+                        if data:
+                            data_refs['array_attr'] = data
+
+                obj = Serializer.deserialize( json_obj, self._meta, data_refs )
+                objects.append( obj )
+
+        return objects
+
+
+
+
+
 
     def pull(self, location, params={}, cascade=True, data_load=True, _top=True):
         """ pulls object from the specified location on the server. 
@@ -235,14 +340,14 @@ class Session( Browser ):
         return obj
 
 
-    def select(self, cls, params={}, cascade=False, data_load=False, _top=True):
+    def gselect(self, model_name, params={}, cascade=False, data_load=False, _top=True):
         """ requests objects of a given type from server in bulk mode. 
         caching:    no
         cascade:    yes
         data_load:  yes
 
         Args:
-        cls: type of the object (like 'block', 'segment' or 'section'.)
+        model_name: type of the object (like 'block', 'segment' or 'section'.)
 
         params: dict that can contain several categories of key-value pairs:
 
@@ -287,10 +392,10 @@ class Session( Browser ):
 
         """
         # resolve alias - short model name like 'rcg' -> 'recordingchannelgroup'
-        if cls in self._meta.cls_aliases.values():
-            cls = [k for k, v in self._meta.cls_aliases.items() if v==cls][0]
+        if model_name in self._meta.cls_aliases.values():
+            model_name = [k for k, v in self._meta.cls_aliases.items() if v==model_name][0]
 
-        if not cls in self._meta.model_names:
+        if not model_name in self._meta.model_names:
             raise TypeError('Objects of that type are not supported.')
 
         objects = [] # resulting objects set
@@ -298,7 +403,7 @@ class Session( Browser ):
         # convert all values to string for a correct GET behavior (encoding??)
         get_params = dict( [(k, str(v)) for k, v in params.items()] )
 
-        url = '%s%s/%s/' % (self._meta.host, self._meta.app_prefix_dict[cls], str(cls))
+        url = '%s%s/%s/' % (self._meta.host, self._meta.app_prefix_dict[model_name], str(model_name))
 
         # do fetch list of objects from the server
         resp = requests.get(url, params=get_params, cookies=self._meta.cookie_jar)
@@ -314,27 +419,27 @@ class Session( Browser ):
         for json_obj in raw_json['selected']:
 
             # download attached data if requested
-            data_refs = self._parse_data_from_json(cls, json_obj, data_load=data_load)
+            data_refs = self._parse_data_from_json(model_name, json_obj, data_load=data_load)
 
             # parse json (+data) into python object
             obj = Serializer.deserialize(json_obj, self, data_refs)
 
             objects.append(obj)
 
-        print_status('%s(s) fetched.' % cls)
+        print_status('%s(s) fetched.' % model_name)
 
         # fetch children 'in bulk'
-        children = self._meta.app_definitions[cls]['children'] # child object types
-        if cascade and self._meta.app_definitions[cls]['children']:
+        children = self._meta.app_definitions[model_name]['children'] # child object types
+        if cascade and self._meta.app_definitions[model_name]['children']:
             parent_ids = [obj._gnode['id'] for obj in objects]
 
             for child in children: # 'child' is like 'segment', 'event' etc.
 
                 # filter to fetch objects of type child for ALL parents
                 # FIXME dirty fix!! stupid data model inconsistency
-                parent_name = cls
-                if (cls == 'section' and child == 'section') or \
-                    (cls == 'property' and child == 'value'):
+                parent_name = model_name
+                if (model_name == 'section' and child == 'section') or \
+                    (model_name == 'property' and child == 'value'):
                     parent_name = 'parent_' + parent_name
 
                 filt = { parent_name + '__id__in': parent_ids }
@@ -947,6 +1052,33 @@ class Session( Browser ):
             raise TypeError('ID of an object must be of "int" type: %s' % lid)
 
         return app, model_name, int(lid)
+
+    def _is_modified(self, json_obj):
+        """ checks if object was modified locally by validating that object
+        references are permalinks """
+
+        # 1. check permalink
+        if not is_permalink( json_obj['permalink'] ):
+            return True
+
+        app_name, model_name = parse_model( json_obj )
+
+        # 2. check data fields
+        for attr in self._meta.get_array_attr_names( model_name ):
+            data = json_obj['fields'][ attr ]['data']
+            if data: # should not be null
+                if not is_permalink( data ):
+                    return True
+
+        # 3. check parent fields
+        for attr in self._meta.app_definitions[model_name]['parents']
+            parent = json_obj['fields'][ attr ]
+            if parent: # should not be null
+                if not is_permalink( parent ):
+                    return True
+
+        return False
+        
 
 
     def _bulk_update(self, obj_type, *kwargs):

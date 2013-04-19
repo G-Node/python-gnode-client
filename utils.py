@@ -21,23 +21,21 @@ safety_level_dict = {1: 'public', 2:'friendly', 3:'private'}
 
 alphabet = list( string.ascii_uppercase + '234567' )
 
+def get_uid():
+    uid = ''
+    for i in range(10):
+        uid += random.choice( alphabet )
+    return uid
+  
+
 def parse_model( json_obj ):
     """ parses incoming JSON object representation and determines model, 
     model_name and app_name """
     model_base = json_obj['model']
     app_name = model_base[ : model_base.find('.') ]
     model_name = model_base[ model_base.find('.') + 1 : ]
-    model = models_map[ model_name ]
 
-    return app_name, model_name, model
-
-
-def get_uid():
-    uid = ''
-    for i in range(10):
-        uid += random.choice( alphabet )
-    return uid
-    
+    return app_name, model_name
 
 
 def sizeof_fmt(num):
@@ -127,6 +125,39 @@ def build_alias_dicts( alias_map ):
     return app_aliases, cls_aliases
 
 
+def cut_to_render( text, count=30 ):
+    if len( text ) < count:
+        return text
+    return text[ : count-3] + '..'
+
+
+def print_status(text):
+    """ implements single line text output """
+    sys.stdout.write( "\r\x1b[K" + text )
+    sys.stdout.flush()
+
+
+def get_json_from_response( resp ):
+    """ some API -> Client incoming JSON pre-processing """
+
+    # 1. requests library handles json depending on the platform, resolve
+    if type( resp.json ) == type( {} ):
+        json_obj = resp.json
+    else:
+        json_obj = resp.json()
+
+    # 2. all permalinks should have trailing slash
+    jstr = json.dumps( json_obj )
+    si = 0
+    while jstr.find('http://', si) > 0:
+        lstart = jstr.find('http://', si)
+        lend = jstr.find('"', lstart)
+        link = jstr[ lstart : lend ]
+        if not link.endswith('/'):
+            jstr = jstr[:lend] + '/' + jstr[lend:]
+        si = lend + 1
+
+    return json.loads( jstr )
 
 
 # TODO clean these all up
@@ -161,38 +192,6 @@ def get_children_field_name(rel_type):
     return rel_type + 's'
 
 
-def cut_to_render( text, count=30 ):
-    if len( text ) < count:
-        return text
-    return text[ : count-3] + '..'
 
-
-def print_status(text):
-    """ implements single line text output """
-    sys.stdout.write( "\r\x1b[K" + text )
-    sys.stdout.flush()
-
-
-def get_json_from_response( resp ):
-    """ some API -> Client incoming JSON pre-processing """
-
-    # 1. requests library handles json depending on the platform, resolve
-    if type( resp.json ) == type( {} ):
-        json_obj = resp.json
-    else:
-        json_obj = resp.json()
-
-    # 2. all permalinks should have trailing slash
-    jstr = json.dumps( json_obj )
-    si = 0
-    while jstr.find('http://', si) > 0:
-        lstart = jstr.find('http://', si)
-        lend = jstr.find('"', lstart)
-        link = jstr[ lstart : lend ]
-        if not link.endswith('/'):
-            jstr = jstr[:lend] + '/' + jstr[lend:]
-        si = lend + 1
-
-    return json.loads( jstr )
 
 
