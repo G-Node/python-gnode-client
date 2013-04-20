@@ -1,5 +1,8 @@
 import tables as tb
 import os
+import requests
+import getpass
+import urlparse
 
 from utils import *
 from models import get_type_by_obj
@@ -129,7 +132,7 @@ class Local( BaseBackend ):
         return obj
 
 
-    def _save_to_location(self, location, name, obj)
+    def _save_to_location(self, location, name, obj):
         """ saves (ovewrites if exists) a given JSON or array obj to the cache 
         file at a given location with a given name """
         if not self.f:
@@ -299,5 +302,129 @@ class Local( BaseBackend ):
 
 
 class Remote( BaseBackend ):
-    pass
+
+    def __init__(self, meta):
+        self._meta = meta
+
+    #---------------------------------------------------------------------------
+    # open/close backend (authenticate etc.)
+    #---------------------------------------------------------------------------
+
+    def open(self):
+        """ authenticates at the REST backend """
+	    if not self._meta.username:
+		    self._meta.username = raw_input('username: ')
+
+	    if not self._meta.password:
+		    self._meta.password = getpass.getpass('password: ')	
+
+        auth_url = urlparse.urljoin(self._meta.host, 'account/authenticate/')
+	    self.cookie = requests.post(url, {'username': username, 'password': password})
+
+    def close(self):
+        """ closes the backend """
+        del(self.cookie)
+
+    @property
+    def is_active(self):
+        """ is opened or not """
+        return hasattr(self, 'cookie')
+
+    #---------------------------------------------------------------------------
+    # backend supported operations
+    #---------------------------------------------------------------------------
+
+    def get_list(self, model_name, params={}):
+        """ get a list of objects of a certain type from the cache file """
+
+        objects = [] # resulting objects set
+        params['q'] = 'full' # always operate in full mode, see API specs
+        # convert all values to string for a correct GET behavior (encoding??)
+        get_params = dict( [(k, str(v)) for k, v in params.items()] )
+
+        url = '%s%s/%s/' % (self._meta.host, self._meta.app_prefix_dict[model_name], str(model_name))
+
+        # do fetch list of objects from the server
+        resp = requests.get(url, params=get_params, cookies=self._meta.cookie)
+        raw_json = get_json_from_response( resp )
+
+        if not resp.status_code == 200:
+            message = '%s (%s)' % (raw_json['message'], raw_json['details'])
+            raise errors.error_codes[resp.status_code]( message )
+
+        if not raw_json['selected']: # if no objects exist return empty result
+            return []
+
+        print_status('%s(s) fetched.' % model_name)
+        return raw_json['selected']
+        
+
+    def get(self, location):
+        """ returns a JSON or array from the remote. None if not exist """
+        if is_permalink( location ):
+            location = extract_location( location )
+        location = self._meta.restore_location( location )
+        app, cls, lid = self._meta.parse_location( location )
+
+        headers = {} # request headers
+        params['q'] = 'full' # always operate in full mode, see API specs
+
+        url = '%s%s/%s/%s/' % (self._meta.host, app, cls, str(lid))
+
+        # TODO ETag?!
+        if location in self._cache.objs_map.keys():
+            headers['If-none-match'] = self._cache.objs_map[ location ]
+
+        # request object from the server (with ETag)
+        resp = requests.get(url, params=params, headers=headers, cookies=self._meta.cookie_jar)
+
+        if resp.status_code == 304: # get object from cache
+            guid = self._cache.objs_map[ location ]
+            obj = self._cache.objs[ guid ]
+
+            print_status('%s loaded from cache.' % location)
+
+        else: # request from server
+
+            # parse response json
+            raw_json = get_json_from_response( resp )
+            if not resp.status_code == 200:
+                message = '%s (%s)' % (raw_json['message'], raw_json['details'])
+                raise errors.error_codes[resp.status_code]( message )
+
+            if not raw_json['selected']:
+                raise ReferenceError('Object does not exist.')
+
+            json_obj = raw_json['selected'][0] # should be single object 
+
+            # download attached data if requested
+            data_refs = self._parse_data_from_json(cls, json_obj, data_load=data_load)
+
+            # download attached metadata if exists
+            metadata = self._fetch_metadata_by_json(cls, json_obj)
+
+            # parse json (+data) into python object
+            obj = Serializer.deserialize(json_obj, self, data_refs, metadata)
+
+            # save it to cache
+            self._cache.add_object( obj )
+
+            print_status("%s fetched from server." % location)
+
+
+
+
+
+        try:
+            node = self.f.getNode(location)
+        except NoSuchNodeError:
+            return None
+
+        try: # JSON data
+            obj = json.loads( str(node.read()) )
+
+        except ValueError: # array data
+            obj = np.array( node.read() )
+
+        return obj
 

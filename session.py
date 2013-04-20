@@ -2,8 +2,6 @@
 import os, sys
 import re
 
-import requests
-import getpass
 import hashlib
 try: 
     import simplejson as json
@@ -61,27 +59,6 @@ def init(config_file='default.json', models_file='requirements.json'):
 
     return Session(profile_data, model_data)
 
-
-def authenticate(url, username=None, password=None):
-	"""Returns authentication cookie jar given username and password"""
-	#TODO: ask for user input
-
-	#get the username if the user hasn't already specified one either by
-	#directly calling the authenticate() function or by reading the username
-	#and password from a configuration file (usually default.json) where these
-	#have not been specified
-	if not username:
-		username = raw_input('username: ')
-
-	#get the password if the user hasn't already specified one
-	if not password:
-		password = getpass.getpass('password: ')	
-
-	auth = requests.post(url+'account/authenticate/', \
-        {'username': username, 'password': password})
-	return auth.cookies
-
-
 #-------------------------------------------------------------------------------
 # core Client classes
 #-------------------------------------------------------------------------------
@@ -98,6 +75,105 @@ class Meta( object ):
             'signal', 'waveform', 'waveforms']]
 
         return names
+
+    def restore_location(self, location):
+        """ restore a full version of the location using alias_map, like
+        'mtd/sec/293847/' -> 'metadata/section/293847/' """
+        l = str( location )
+        if not l.startswith('/'):
+            l = '/' + l
+
+        almap = dict(self.app_aliases.items() + self.cls_aliases.items())
+        for name, alias in almap.items():
+            if l.find(alias) > -1 and l[l.find(alias)-1] == '/' and \
+                l[l.find(alias) + len(alias)] == '/':
+                l = l.replace(alias, name)
+
+        l = l[1:] # remove preceeding slash
+        if not l.endswith('/'):
+            l += '/'
+
+        return l
+
+    def strip_location(self, location):
+        """ make a shorter version of the location using alias_map, like
+        'metadata/section/293847/' -> 'mtd/sec/293847/' """
+        l = str( location )
+        if not l.startswith('/'):
+            l = '/' + l
+
+        almap = dict(self.app_aliases.items() + self.cls_aliases.items())
+        for name, alias in almap.items():
+            if l.find(name) > -1 and l[l.find(name)-1] == '/' and\
+                l[l.find(name) + len(name)] == '/':
+                l = l.replace(name, alias)
+
+        return l
+
+    def parse_location(self, location):
+        """ extracts app name and object type from the current location, e.g.
+        'metadata' and 'section' from 'metadata/section/293847/' """
+        def is_valid_id( lid ):
+            try:
+                int( lid )
+                return True
+            except ValueError:
+                return False
+
+        l = self.restore_location( location )
+
+        if l.startswith('/'):
+            l = l[ 1 : ]
+        if not l.endswith('/'):
+            l += '/'
+
+        res = []
+        while l:
+            item = l[ : l.find('/') ]
+            res.append( item ) # e.g. 'metadata' or 'section'
+            l = l[ len(item) + 1 : ]
+
+        try:
+            app, model_name, lid = res
+        except ValueError:
+            raise ReferenceError('Cannot parse object location %s. The format \
+                should be like "metadata/section/293847/"' % str(res))
+
+        if not app in self.app_prefix_dict.values():
+            raise TypeError('This app is not supported: %s' % app)
+        if not model_name in self.model_names:
+            raise TypeError('This type of object is not supported: %s' % model_name)
+        if not is_valid_id( lid ):
+            raise TypeError('ID of an object must be of "int" type: %s' % lid)
+
+        return app, model_name, int(lid)
+
+    def _is_modified(self, json_obj):
+        """ checks if object was modified locally by validating that object
+        references are permalinks """
+
+        # 1. check permalink
+        if not is_permalink( json_obj['permalink'] ):
+            return True
+
+        app_name, model_name = parse_model( json_obj )
+
+        # 2. check data fields
+        for attr in self.get_array_attr_names( model_name ):
+            data = json_obj['fields'][ attr ]['data']
+            if data: # should not be null
+                if not is_permalink( data ):
+                    return True
+
+        # 3. check parent fields
+        for attr in self.app_definitions[model_name]['parents']:
+            parent = json_obj['fields'][ attr ]
+            if parent: # should not be null
+                if not is_permalink( parent ):
+                    return True
+
+        return False
+        
 
 
 class Session( Browser ):
@@ -127,8 +203,8 @@ class Session( Browser ):
 
         # 2. init Local/Remote backends
         self._local = Local( meta )
-        #self._remote = Remote( meta )
-        #self._remote.open() # authenticate at the remote
+        self._remote = Remote( meta )
+        self._remote.open() # authenticate at the remote
 
         # 3. load odML terminologies
         # TODO make odML to load terms into our cache folder, not default /tmp
@@ -187,7 +263,7 @@ class Session( Browser ):
 
     def glist(self, model_name, params={}, data_load=False, mode='obj'):
         """ 
-        requests objects of a given type from cache in bulk mode. 
+        requests objects of a given type from remote in bulk mode. 
 
         Args:
         model_name: type of the object (like 'block', 'segment' or 'section'.)
@@ -268,8 +344,8 @@ class Session( Browser ):
         """
         if is_permalink( location ):
             location = extract_location( location )
-        location = self._restore_location( location )
-        app, cls, lid = self._parse_location( location )
+        location = self._meta.restore_location( location )
+        app, cls, lid = self._meta.parse_location( location )
 
         headers = {} # request headers
         params['q'] = 'full' # always operate in full mode, see API specs
@@ -981,105 +1057,6 @@ class Session( Browser ):
                 setattr(rel, model_name, obj)
 
         return obj
-
-    def _restore_location(self, location):
-        """ restore a full version of the location using alias_map, like
-        'mtd/sec/293847/' -> 'metadata/section/293847/' """
-        l = str( location )
-        if not l.startswith('/'):
-            l = '/' + l
-
-        almap = dict(self._meta.app_aliases.items() + self._meta.cls_aliases.items())
-        for name, alias in almap.items():
-            if l.find(alias) > -1 and l[l.find(alias)-1] == '/' and \
-                l[l.find(alias) + len(alias)] == '/':
-                l = l.replace(alias, name)
-
-        l = l[1:] # remove preceeding slash
-        if not l.endswith('/'):
-            l += '/'
-
-        return l
-
-    def _strip_location(self, location):
-        """ make a shorter version of the location using alias_map, like
-        'metadata/section/293847/' -> 'mtd/sec/293847/' """
-        l = str( location )
-        if not l.startswith('/'):
-            l = '/' + l
-
-        almap = dict(self._meta.app_aliases.items() + self._meta.cls_aliases.items())
-        for name, alias in almap.items():
-            if l.find(name) > -1 and l[l.find(name)-1] == '/' and\
-                l[l.find(name) + len(name)] == '/':
-                l = l.replace(name, alias)
-
-        return l
-
-    def _parse_location(self, location):
-        """ extracts app name and object type from the current location, e.g.
-        'metadata' and 'section' from 'metadata/section/293847/' """
-        def is_valid_id( lid ):
-            try:
-                int( lid )
-                return True
-            except ValueError:
-                return False
-
-        l = self._restore_location( location )
-
-        if l.startswith('/'):
-            l = l[ 1 : ]
-        if not l.endswith('/'):
-            l += '/'
-
-        res = []
-        while l:
-            item = l[ : l.find('/') ]
-            res.append( item ) # e.g. 'metadata' or 'section'
-            l = l[ len(item) + 1 : ]
-
-        try:
-            app, model_name, lid = res
-        except ValueError:
-            raise ReferenceError('Cannot parse object location %s. The format \
-                should be like "metadata/section/293847/"' % str(res))
-
-        if not app in self._meta.app_prefix_dict.values():
-            raise TypeError('This app is not supported: %s' % app)
-        if not model_name in self._meta.model_names:
-            raise TypeError('This type of object is not supported: %s' % model_name)
-        if not is_valid_id( lid ):
-            raise TypeError('ID of an object must be of "int" type: %s' % lid)
-
-        return app, model_name, int(lid)
-
-    def _is_modified(self, json_obj):
-        """ checks if object was modified locally by validating that object
-        references are permalinks """
-
-        # 1. check permalink
-        if not is_permalink( json_obj['permalink'] ):
-            return True
-
-        app_name, model_name = parse_model( json_obj )
-
-        # 2. check data fields
-        for attr in self._meta.get_array_attr_names( model_name ):
-            data = json_obj['fields'][ attr ]['data']
-            if data: # should not be null
-                if not is_permalink( data ):
-                    return True
-
-        # 3. check parent fields
-        for attr in self._meta.app_definitions[model_name]['parents']
-            parent = json_obj['fields'][ attr ]
-            if parent: # should not be null
-                if not is_permalink( parent ):
-                    return True
-
-        return False
-        
 
 
     def _bulk_update(self, obj_type, *kwargs):

@@ -283,7 +283,7 @@ class AnalogSignal(neo.core.AnalogSignal, BaseObject, BaseDataObject):
         """
         pass
 
-    @Property
+    @property
     def segments():
         doc = 'Extends basic NEO property to enable lazy mode'
 
@@ -374,7 +374,7 @@ class SpikeTrain(neo.core.SpikeTrain, BaseObject):
         """
         pass
 
-    @Property
+    @property
     def segments():
         doc = 'Extends basic NEO property to enable lazy mode'
 
