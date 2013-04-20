@@ -125,7 +125,7 @@ def get_parent_field_name(cls, child):
     if (cls == 'section' and child == 'section') or \
         (cls == 'property' and child == 'value'):
         parent_name = 'parent_' + parent_name
-    return cls
+    return parent_name
 
 def get_children_field_name(rel_type):
     if rel_type == 'property':
