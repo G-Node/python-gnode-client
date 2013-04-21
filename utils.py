@@ -194,10 +194,6 @@ def get_children_field_name(rel_type):
         return 'irregularlysampledsignals'
     return rel_type + 's'
 
-
-
-
-
 def extract_location( permalink ):
     """ parses permalink and returns obj location, like /metadata/section/4 """
     return urlparse.urlparse( permalink ).path

@@ -18,7 +18,7 @@ from utils import *
 from serializer import Serializer
 from browser import Browser
 from cache import Cache
-from backend.backends import Local
+from backend.backends import Local, Remote
 from models import Metadata, models_map, supported_models, units_dict, get_type_by_obj
 
 
@@ -148,7 +148,7 @@ class Meta( object ):
 
         return app, model_name, int(lid)
 
-    def _is_modified(self, json_obj):
+    def is_modified(self, json_obj):
         """ checks if object was modified locally by validating that object
         references are permalinks """
 
@@ -197,7 +197,6 @@ class Session( Browser ):
         # c) app_prefix_dict is like {'section': 'metadata', 'block': 'electrophysiology', ...}
 
         meta.app_aliases, meta.cls_aliases = build_alias_dicts( profile_data['alias_map'] )
-        meta.cookie_jar = authenticate(meta.host, meta.username, meta.password)
         meta.cache_path = os.path.join( profile_data['cacheDir'], profile_data['cache_file_name'] )
         self._meta = meta
 
@@ -278,6 +277,7 @@ class Session( Browser ):
         if not model_name in self._meta.model_names:
             raise TypeError('Objects of that type are not supported.')
 
+        self._local.open()
         if not self._remote.is_active:
             self._remote.open()
 
@@ -290,7 +290,7 @@ class Session( Browser ):
             if local_obj == None: # new object, save
                 self._local.save( json_obj )
 
-            elif self._is_modified( local_obj ):
+            elif self._meta.is_modified( local_obj ):
                 print "object %s has local changes and was not modified." % \
                     json_obj['location']
 
@@ -317,7 +317,7 @@ class Session( Browser ):
                         if data == None: # no data locally, fetch from remote
                             data = self._remote.get( arr_loc )
                             if data:
-                                self._local.save_data( arr_loc, data )
+                                self._local.save_data( data, arr_loc )
 
                         if data:
                             data_refs['array_attr'] = data
@@ -325,11 +325,12 @@ class Session( Browser ):
                 obj = Serializer.deserialize( json_obj, self._meta, data_refs )
                 objects.append( obj )
 
+        self._local.close()
         return objects
 
 
-
-
+    #---------------------------------------------------------------------------
+    #---------------------------------------------------------------------------
 
 
     def pull(self, location, params={}, cascade=True, data_load=True, _top=True):

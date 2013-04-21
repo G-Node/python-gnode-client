@@ -37,7 +37,8 @@ class Serializer(object):
         kwargs = {} # kwargs to init an object
 
         # 1. define a model
-        app_name, model_name, model = parse_model(json_obj)
+        app_name, model_name = parse_model(json_obj)
+        model = models_map[ model_name ]
 
         # 2. parse plain attrs into dict
         app_definition = meta.app_definitions[model_name]

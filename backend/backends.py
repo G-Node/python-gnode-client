@@ -1,4 +1,5 @@
 import tables as tb
+import numpy as np
 import os
 import requests
 import getpass
@@ -32,7 +33,7 @@ class BaseBackend( object ):
     # backend supported operations
     #---------------------------------------------------------------------------
 
-    def get(self, location):
+    def get(self, location, params={}):
         """ returns a JSON representation of a single object """
         raise NotImplementedError
 
@@ -48,9 +49,9 @@ class BaseBackend( object ):
         """ creates/updates an object, returns updated JSON representation """
         raise NotImplementedError
 
-    def save_data(self, filepath, location):
-        """ saves array located at a given filepath/location to the backend. 
-        returns an id of the saved object """
+    def save_data(self, data, location=None):
+        """ saves a given array at location. returns an id of the saved 
+        object """
         raise NotImplementedError
 
 
@@ -62,10 +63,28 @@ class Local( BaseBackend ):
 
     def init_hdf5_storage(self):
         """ checks a cache file exists on disk """
+        def get_or_create( where, name ):
+            try:
+                f.getNode( where + name )
+
+            except NoSuchNodeError:
+                f.createGroup( where, name )
+
         try:
-            if os.path.exists( self._meta.cache_path ) and tb.isHDF5( self._meta.cache_path ):
-                print_status( 'Cache file with %s data found.' %  \
-                    sizeof_fmt( os.path.getsize( self._meta.cache_path )))
+            #if os.path.exists( self._meta.cache_path ) and \
+            #    tb.isHDF5File( self._meta.cache_path ):
+            #else: # init HDF5 backend
+            with tb.openFile( self._meta.cache_path, 'a' ) as f:
+                for model_name, app in self._meta.app_prefix_dict.items():
+
+                    # check the app group exists
+                    get_or_create( '/', app )
+
+                    # check the model group exists
+                    get_or_create( '/' + app + '/', model_name )
+
+            print_status( 'Cache file with %s data found.\n' %  \
+                sizeof_fmt( os.path.getsize( self._meta.cache_path )))
 
         except IOError:
             print 'No saved cached data found, cache is empty.'
@@ -101,7 +120,7 @@ class Local( BaseBackend ):
         path = "/%s/%s/" % (app, model_name)
 
         try:
-            nodes = self.f.listNodes()
+            nodes = self.f.listNodes( path )
         except NoSuchNodeError:
             return None
 
@@ -112,7 +131,7 @@ class Local( BaseBackend ):
         return json_list
         
 
-    def get(self, location):
+    def get(self, location, params={}):
         """ returns a JSON or array object from the object at a given location
         in the cache file. None if not exist """
         if is_permalink( location ):
@@ -131,6 +150,51 @@ class Local( BaseBackend ):
 
         return obj
 
+
+    def get_data(self, location):
+        return self.get( location )
+
+
+    def save(self, json_obj):
+        """ bla foo """
+        app, model_name, lid = self._meta.parse_location( json_obj['location'] )
+        where = "/%s/%s/" % (app, model_name)
+
+        if not self.f:
+            raise IOError('Open the backend first.')
+
+        to_save = json.dumps( json_obj )
+        to_save = np.array( to_save )
+
+        try:
+            self.f.removeNode( where, str(lid) )
+        except NoSuchNodeError:
+            pass
+
+        self.f.createArray(where, str(lid), to_save)
+
+
+    def save_data(self, data, location=None):
+        """ bla foo """
+        if not self.f:
+            raise IOError('Open the backend first.')
+
+        if location:
+            app, model_name, lid = self._meta.parse_location( location )
+            where = "/%s/%s/" % (app, model_name)
+
+        else:
+            lid = get_uid()
+            where = '/datafiles/'
+
+        try:
+            self.f.removeNode( where, str(lid) )
+        except NoSuchNodeError:
+            pass
+
+        self.f.createArray(where, str(lid), data)
+
+    #---------------------------------------------------------------------------
 
     def _save_to_location(self, location, name, obj):
         """ saves (ovewrites if exists) a given JSON or array obj to the cache 
@@ -154,7 +218,7 @@ class Local( BaseBackend ):
 
 
 
-    def save(self, obj, cascade=True): # FIXME
+    def _save(self, obj, cascade=True): # FIXME
         """ creates/updates an object, returns updated JSON representation """
         data_refs = self.save_data( obj )
         json_obj = Serializer.serialize(obj, self._meta, data_refs)
@@ -183,7 +247,7 @@ class Local( BaseBackend ):
         # update parent children, in the cache, in memory?
 
 
-    def save_data(self, obj):
+    def _save_data(self, obj):
         """ saves array data to disk in HDF5 and uploads new datafiles to the 
         server according to the arrays of the given obj. Saves datafile objects 
         to cache.
@@ -298,9 +362,6 @@ class Local( BaseBackend ):
         return obj
 
 
-
-
-
 class Remote( BaseBackend ):
 
     def __init__(self, meta):
@@ -312,14 +373,20 @@ class Remote( BaseBackend ):
 
     def open(self):
         """ authenticates at the REST backend """
-	    if not self._meta.username:
-		    self._meta.username = raw_input('username: ')
+        username = self._meta.username
+        if not username:
+            username = raw_input('username: ')
 
-	    if not self._meta.password:
-		    self._meta.password = getpass.getpass('password: ')	
+        password = self._meta.password
+        if not password:
+            password = getpass.getpass('password: ')	
 
         auth_url = urlparse.urljoin(self._meta.host, 'account/authenticate/')
-	    self.cookie = requests.post(url, {'username': username, 'password': password})
+        auth = requests.post(auth_url, {'username': username, 'password': password})
+        if auth.cookies:
+            print_status( 'Authenticated at %s as %s.\n' %  (self._meta.host, username) )
+
+        self.cookie = auth.cookies
 
     def close(self):
         """ closes the backend """
@@ -345,7 +412,7 @@ class Remote( BaseBackend ):
         url = '%s%s/%s/' % (self._meta.host, self._meta.app_prefix_dict[model_name], str(model_name))
 
         # do fetch list of objects from the server
-        resp = requests.get(url, params=get_params, cookies=self._meta.cookie)
+        resp = requests.get(url, params=get_params, cookies=self.cookie)
         raw_json = get_json_from_response( resp )
 
         if not resp.status_code == 200:
@@ -357,35 +424,58 @@ class Remote( BaseBackend ):
 
         print_status('%s(s) fetched.' % model_name)
         return raw_json['selected']
-        
 
-    def get(self, location):
+
+    def get_data(self, location):
+        """ downloads a datafile from the remote """
+        lid = get_id_from_permalink( location )
+        url = '%s%s/%s/%s/' % (self._meta.host, "datafiles", str(lid))
+
+        print_status('loading datafile %s from server...' % fid)
+
+        r = requests.get(url, cookies=self.cookie)
+
+        # download and save file to temp folder
+        temp_name = str(lid) + '.h5'
+        path = os.path.join(self._meta.temp_dir, temp_name)
+        with open( path, "w" ) as f:
+            f.write( r.content )
+
+        if r.status_code == 200:
+            with tb.openFile(path, 'r') as f:
+                carray = f.listNodes( "/" )[0]
+                init_arr = np.array( carray[:] )
+
+            print 'done.'
+            return init_arr
+
+        else:
+            print 'error. file was not fetched. maybe pull again?'
+            return None
+
+
+    def get(self, location, params={}, etag=None):
         """ returns a JSON or array from the remote. None if not exist """
         if is_permalink( location ):
             location = extract_location( location )
         location = self._meta.restore_location( location )
         app, cls, lid = self._meta.parse_location( location )
 
-        headers = {} # request headers
-        params['q'] = 'full' # always operate in full mode, see API specs
-
         url = '%s%s/%s/%s/' % (self._meta.host, app, cls, str(lid))
+        #params['q'] = 'full' # always operate in full mode, see API specs
 
-        # TODO ETag?!
-        if location in self._cache.objs_map.keys():
-            headers['If-none-match'] = self._cache.objs_map[ location ]
+        headers = {} # request headers
+        if etag:
+            headers['If-none-match'] = etag
 
         # request object from the server (with ETag)
-        resp = requests.get(url, params=params, headers=headers, cookies=self._meta.cookie_jar)
+        resp = requests.get(url, params=params, headers=headers, \
+            cookies=self.cookie)
 
-        if resp.status_code == 304: # get object from cache
-            guid = self._cache.objs_map[ location ]
-            obj = self._cache.objs[ guid ]
+        if resp.status_code == 304: # not modified
+            return 304
 
-            print_status('%s loaded from cache.' % location)
-
-        else: # request from server
-
+        else:
             # parse response json
             raw_json = get_json_from_response( resp )
             if not resp.status_code == 200:
@@ -396,35 +486,6 @@ class Remote( BaseBackend ):
                 raise ReferenceError('Object does not exist.')
 
             json_obj = raw_json['selected'][0] # should be single object 
+            return json_obj
 
-            # download attached data if requested
-            data_refs = self._parse_data_from_json(cls, json_obj, data_load=data_load)
-
-            # download attached metadata if exists
-            metadata = self._fetch_metadata_by_json(cls, json_obj)
-
-            # parse json (+data) into python object
-            obj = Serializer.deserialize(json_obj, self, data_refs, metadata)
-
-            # save it to cache
-            self._cache.add_object( obj )
-
-            print_status("%s fetched from server." % location)
-
-
-
-
-
-        try:
-            node = self.f.getNode(location)
-        except NoSuchNodeError:
-            return None
-
-        try: # JSON data
-            obj = json.loads( str(node.read()) )
-
-        except ValueError: # array data
-            obj = np.array( node.read() )
-
-        return obj
 
