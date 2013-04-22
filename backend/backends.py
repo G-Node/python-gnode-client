@@ -71,9 +71,9 @@ class Local( BaseBackend ):
                 f.createGroup( where, name )
 
         try:
-            #if os.path.exists( self._meta.cache_path ) and \
-            #    tb.isHDF5File( self._meta.cache_path ):
-            #else: # init HDF5 backend
+            if not os.path.exists( self._meta.cache_dir ):
+                os.makedirs( self._meta.cache_dir )
+
             with tb.openFile( self._meta.cache_path, 'a' ) as f:
                 for model_name, app in self._meta.app_prefix_dict.items():
 
@@ -86,7 +86,7 @@ class Local( BaseBackend ):
             print_status( 'Cache file with %s data found.\n' %  \
                 sizeof_fmt( os.path.getsize( self._meta.cache_path )))
 
-        except IOError:
+        except IOError, e:
             print 'No saved cached data found, cache is empty.'
         except ValueError:
             print 'Cache file cannot be parsed. Skip loading cached data.'
@@ -121,6 +121,7 @@ class Local( BaseBackend ):
 
         try:
             nodes = self.f.listNodes( path )
+            nodes = self.apply_filter( nodes )
         except NoSuchNodeError:
             return None
 
@@ -195,6 +196,24 @@ class Local( BaseBackend ):
         self.f.createArray(where, str(lid), data)
 
     #---------------------------------------------------------------------------
+    #---------------------------------------------------------------------------
+
+    def apply_filter(self, json_objs, params):
+        """ filters a given JSON objs list according to the params """
+        for k, v in params.items():
+            if k.find('__') > 0:
+                field = [:k.find('__')]
+                # could be lookup
+
+            else: # TODO!!
+                pass
+
+        return json_objs
+
+
+    #---------------------------------------------------------------------------
+    #---------------------------------------------------------------------------
+
 
     def _save_to_location(self, location, name, obj):
         """ saves (ovewrites if exists) a given JSON or array obj to the cache 
@@ -215,7 +234,6 @@ class Local( BaseBackend ):
             pass
 
         self.f.createArray(location, name, arr)
-
 
 
     def _save(self, obj, cascade=True): # FIXME
@@ -383,8 +401,11 @@ class Remote( BaseBackend ):
 
         auth_url = urlparse.urljoin(self._meta.host, 'account/authenticate/')
         auth = requests.post(auth_url, {'username': username, 'password': password})
+
         if auth.cookies:
             print_status( 'Authenticated at %s as %s.\n' %  (self._meta.host, username) )
+        else:
+            print_status( 'Not connected (%s). Going offline mode.\n' %  auth.status_code )
 
         self.cookie = auth.cookies
 

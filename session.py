@@ -13,6 +13,7 @@ import numpy as np
 
 import odml.terminology as terminology
 
+import warnings
 import errors
 from utils import *
 from serializer import Serializer
@@ -197,6 +198,7 @@ class Session( Browser ):
         # c) app_prefix_dict is like {'section': 'metadata', 'block': 'electrophysiology', ...}
 
         meta.app_aliases, meta.cls_aliases = build_alias_dicts( profile_data['alias_map'] )
+        meta.cache_dir = os.path.abspath( profile_data['cacheDir'] )
         meta.cache_path = os.path.join( profile_data['cacheDir'], profile_data['cache_file_name'] )
         self._meta = meta
 
@@ -210,66 +212,21 @@ class Session( Browser ):
         terms = terminology.terminologies.load(profile_data['odml_repository'])
         self.terminologies = terms.sections
 
+        warnings.simplefilter('ignore', tb.NaturalNameWarning)
         print "Session initialized."
 
 
-    def list(self, model_name, params={}, data_load=False, mode='obj'):
-        """ 
-        requests objects of a given type from cache in bulk mode. 
-
-        Args:
-        model_name: type of the object (like 'block', 'segment' or 'section'.)
-
-        params:     dict that can contain several categories of key-value pairs.
-        data_load:  fetch the data or not (if mode == 'obj')
-        mode:       return mode, python object or JSON.
-        """
-        if model_name in self._meta.cls_aliases.values():
-            model_name = [k for k, v in self._meta.cls_aliases.items() if v==model_name][0]
-
-        if not model_name in self._meta.model_names:
-            raise TypeError('Objects of that type are not supported.')
-
-        self._local.open()
-
-        json_objs = self._local.get_list( model_name, params )
-
-        if mode == 'json':
-            # return JSON if requested
-            objects = json_objs
-
-        else:
-            # convert to objects in 'obj' mode
-            app = self._meta.app_prefix_dict[ model_name ]
-            model = models_map[ model_name ]
-
-            objects = []
-            for json_obj in json_objs:
-                data_refs = {} # is a dict like {'signal': <array...>, ...}
-                if data_load:
-                    for array_attr in self._meta.get_array_attr_names( model_name ):
-                        arr_loc = json_obj['fields'][ array_attr ]['data']
-                        data = self._local.get( arr_loc )
-                        if not data == None:
-                            data_refs['array_attr'] = data
-
-                obj = Serializer.deserialize( json_obj, self._meta, data_refs )
-                objects.append( obj )
-
-        self._local.close()
-        return objects
-
-
-    def glist(self, model_name, params={}, data_load=False, mode='obj'):
+    def select(self, model_name, params={}, data_load=False, remote=False, mode='obj'):
         """ 
         requests objects of a given type from remote in bulk mode. 
 
         Args:
         model_name: type of the object (like 'block', 'segment' or 'section'.)
 
-        params:     dict that can contain several categories of key-value pairs.
-        data_load:  fetch the data or not (if mode == 'obj')
-        mode:       return mode, python object or JSON.
+        params:     dict that can contain several categories of key-value pairs
+        data_load:  fetch the data or not (applied if mode == 'obj')
+        remote:     whether remote backend is used to get/save data
+        mode:       return mode, python object or JSON
         """
         if model_name in self._meta.cls_aliases.values(): # FIXME put into model_safe decorator
             model_name = [k for k, v in self._meta.cls_aliases.items() if v==model_name][0]
@@ -278,27 +235,30 @@ class Session( Browser ):
             raise TypeError('Objects of that type are not supported.')
 
         self._local.open()
-        if not self._remote.is_active:
+        if remote and not self._remote.is_active:
             self._remote.open()
 
-        json_objs = self._remote.get_list( model_name, params )
+        if remote: # fetch from remote + save in cache if possible
+            json_objs = self._remote.get_list( model_name, params )
 
-        # save fetched objects to cache
-        for json_obj in json_objs:
-            local_obj = self._local.get( json_obj['permalink'] )
+            for json_obj in json_objs:
+                local_obj = self._local.get( json_obj['permalink'] )
 
-            if local_obj == None: # new object, save
-                self._local.save( json_obj )
+                if local_obj == None: # new object, save
+                    self._local.save( json_obj )
 
-            elif self._meta.is_modified( local_obj ):
-                print "object %s has local changes and was not modified." % \
-                    json_obj['location']
+                elif self._meta.is_modified( local_obj ):
+                    print "object %s has local changes and was not modified." % \
+                        json_obj['location']
 
-            else: # exists but not modified, update
-                self._local.save( json_obj )
+                else: # exists but not modified, update
+                    self._local.save( json_obj )
+
+        else: # fetch from local
+            json_objs = self._local.get_list( model_name, params )
 
         if mode == 'json':
-            # return JSON if requested
+            # return pure JSON (no data) if requested
             objects = json_objs
 
         else:
@@ -314,10 +274,11 @@ class Session( Browser ):
                         arr_loc = json_obj['fields'][ array_attr ]['data']
                         data = self._local.get( arr_loc )
 
-                        if data == None: # no data locally, fetch from remote
-                            data = self._remote.get( arr_loc )
-                            if data:
-                                self._local.save_data( data, arr_loc )
+                        # no local data, fetch from remote
+                        if remote and data == None:
+                                data = self._remote.get( arr_loc )
+                                if data:
+                                    self._local.save_data( data, arr_loc )
 
                         if data:
                             data_refs['array_attr'] = data
