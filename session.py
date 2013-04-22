@@ -221,7 +221,7 @@ class Session( Browser ):
         requests objects of a given type from remote in bulk mode. 
 
         Args:
-        model_name: type of the object (like 'block', 'segment' or 'section'.)
+        model_name: type of the object (like 'block', 'segment' or 'section')
 
         params:     dict that can contain several categories of key-value pairs
         data_load:  fetch the data or not (applied if mode == 'obj')
@@ -272,16 +272,16 @@ class Session( Browser ):
                 if data_load:
                     for array_attr in self._meta.get_array_attr_names( model_name ):
                         arr_loc = json_obj['fields'][ array_attr ]['data']
-                        data = self._local.get( arr_loc )
+                        data = self._local.get_data( arr_loc )
 
                         # no local data, fetch from remote
                         if remote and data == None:
-                                data = self._remote.get( arr_loc )
-                                if data:
+                                data = self._remote.get_data( arr_loc )
+                                if not data == None:
                                     self._local.save_data( data, arr_loc )
 
-                        if data:
-                            data_refs['array_attr'] = data
+                        if not data == None:
+                            data_refs[ array_attr ] = data
 
                 obj = Serializer.deserialize( json_obj, self._meta, data_refs )
                 objects.append( obj )

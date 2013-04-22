@@ -1,16 +1,18 @@
 import tables as tb
 import numpy as np
 import os
-import requests
+
 import getpass
 import urlparse
 
+import requests
+from requests.exceptions import ConnectionError
+from tables.exceptions import NoSuchNodeError
 from utils import *
 from models import get_type_by_obj
-from tables.exceptions import NoSuchNodeError
 
 class BaseBackend( object ):
-    """ abstract class for a client backend. Backend talks JSON + HDF5. """
+    """ public interface for a client backend. Backend talks JSON + HDF5. """
 
     #---------------------------------------------------------------------------
     # open/close backend (authenticate etc.)
@@ -75,6 +77,8 @@ class Local( BaseBackend ):
                 os.makedirs( self._meta.cache_dir )
 
             with tb.openFile( self._meta.cache_path, 'a' ) as f:
+                get_or_create( '/', 'datafiles' )
+
                 for model_name, app in self._meta.app_prefix_dict.items():
 
                     # check the app group exists
@@ -117,11 +121,10 @@ class Local( BaseBackend ):
         """ get a list of objects of a certain type from the cache file """
         app = self._meta.app_prefix_dict[ model_name ]
 
-        path = "/%s/%s/" % (app, model_name)
+        path = "/%s/%s" % (app, model_name)
 
         try:
             nodes = self.f.listNodes( path )
-            nodes = self.apply_filter( nodes )
         except NoSuchNodeError:
             return None
 
@@ -129,6 +132,7 @@ class Local( BaseBackend ):
         for node in nodes:
             json_list.append( json.loads( str(node.read()) ) )
 
+        json_list = self.apply_filter( json_list, params )
         return json_list
         
 
@@ -136,30 +140,34 @@ class Local( BaseBackend ):
         """ returns a JSON or array object from the object at a given location
         in the cache file. None if not exist """
         if is_permalink( location ):
-            location = urlparse.urlparse( location ).path
+            location = extract_location( location )
 
         try:
             node = self.f.getNode(location)
         except NoSuchNodeError:
             return None
 
-        try: # JSON data
-            obj = json.loads( str(node.read()) )
-
-        except ValueError: # array data
-            obj = np.array( node.read() )
-
+        obj = json.loads( str(node.read()) )
         return obj
 
 
     def get_data(self, location):
-        return self.get( location )
+        """ returns a filepath + path in the file to the data array """
+        fid = get_id_from_permalink( location )
+
+        try:
+            node = self.f.getNode('/datafiles/' + str(fid))
+        except NoSuchNodeError:
+            return None
+
+        obj = np.array( node.read() )
+        return obj
 
 
     def save(self, json_obj):
         """ bla foo """
         app, model_name, lid = self._meta.parse_location( json_obj['location'] )
-        where = "/%s/%s/" % (app, model_name)
+        where = "/%s/%s" % (app, model_name)
 
         if not self.f:
             raise IOError('Open the backend first.')
@@ -180,13 +188,15 @@ class Local( BaseBackend ):
         if not self.f:
             raise IOError('Open the backend first.')
 
+        if is_permalink( location ):
+            location = extract_location( location )
+
+        where = '/datafiles'
         if location:
-            app, model_name, lid = self._meta.parse_location( location )
-            where = "/%s/%s/" % (app, model_name)
+            lid = get_id_from_permalink( location )
 
         else:
             lid = get_uid()
-            where = '/datafiles/'
 
         try:
             self.f.removeNode( where, str(lid) )
@@ -199,14 +209,42 @@ class Local( BaseBackend ):
     #---------------------------------------------------------------------------
 
     def apply_filter(self, json_objs, params):
-        """ filters a given JSON objs list according to the params """
-        for k, v in params.items():
-            if k.find('__') > 0:
-                field = [:k.find('__')]
-                # could be lookup
+        """ filters a given JSON objs list according to the given params. For 
+        the moment just field / value filter + some lookups. Must be extended to
+        support all possible cases. """
 
-            else: # TODO!!
-                pass
+        if not json_objs:
+            return []
+
+        filters = []
+        app, model_name = parse_model( json_objs[0] )
+        app_definition = self._meta.app_definitions[ model_name ]
+
+        for k, v in params.items():
+            if k.find('isnull') > -1 and not (v == 0):
+                v = None # dirty fix FIXME
+
+            # lookups not implemented, clean
+            if k.find('__') > -1:
+                k = k[:k.find('__')]
+
+            # treat as parent id filter
+            if k in app_definition['parents']:
+                json_objs = filter( lambda x: \
+                    get_id_from_permalink( x['fields'][ k ] ) == v, json_objs )
+
+            # treat as field data filter
+            elif k in app_definition['data_fields'].keys():
+                json_objs = filter( lambda x: \
+                    x['fields'][ k ]['data'] == v, json_objs )
+
+            elif k in ['id', 'location', 'model', 'permalink']:
+                json_objs = filter( lambda x: x[ k ] == v, json_objs )
+
+            # simple field / value filter
+            else:
+                json_objs = filter( lambda x: \
+                    x['fields'][ k ] == v, json_objs )
 
         return json_objs
 
@@ -400,14 +438,21 @@ class Remote( BaseBackend ):
             password = getpass.getpass('password: ')	
 
         auth_url = urlparse.urljoin(self._meta.host, 'account/authenticate/')
-        auth = requests.post(auth_url, {'username': username, 'password': password})
+        try:
+            auth = requests.post(auth_url, {'username': username, 'password': password})
+            if auth.cookies:
+                self.cookie = auth.cookies
+                print_status( 'Authenticated at %s as %s.\n' % \
+                    (self._meta.host, username) )
 
-        if auth.cookies:
-            print_status( 'Authenticated at %s as %s.\n' %  (self._meta.host, username) )
-        else:
-            print_status( 'Not connected (%s). Going offline mode.\n' %  auth.status_code )
+            else:
+                print_status( 'Not connected (%s). Going offline mode.\n' % \
+                    auth.status_code )
 
-        self.cookie = auth.cookies
+        except ConnectionError, e:
+            print_status( 'Not connected (%s). Going offline mode.\n' % \
+                cut_to_render(str(e)) )
+
 
     def close(self):
         """ closes the backend """
@@ -449,15 +494,15 @@ class Remote( BaseBackend ):
 
     def get_data(self, location):
         """ downloads a datafile from the remote """
-        lid = get_id_from_permalink( location )
-        url = '%s%s/%s/%s/' % (self._meta.host, "datafiles", str(lid))
+        fid = get_id_from_permalink( location )
+        url = '%s%s/%s/%s/' % (self._meta.host, "datafiles", str(fid), 'data')
 
         print_status('loading datafile %s from server...' % fid)
 
         r = requests.get(url, cookies=self.cookie)
 
         # download and save file to temp folder
-        temp_name = str(lid) + '.h5'
+        temp_name = str(fid) + '.h5'
         path = os.path.join(self._meta.temp_dir, temp_name)
         with open( path, "w" ) as f:
             f.write( r.content )

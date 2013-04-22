@@ -63,12 +63,15 @@ def is_permalink( link ):
     return str(link).find("http://") > -1
 
 
-def get_id_from_permalink(permalink):
+def get_id_from_permalink( link ):
     """ parses permalink and extracts ID of the object """
-    if not permalink:
+    if not link:
         return None
-    base_url = urlparse.urlparse(permalink).path
-    return int( re.search("(?P<id>[\d]+)", base_url).group() )
+
+    if is_permalink( link ):
+        link = extract_location( link )
+
+    return int( re.search("(?P<id>[\d]+)", link ).group() )
 
 
 def build_hostname( profile_data ):

@@ -12,11 +12,11 @@ class Browser(object):
     }
 
     def local(self, location=None, filt={}):
-        return self._ls(location=None, remote=False, filt={})
+        return self._ls(location, remote=False, filt={})
 
 
     def remote(self, location=None, filt={}):
-        return self._ls(location=None, remote=True, filt={})
+        return self._ls(location, remote=True, filt={})
 
 
     def cd(self, location=''):
@@ -55,7 +55,7 @@ class Browser(object):
 
             if location:
                 out += 'location %s:\n' % location
-                app, cls, lid = self._parse_location( location )
+                app, cls, lid = self._meta.parse_location( location )
 
                 for child in self._meta.app_definitions[ cls ]['children']:
 
