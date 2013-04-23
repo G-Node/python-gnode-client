@@ -2,7 +2,8 @@ from utils import *
 import os
 
 class Cache( object ):
-    """ a class to handle cached objects and data for Session """
+    """ THIS CLASS is DEPRECATED. Look for a Local backend class.
+    a class to handle cached objects and data for Session """
 
     objs_map = {} # map of cached objects, location: reference, like 
     # _cache_map = {

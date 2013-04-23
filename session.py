@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 import os, sys
 import re
-
+import warnings
+import errors
 import hashlib
 try: 
     import simplejson as json
@@ -13,18 +14,16 @@ import numpy as np
 
 import odml.terminology as terminology
 
-import warnings
-import errors
 from utils import *
 from serializer import Serializer
 from browser import Browser
 from cache import Cache
-from backend.backends import Local, Remote
-from models import Metadata, models_map, supported_models, units_dict, get_type_by_obj
-
+from backend.local import Local
+from backend.remote import Remote
+from models import Meta, Metadata, models_map, supported_models, units_dict, get_type_by_obj
 
 #-------------------------------------------------------------------------------
-# common wrapper functions
+# common factory functions
 #-------------------------------------------------------------------------------
 
 def init(config_file='default.json', models_file='requirements.json'):
@@ -64,142 +63,13 @@ def init(config_file='default.json', models_file='requirements.json'):
 # core Client classes
 #-------------------------------------------------------------------------------
 
-class Meta( object ):
-    """ abstract class to handle settings, auth information for Session """
-
-    def get_array_attr_names(self, model_name):
-        """ return attr names that are arrays with ndim > 0 """
-        data_fields = self.app_definitions[model_name]['data_fields']
-
-        # FIXME dirty alternative
-        names = [n for n in data_fields if n in ['times', 'durations', \
-            'signal', 'waveform', 'waveforms']]
-
-        return names
-
-    def restore_location(self, location):
-        """ restore a full version of the location using alias_map, like
-        'mtd/sec/293847/' -> 'metadata/section/293847/' """
-        l = str( location )
-        if not l.startswith('/'):
-            l = '/' + l
-
-        almap = dict(self.app_aliases.items() + self.cls_aliases.items())
-        for name, alias in almap.items():
-            if l.find(alias) > -1 and l[l.find(alias)-1] == '/' and \
-                l[l.find(alias) + len(alias)] == '/':
-                l = l.replace(alias, name)
-
-        l = l[1:] # remove preceeding slash
-        if not l.endswith('/'):
-            l += '/'
-
-        return l
-
-    def strip_location(self, location):
-        """ make a shorter version of the location using alias_map, like
-        'metadata/section/293847/' -> 'mtd/sec/293847/' """
-        l = str( location )
-        if not l.startswith('/'):
-            l = '/' + l
-
-        almap = dict(self.app_aliases.items() + self.cls_aliases.items())
-        for name, alias in almap.items():
-            if l.find(name) > -1 and l[l.find(name)-1] == '/' and\
-                l[l.find(name) + len(name)] == '/':
-                l = l.replace(name, alias)
-
-        return l
-
-    def parse_location(self, location):
-        """ extracts app name and object type from the current location, e.g.
-        'metadata' and 'section' from 'metadata/section/293847/' """
-        def is_valid_id( lid ):
-            try:
-                int( lid )
-                return True
-            except ValueError:
-                return False
-
-        l = self.restore_location( location )
-
-        if l.startswith('/'):
-            l = l[ 1 : ]
-        if not l.endswith('/'):
-            l += '/'
-
-        res = []
-        while l:
-            item = l[ : l.find('/') ]
-            res.append( item ) # e.g. 'metadata' or 'section'
-            l = l[ len(item) + 1 : ]
-
-        try:
-            app, model_name, lid = res
-        except ValueError:
-            raise ReferenceError('Cannot parse object location %s. The format \
-                should be like "metadata/section/293847/"' % str(res))
-
-        if not app in self.app_prefix_dict.values():
-            raise TypeError('This app is not supported: %s' % app)
-        if not model_name in self.model_names:
-            raise TypeError('This type of object is not supported: %s' % model_name)
-        if not is_valid_id( lid ):
-            raise TypeError('ID of an object must be of "int" type: %s' % lid)
-
-        return app, model_name, int(lid)
-
-    def is_modified(self, json_obj):
-        """ checks if object was modified locally by validating that object
-        references are permalinks """
-
-        # 1. check permalink
-        if not is_permalink( json_obj['permalink'] ):
-            return True
-
-        app_name, model_name = parse_model( json_obj )
-
-        # 2. check data fields
-        for attr in self.get_array_attr_names( model_name ):
-            data = json_obj['fields'][ attr ]['data']
-            if data: # should not be null
-                if not is_permalink( data ):
-                    return True
-
-        # 3. check parent fields
-        for attr in self.app_definitions[model_name]['parents']:
-            parent = json_obj['fields'][ attr ]
-            if parent: # should not be null
-                if not is_permalink( parent ):
-                    return True
-
-        return False
-        
-
-
 class Session( Browser ):
     """ Object to handle connection and client-server data transfer """
 
     def __init__(self, profile_data, model_data):
 
         # 1. load meta info: store all settings in Meta class as _meta attribute
-        meta = Meta()
-        meta.username = profile_data['username']
-        meta.password = profile_data['password']
-        meta.temp_dir = os.path.abspath( profile_data['tempDir'] )
-        meta.max_line_out = profile_data['max_line_out']
-        meta.verbose = bool( profile_data['verbose'] )
-        meta.host = build_hostname( profile_data )
-        meta.port = profile_data['port']
-        meta.app_definitions, meta.model_names, meta.app_prefix_dict = \
-            load_app_definitions(model_data)
-        # a) app_definitions is a dict parsed from requirements.json
-        # b) model names is a list like ['segment', 'event', ...]
-        # c) app_prefix_dict is like {'section': 'metadata', 'block': 'electrophysiology', ...}
-
-        meta.app_aliases, meta.cls_aliases = build_alias_dicts( profile_data['alias_map'] )
-        meta.cache_dir = os.path.abspath( profile_data['cacheDir'] )
-        meta.cache_path = os.path.join( profile_data['cacheDir'], profile_data['cache_file_name'] )
+        meta = Meta( profile_data, model_data )
         self._meta = meta
 
         # 2. init Local/Remote backends
@@ -211,6 +81,9 @@ class Session( Browser ):
         # TODO make odML to load terms into our cache folder, not default /tmp
         terms = terminology.terminologies.load(profile_data['odml_repository'])
         self.terminologies = terms.sections
+
+        # 4. attach supported models
+        self.models = dict( models_map )
 
         warnings.simplefilter('ignore', tb.NaturalNameWarning)
         print "Session initialized."
@@ -292,6 +165,79 @@ class Session( Browser ):
 
     #---------------------------------------------------------------------------
     #---------------------------------------------------------------------------
+
+    def annotate(self, objects, values):
+        """ annotates given objects with given values. sends requests to the 
+        backend. objects, values - are lists """
+
+        # FIXME split this into the backends
+
+        # 1. split given objects by model (class)
+        for_annotation = {}
+        for obj in objects:
+            model_name = get_type_by_obj( obj )
+            if not hasattr(obj, '_gnode'):
+                raise ValidationError('All objects need to be synced before annotation.')
+
+            if not model_name in for_annotation.keys():
+                for_annotation[ model_name ] = [ obj ]
+            else:
+                for_annotation[ model_name ].append( obj )
+
+        # 2. build values list to POST
+        data = {'metadata': []}
+        for value in values:
+            if not hasattr(value, '_gnode') or not hasattr(value.parent, '_gnode'):
+                raise ValidationError('All properties/values need to be synced before annotation.')
+            data['metadata'].append( value._gnode['permalink'] )
+
+
+        # 3. for every model annotate objects in bulk
+        counter = 0
+        for model_name, objects in for_annotation.items():
+            url = '%s%s/%s/' % (self._meta.host, self._meta.app_prefix_dict[model_name], str(model_name))
+            params = {'id__in': [x._gnode['id'] for x in objects], 'bulk_update': 1}
+
+            resp = requests.post(url, data=json.dumps(data), params=params, \
+                cookies=self._meta.cookie_jar)
+
+            # parse response json
+            if not resp.status_code in [200, 304]:
+                raw_json = get_json_from_response( resp )
+                message = '%s (%s)' % (raw_json['message'], raw_json['details'])
+                raise errors.error_codes[resp.status_code]( message )
+
+            if resp.status_code == 200:
+
+                for obj in objects:
+
+                    # 1. update metadata attr in obj._gnode (based on values, not 
+                    # on the response values so not to face the max_results problem)
+                    updated = set(obj._gnode['fields']['metadata'] + \
+                        [v._gnode['permalink'] for v in values])
+                    obj._gnode['fields']['metadata'] = list( updated )
+
+                    # 2. update .metadata attribute of an object
+                    if not hasattr(obj, 'metadata'):
+                        setattr(obj, 'metadata', Metadata())
+
+                    for p, v in [(v.parent, v) for v in values]:
+                        if hasattr(obj.metadata, p.name):
+                            # add a value to the existing property
+                            new = getattr(obj.metadata, p.name)
+                            new.append( v )
+                            setattr(obj.metadata, p.name, new)
+
+                        else:
+                            # clone new property
+                            cloned = p.clone(children=False)
+                            cloned.append( v.clone() )
+                            setattr( obj.metadata, cloned.name, cloned )
+
+            counter += len(objects)
+            print_status('%s(s) annotated.' % model_name)
+
+        print_status('total %d object(s) annotated.\n' % counter)
 
 
     def pull(self, location, params={}, cascade=True, data_load=True, _top=True):
@@ -676,76 +622,7 @@ class Session( Browser ):
         print_status('sync done, %d objects processed.\n' % len( processed ))
 
 
-    def annotate(self, objects, values):
-        """ annotates given objects with given values. sends requests to the 
-        backend. objects, values - are lists """
 
-        # 1. split given objects by model (class)
-        for_annotation = {}
-        for obj in objects:
-            model_name = get_type_by_obj( obj )
-            if not hasattr(obj, '_gnode'):
-                raise ValidationError('All objects need to be synced before annotation.')
-
-            if not model_name in for_annotation.keys():
-                for_annotation[ model_name ] = [ obj ]
-            else:
-                for_annotation[ model_name ].append( obj )
-
-        # 2. build values list to POST
-        data = {'metadata': []}
-        for value in values:
-            if not hasattr(value, '_gnode') or not hasattr(value.parent, '_gnode'):
-                raise ValidationError('All properties/values need to be synced before annotation.')
-            data['metadata'].append( value._gnode['permalink'] )
-
-
-        # 3. for every model annotate objects in bulk
-        counter = 0
-        for model_name, objects in for_annotation.items():
-            url = '%s%s/%s/' % (self._meta.host, self._meta.app_prefix_dict[model_name], str(model_name))
-            params = {'id__in': [x._gnode['id'] for x in objects], 'bulk_update': 1}
-
-            resp = requests.post(url, data=json.dumps(data), params=params, \
-                cookies=self._meta.cookie_jar)
-
-            # parse response json
-            if not resp.status_code in [200, 304]:
-                raw_json = get_json_from_response( resp )
-                message = '%s (%s)' % (raw_json['message'], raw_json['details'])
-                raise errors.error_codes[resp.status_code]( message )
-
-            if resp.status_code == 200:
-
-                for obj in objects:
-
-                    # 1. update metadata attr in obj._gnode (based on values, not 
-                    # on the response values so not to face the max_results problem)
-                    updated = set(obj._gnode['fields']['metadata'] + \
-                        [v._gnode['permalink'] for v in values])
-                    obj._gnode['fields']['metadata'] = list( updated )
-
-                    # 2. update .metadata attribute of an object
-                    if not hasattr(obj, 'metadata'):
-                        setattr(obj, 'metadata', Metadata())
-
-                    for p, v in [(v.parent, v) for v in values]:
-                        if hasattr(obj.metadata, p.name):
-                            # add a value to the existing property
-                            new = getattr(obj.metadata, p.name)
-                            new.append( v )
-                            setattr(obj.metadata, p.name, new)
-
-                        else:
-                            # clone new property
-                            cloned = p.clone(children=False)
-                            cloned.append( v.clone() )
-                            setattr( obj.metadata, cloned.name, cloned )
-
-            counter += len(objects)
-            print_status('%s(s) annotated.' % model_name)
-
-        print_status('total %d object(s) annotated.\n' % counter)
 
 
     def delete(self, obj_type, obj_id=None, *kwargs):
