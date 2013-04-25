@@ -134,7 +134,7 @@ class Local( BaseBackend ):
         self.f.createArray(where, str(lid), to_save)
 
 
-    def save_data(self, data, location=None):
+    def save_data(self, data, location):
         """ bla foo """
         if not self.f:
             raise IOError('Open the backend first.')
@@ -143,11 +143,7 @@ class Local( BaseBackend ):
             location = extract_location( location )
 
         where = '/datafiles'
-        if location:
-            lid = get_id_from_permalink( location )
-
-        else:
-            lid = get_uid()
+        lid = get_id_from_permalink( location )
 
         try:
             self.f.removeNode( where, str(lid) )
@@ -254,61 +250,6 @@ class Local( BaseBackend ):
         # update parent children, in the cache, in memory?
 
 
-    def _save_data(self, obj):
-        """ saves array data to disk in HDF5 and uploads new datafiles to the 
-        server according to the arrays of the given obj. Saves datafile objects 
-        to cache.
-
-        returns:
-        data_refs - all updated references to the related data, like
-                    {'signal': {
-                            'data': '/datafiles/28374',
-                            'units': 'mV'
-                        },
-                    ...
-                    }
-        """
-        data_refs = {} 
-
-        model_name = get_type_by_obj( obj )
-        data_fields = self._meta.app_definitions[model_name]['data_fields']
-        array_attrs = self._meta.get_array_attr_names( model_name )
-
-        for attr in array_attrs: # attr is like 'times', 'signal' etc.
-
-            # 1. get current array and units
-            getter = data_fields[attr][2]
-            if getter == 'self':
-                curr_arr = obj # some NEO objects like signal inherit array
-            else:
-                curr_arr = getattr(obj, getter)
-
-            units = Serializer.parse_units(arr)
-
-            if len(curr_arr) < 2:
-                # we treat array with < 2 values as when object was 
-                # fetched without data for performance reasons. in this 
-                # case we ignore this data attribute
-                continue
-
-            # 2. search for cached array
-            link = obj._gnode['fields'][ attr ]['data']
-            location = extract_location( link )
-            init_arr = self.get( location )
-
-            if not init_arr == None: # cached array exists
-                # compare cached (original) and current data
-                if np.array_equal(init_arr, curr_arr):
-                    continue # no changes needed
-
-            # 3. save as new array
-            location = '/datafiles/'
-            name = get_uid()
-            self._save_to_location( location, name, curr_arr )
-
-            data_refs[ attr ] = {'data': location + name + '/', 'units': units}
-
-        return data_refs
 
 
     def fake_get(self, location, params={}, cascade=True, data_load=True, mode='obj'):

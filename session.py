@@ -162,6 +162,239 @@ class Session( Browser ):
         self._local.close()
         return objects
 
+    def get(self, location, cascade=True):
+        pass
+
+
+    def save(self, obj, cascade=True):
+        """
+        saves a given object to the local (cache).
+
+        obj:        a python object to save.
+        cascade:    saves all children-related object to a given object 
+                    recusrively when True. Saves only a given object otherwise.
+        """
+        processed = [] # collector of permalinks of processed objects
+        to_clean = [] # collector of ids of objects to clean parent
+        stack = [ obj ] # a stack of objects to sync
+
+        self._local.open()
+
+        while len( stack ) > 0:
+
+            obj = stack[0] # take first object from stack
+            cls = None # type of the object like 'segment' or 'section'
+
+            # bloody workaround for duplications because of NEO
+            if hasattr(obj, '_gnode') and obj._gnode['location'] in processed:
+                stack.remove( obj )
+                continue
+
+            # 1. validate class type
+            if not obj.__class__ in supported_models:
+                # skip this object completely
+                stack.remove( obj )
+                print_status('Object %s is not supported.\n' % \
+                    cut_to_render( obj.__repr__() ))
+                continue
+
+            # 2. detect model and app
+            cls = get_type_by_obj( obj )
+            app = self._meta.app_prefix_dict[cls]
+            
+            # 3. pre-save related metadata if exists
+            if hasattr(obj, 'metadata'):
+
+                metadata = getattr(obj, 'metadata')
+                if isinstance(metadata, Metadata):
+
+                    to_save = []
+                    for name, prp in metadata.__dict__.items():
+                        if prp.value:
+                            if not hasattr(prp.value, '_gnode'):
+                                to_save.insert(0, prp.value) # sync value if never saved
+
+                            if not hasattr(prp, '_gnode'):
+                                to_save.insert(0, prp) # sync property if never saved
+                                if not prp.parent:
+                                    print_status('Cannot sync %s for %s: section is not defined.\n' % \
+                                        (name, cut_to_render( obj.__repr__() )))
+                                    stack.remove( prp )
+                                    continue # move to other property
+
+                                if not hasattr(prp.parent, '_gnode'):
+                                    # save parent section
+                                    to_save.insert(0, prp.parent)
+
+                    if to_save: # save what's needed first
+                        stack = to_save + stack
+                        continue
+
+            # 4. pre-push new/changed array data to the local (in cache)
+            # data_refs is a dict like 
+            # {'signal': {'data': '/datafiles/148348/', 'units': 'ms'}, ...}
+            data_refs = self._save_data( obj )
+            json_obj = Serializer.serialize(obj, self._meta, data_refs)
+            location = json_obj['location']
+
+            # 5. save main object
+            if hasattr(obj, '_gnode'): # existing object, update
+                json_cached = self._local.get( location )
+
+                if not json_cached == None and json_cached == json_obj:
+                    status = 304 # object not modified
+
+                else:
+                    # remove host from the permalink to indicate local changes
+                    json_obj['permalink'] = json_obj['location']
+                    status = 200 # successfuly saved
+
+            else: # new object, create
+                status = 201
+
+            if not status = 304:
+                self._local.save( json_obj )
+
+            # 6. set/update _gnode attr + update children list in obj parents
+            obj._gnode = json_obj
+            for par_name in self._meta.app_definitions[cls]['parents']:
+                attr = get_parent_attr_name( model_name, par_name )
+                if hasattr(obj, attr):
+                    parents = getattr(obj, attr)
+
+                    if not type(parents) == type([]):
+                        parents = [ parents ]
+
+                    for parent in parents:                
+                        if parent and hasattr(parent, '_gnode'):
+                            link = obj._gnode['permalink']
+                            if parent._gnode['fields'].has_key( model_name + '_set' ):
+                                if not link in parent._gnode['fields'][ model_name + '_set' ]:
+                                    parent._gnode['fields'][ model_name + '_set' ].append( link )
+
+                            # update parrent with correct children in cache
+                            self._local.save( parent._gnode )
+
+
+            processed.append( obj._gnode['permalink'] )
+            print_status('Object at %s saved.' % obj._gnode['location'])
+
+            # TODO add some exception processing
+            # except (errors.ValidationError), e:
+            #     print_status('%s skipped: %s\n' % \
+            #         (cut_to_render(obj.__repr__(), 15), str(e)))
+
+            stack.remove( obj ) # not to forget to remove processed object
+
+            # 7. if cascade put children objects to the stack to save
+            children = self._meta.app_definitions[cls]['children']
+            if cascade and children and hasattr(obj, '_gnode'):
+
+                for child in children: # 'child' is like 'segment', 'event' etc.
+
+                    # cached children references
+                    child_link_set = list( obj._gnode['fields'][ child + '_set' ] )
+
+                    for rel in getattr(obj, get_children_field_name( child )):
+
+                        # detect children of that type that were removed
+                        if hasattr(rel, '_gnode') and rel._gnode['permalink'] \
+                            in child_link_set:
+                            child_link_set.remove( rel._gnode['permalink'] )
+
+                        # prepare to save child object (skip already scheduled \
+                        # or processed)
+                        if not (hasattr(rel, '_gnode') and \
+                            rel._gnode['permalink'] in processed):
+                            stack.append( rel )
+
+                    par_name = get_parent_field_name(cls, child)
+                    # collect permalinks of removed objects as (link, par_field_name)
+                    to_clean += [(x, par_name) for x in child_link_set]
+
+        # post-processing
+        # a. clean objects that were removed from everywhere in this scope
+        pure_links = [x[0] for x in to_clean]
+        removed = list( set(pure_links) - set(processed) )
+        to_clean = [x for x in to_clean if x[0] in removed]
+
+        if to_clean:
+            print_status('Cleaning removed objects..')
+            for link, par_name in to_clean:
+                self._local.delete( link ) # maybe just reset parent?
+
+        # b. close and final output
+        self._local.close()
+        print_status('sync done, %d objects processed.\n' % len( processed ))
+
+
+
+    def sync(self, obj, cascade=True):
+        """
+
+        """
+        pass
+
+
+    def _save_data(self, obj, target='local'):
+        """ saves array data to 'target' according to the arrays of the given 
+        obj.
+
+        returns:
+        data_refs - all updated references to the related data, like
+                    {'signal': {
+                            'data': '/datafiles/28374',
+                            'units': 'mV'
+                        },
+                    ...
+                    }
+        """
+        data_refs = {}
+        if target == 'local'
+            backend = self._local
+        else:
+            backend = self._remote
+
+        model_name = get_type_by_obj( obj )
+        data_fields = self._meta.app_definitions[model_name]['data_fields']
+        array_attrs = self._meta.get_array_attr_names( model_name )
+
+        for attr in array_attrs: # attr is like 'times', 'signal' etc.
+
+            # 1. get current array and units
+            getter = data_fields[attr][2]
+            if getter == 'self':
+                curr_arr = obj # some NEO objects like signal inherit array
+            else:
+                curr_arr = getattr(obj, getter)
+
+            if len(curr_arr) < 2:
+                # we treat array with < 2 values as when object was fetched / 
+                # created without data for performance reasons. in this case we 
+                # ignore this data attribute
+                continue
+
+            units = Serializer.parse_units(arr)
+
+            # 2. search for cached array, compare
+            if hasattr(obj, '_gnode'):
+                link = obj._gnode['fields'][ attr ]['data']
+                location = extract_location( link )
+                init_arr = backend.get( location )
+
+                if not init_arr == None: # cached array exists
+                    # compare cached (original) and current data
+                    if np.array_equal(init_arr, curr_arr):
+                        continue # no changes needed
+
+            # 3. save as new array
+            location = '/%s/%s/' % ('datafiles', get_uid())
+            backend.save_data( curr_arr, location )
+
+            data_refs[ attr ] = {'data': location, 'units': units}
+
+        return data_refs
+
 
     #---------------------------------------------------------------------------
     #---------------------------------------------------------------------------

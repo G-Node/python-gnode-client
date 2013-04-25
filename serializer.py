@@ -84,12 +84,10 @@ class Serializer(object):
     @classmethod
     def serialize(cls, obj, meta, data_refs={}):
         """ 
-        Instantiates a new python object from a given JSON representation.
+        Produces a JSON representation from a given python object.
 
         obj       - python object to serialize.
-
         meta      - meta information from the current session.
-
         data_refs - a dict with references to the related datafiles and units
                     {'signal': {
                             'data': '/datafiles/28374',
@@ -245,11 +243,13 @@ class Serializer(object):
         return links
 
     @classmethod
-    def update_parent_children(cls, obj, session):
+    def update_parent_children(cls, obj, meta):
         """ when the object is synced, it's new parent relationship must be set
         into the parent object """
-        model_name = session._get_type_by_obj(obj)
-        app_definition = session._meta.app_definitions[model_name]
+        pass
+        """
+        model_name = get_type_by_obj(obj)
+        app_definition = meta.app_definitions[model_name]
         for par_name in app_definition['parents']:
             attr = get_parent_attr_name( model_name, par_name )
             if hasattr(obj, attr):
@@ -264,6 +264,7 @@ class Serializer(object):
                         if parent._gnode['fields'].has_key( model_name + '_set' ):
                             if not link in parent._gnode['fields'][ model_name + '_set' ]:
                                 parent._gnode['fields'][ model_name + '_set' ].append( link )
+        """
 
 
     @classmethod
