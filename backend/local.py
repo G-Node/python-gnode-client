@@ -120,7 +120,7 @@ class Local( BaseBackend ):
         app, model_name, lid = self._meta.parse_location( json_obj['location'] )
         where = "/%s/%s" % (app, model_name)
 
-        if not self.f:
+        if not self.f: # TODO make a decorator
             raise IOError('Open the backend first.')
 
         to_save = json.dumps( json_obj )
@@ -151,6 +151,20 @@ class Local( BaseBackend ):
             pass
 
         self.f.createArray(where, str(lid), data)
+
+
+    def delete(self, location):
+        if not self.f:
+            raise IOError('Open the backend first.')
+
+        if is_permalink( location ):
+            location = extract_location( location )
+
+        app, model_name, lid = self._meta.parse_location( location )
+        where = "/%s/%s" % (app, model_name)
+
+        self.f.removeNode( where, str(lid) )
+
 
     #---------------------------------------------------------------------------
     # helper functions
