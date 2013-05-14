@@ -273,6 +273,8 @@ class Session( Browser ):
                                     parent._gnode['fields'][ model_name + '_set' ].append( link )
 
                             # update parrent with correct children in cache
+                            # that makes every object save several times
+                            # a workaround needed
                             self._local.save( parent._gnode )
 
 
@@ -325,15 +327,28 @@ class Session( Browser ):
 
         # b. close and final output
         self._local.close()
-        print_status('sync done, %d objects processed.\n' % len( processed ))
+        print_status('save done, %d objects processed.\n' % len( processed ))
 
 
 
     def sync(self, obj, cascade=True):
         """
+        sync a given object or location between local and remote.
 
+        obj:        a python object OR a location to sync. If an object given,
+                    it is saved first.
+        cascade:    sync all children-related object to a given object/location 
+                    recusrively when True. Sync only a given object/location
+                    otherwise.
+
+        outputs the status of the operation.
         """
-        pass
+        # case a) some model given, save it first 
+        if obj.__class__ in models_map.values():
+            self.save( obj, cascade=cascade )
+
+        location = obj._gnode['location']
+
 
 
     def _save_data(self, obj, target='local'):
