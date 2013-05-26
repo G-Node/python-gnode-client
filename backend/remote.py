@@ -147,3 +147,44 @@ class Remote( BaseBackend ):
             json_obj = raw_json['selected'][0] # should be single object 
             return json_obj
 
+
+    def save(self, json_obj):
+        """ creates / updates object at the remote """
+        headers = {}
+        if json_obj['fields']['guid']:
+            headers = {'If-Match': obj._gnode['fields']['guid']}
+
+        params = {'m2m_append': 0}
+        app, model, lid = self._meta.parse_location( json_obj['location'] )
+
+        url = '%s%s/%s/%s/' % (self._meta.host, app, cls, str(lid))
+
+        resp = requests.post(url, data=json.dumps(json_obj), \
+            headers=headers, params=params, cookies=self.cookie)
+
+        raw_json = get_json_from_response( resp )
+        if not resp.status_code in [200, 201, 304, 412]:
+            message = '%s (%s)' % (raw_json['message'], raw_json['details'])
+            raise errors.error_codes[resp.status_code]( message )
+
+        if resp.status_code == 304 or resp.status_code == 412:
+            return resp.status_code
+
+        json_obj = raw_json['selected'][0] # should be single object 
+        return json_obj
+
+
+    def save_data(self, data, location):
+        """ creates / updates object at the remote """
+        app, model, lid = self._meta.parse_location( location )
+
+        url = '%s%s/%s/%s/' % (self._meta.host, 'datafiles', 'datafile', str(lid))
+
+        files = {'raw_file': data}
+        resp = requests.post(url, files=files, cookies=self.cookie)
+        raw_json = get_json_from_response( resp )
+
+        if not resp.status_code == 201:
+            raise errors.FileUploadError('error. file upload failed: %s\nmaybe sync again?' % resp.content)
+
+

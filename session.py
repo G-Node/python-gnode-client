@@ -343,12 +343,78 @@ class Session( Browser ):
 
         outputs the status of the operation.
         """
+        def sync_data( json_obj ):
+            """ syncs all array- data fields """
+            array_attrs = self._meta.get_array_attr_names( model )
+            if array_attrs: # object has array data
+                for attr in array_attrs:
+
+                    data_loc = json_obj['fields'][ attr ]['data']
+                    data_array = self._local.get_data( data_loc )
+
+                    if is_permalink( data_loc ):
+
+                        if not data_array: # no local data, fetch from the remote
+                            data_array = self._remote.get_data( data_loc )
+
+                    else: # data never synced, push to the remote
+
+                        self._remote.save_data( data_array, data_loc )
+
+        processed = 0
+        self._local.open()
+
+        if not self._remote.is_active:
+            self._remote.open() # authenticate at the remote
+            if not self._remote.is_active:
+                print_status( 'No sync with %s possible in offline mode.\n'\
+                     % self._meta.host)
+                return None
+
         # case a) some model given, save it first 
         if obj.__class__ in models_map.values():
             self.save( obj, cascade=cascade )
 
         location = obj._gnode['location']
+        app, model, lid = self._meta.parse_location( location )
 
+        json_obj = self._local.get( location )
+
+        if not json_obj: # no local object, fetch from the remote
+            json_obj = self._remote.get( location )
+            self._local.save( json_obj )
+
+            sync_data( json_obj)
+
+        else: # object exists locally
+
+            etag = None
+            if json_obj['fields'].has_key('guid'): # new object, push
+                etag = json_obj['fields']['guid']
+
+            if self._meta.is_modified( json_obj ): # sync local changes
+
+                sync_data( json_obj)
+
+                rem_json_obj = self._remote.save( json_obj )
+                if rem_json_obj == 412:
+                    print_status('Object at %s has remote changes, cannot sync.\n' \
+                        % location)
+                    continue
+
+                self._local.save( rem_json_obj )
+
+            else: # no changes, pull and update if eTags don't match
+
+                rem_json_obj = self._remote.get( location, etag=etag )
+                if not etag == rem_json_obj['fields']['guid']:
+                    self._local.save( rem_json_obj )
+
+                sync_data( json_obj)
+
+        # b. close and final output
+        self._local.close()
+        print_status('sync done, %d objects processed.\n' % len( processed ))
 
 
     def _save_data(self, obj, target='local'):
@@ -699,7 +765,7 @@ class Session( Browser ):
         return objects
 
 
-    def sync(self, obj_to_sync, cascade=False):
+    def zz_sync(self, obj_to_sync, cascade=False):
         """ bla bla """
 
         processed = [] # collector of permalinks of processed objects
