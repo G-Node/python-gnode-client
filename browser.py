@@ -11,14 +11,6 @@ class Browser(object):
         'modes': ['data', 'metadata'] # could browse in data mode too
     }
 
-    def local(self, location=None, filt={}):
-        return self._ls(location, remote=False, filt={})
-
-
-    def remote(self, location=None, filt={}):
-        return self._ls(location, remote=True, filt={})
-
-
     def cd(self, location=''):
         """ changes the current location within the data structure """
         if location == '':
@@ -38,14 +30,14 @@ class Browser(object):
             print "entered %s" % url
 
 
-    def _ls(self, location=None, remote=False, filt={}):
-        """ cmd-type ls function for both remote and local """
+    def ls(self, location=None, filt={}):
+        """ cmd-type ls function to browse objects at the remote """
         out = '' # output
         params = dict( self.ls_config['ls_filt'].items() + filt.items() )
 
         # case a) some model given, output results of the filtered selection 
         if location in self._meta.model_names:
-            objs = self.select(location, params=params, remote=remote)
+            objs = self.select(location, params=params)
             out = self._render( objs, out )
 
         # case b) output contents of a given location
@@ -61,7 +53,7 @@ class Browser(object):
 
                     parent_name = get_parent_field_name(cls, child)
                     params[ parent_name + '__id' ] = lid
-                    objs = self.select(child, params=params, remote=remote)
+                    objs = self.select(child, params=params)
 
                     out = self._render( objs, out )
                     params.pop( parent_name + '__id' )
@@ -69,18 +61,18 @@ class Browser(object):
                 # FIXME? exception case for Block -> Section
                 if cls == 'section':
                     params[ 'section__id' ] = lid
-                    objs = self.select('block', params=params, remote=remote)
+                    objs = self.select('block', params=params)
                     if objs:
                         out += '\nDATA:\n'
                         out = self._render( objs, out )
 
             else:
                 if self.ls_config['mode'] == 'data':
-                    objs = self.select('block', params=params, remote=remote)
+                    objs = self.select('block', params=params)
 
                 else: # metadata mode otherwise
                     params['parent_section__isnull'] = 1
-                    objs = self.select('section', params=params, remote=remote)
+                    objs = self.select('section', params=params)
 
                 out = self._render( objs, out )
 
@@ -92,8 +84,8 @@ class Browser(object):
         for obj in objs:
 
             # object location
-            location = extract_location( obj._gnode['permalink'] )
-            out += self._meta.strip_location(location) + '\t'
+            #location = extract_location( obj._gnode['permalink'] )
+            out += self._meta.strip_location( obj._gnode['location'] ) + '\t'
 
             # safety level
             out += str(obj._gnode['fields']['safety_level']) + ' '

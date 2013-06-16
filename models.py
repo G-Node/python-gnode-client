@@ -70,6 +70,8 @@ class Meta( object ):
     functions for backends / session manager """
 
     def __init__(self, profile_data, model_data):
+
+        # init user / server info
         self.username = profile_data['username']
         self.password = profile_data['password']
         self.temp_dir = os.path.abspath( profile_data['tempDir'] )
@@ -77,6 +79,8 @@ class Meta( object ):
         self.verbose = bool( profile_data['verbose'] )
         self.host = build_hostname( profile_data )
         self.port = profile_data['port']
+
+        # init application settings
         self.app_definitions, self.model_names, self.app_prefix_dict = \
             load_app_definitions(model_data)
         # a) app_definitions is a dict parsed from requirements.json
@@ -86,6 +90,9 @@ class Meta( object ):
 
         self.app_aliases, self.cls_aliases = build_alias_dicts( \
             profile_data['alias_map'] )
+
+        # init cache settings
+        self.load_cached_data = bool( profile_data['load_cached_data'] )
         self.cache_dir = os.path.abspath( profile_data['cacheDir'] )
         self.cache_path = os.path.join( profile_data['cacheDir'], \
             profile_data['cache_file_name'] )

@@ -17,7 +17,7 @@
     "apiDefinition": "./requirements.json",
 
     "cacheDir": "./cache/",
-    "cache_file_name": "gnode_cache.h5",
+    "cache_file_name": "gnode_cache.json",
     "load_cached_data" : 1,
     "tempDir": "/tmp/",
 

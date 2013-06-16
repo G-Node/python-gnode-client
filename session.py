@@ -17,7 +17,7 @@ import odml.terminology as terminology
 from utils import *
 from serializer import Serializer
 from browser import Browser
-from cache import Cache
+from backend.cache import Cache
 from backend.local import Local
 from backend.remote import Remote
 from models import Meta, Metadata, models_map, supported_models, units_dict, get_type_by_obj
@@ -72,8 +72,8 @@ class Session( Browser ):
         meta = Meta( profile_data, model_data )
         self._meta = meta
 
-        # 2. init Local/Remote backends
-        self._local = Local( meta )
+        # 2. init Cache and Remote backend
+        self._cache = Cache( meta )
         self._remote = Remote( meta )
         self._remote.open() # authenticate at the remote
 
@@ -89,46 +89,77 @@ class Session( Browser ):
         print "Session initialized."
 
 
-    def select(self, model_name, params={}, data_load=False, remote=False, mode='obj'):
-        """ 
-        requests objects of a given type from remote in bulk mode. 
+    def clear_cache(self):
+        """ removes all objects from the cache """
+        self._cache.clear_cache()
 
-        Args:
-        model_name: type of the object (like 'block', 'segment' or 'section')
 
+    def select(self, model_name, params={}, data_load=False, mode='obj'):
+        """ requests objects of a given type from server in bulk mode. 
+        caching:    caches files only
+        cascade:    no
+        data_load:  yes/no
+
+        Arguments:
+
+        model_name: type of the object (like 'block', 'segment' or 'section'.)
         params:     dict that can contain several categories of key-value pairs
         data_load:  fetch the data or not (applied if mode == 'obj')
-        remote:     whether remote backend is used to get/save data
-        mode:       return mode, python object or JSON
+        mode:       'obj' or 'json' - return mode, python object or JSON
+
+        Params can be:
+
+        1. filters, like:
+            'owner__username': 'robert'
+            'segment__id__in': [19485,56223,89138]
+            'n_definition__icontains': 'blafoo' # negative filter! (has 'n_')
+
+        2. common params, like
+            'at_time': '2013-02-22 15:34:57'
+            'offset': 50
+            'max_results': 20
+
+        3. data params, to get only parts of the original object(s). These only 
+            work for the data-related objects (like 'analogsignal' or 
+            'spiketrain').
+
+            start_time - start time of the required range (calculated
+                using the same time unit as the t_start of the signal)
+            end_time - end time of the required range (calculated using
+                the same time unit as the t_start of the signal)
+            duration - duration of the required range (calculated using
+                the same time unit as the t_start of the signal)
+            start_index - start index of the required datarange (an index
+                of the starting datapoint)
+            end_index - end index of the required range (an index of the
+                end datapoint)
+            samples_count - number of points of the required range (an
+                index of the end datapoint)
+            downsample - number of datapoints. This parameter is used to
+                indicate whether downsampling is needed. The downsampling
+                is applied on top of the selected data range using other
+                parameters (if specified)
+
+        Examples:
+        get('analogsignal', params={'id__in': [38551], 'downsample': 100})
+        get('analogsignal', params={'segment__id': 93882, 'start_time': 500.0})
+        get('section', params={'odml_type': 'experiment', 'date_created': '2013-02-22'})
+
         """
-        if model_name in self._meta.cls_aliases.values(): # FIXME put into model_safe decorator
+        if model_name in self._meta.cls_aliases.values(): # TODO put into model_safe decorator
             model_name = [k for k, v in self._meta.cls_aliases.items() if v==model_name][0]
 
         if not model_name in self._meta.model_names:
             raise TypeError('Objects of that type are not supported.')
 
-        self._local.open()
-        if remote and not self._remote.is_active:
+        if not self._remote.is_active: # TODO put into "activate_remote" decorator
             self._remote.open()
 
-        if remote: # fetch from remote + save in cache if possible
-            json_objs = self._remote.get_list( model_name, params )
+        if not self._remote.is_active:
+            return None # no connection, exit
 
-            for json_obj in json_objs:
-                local_obj = self._local.get( json_obj['permalink'] )
-
-                if local_obj == None: # new object, save
-                    self._local.save( json_obj )
-
-                elif self._meta.is_modified( local_obj ):
-                    print "object %s has local changes and was not modified." % \
-                        json_obj['location']
-
-                else: # exists but not modified, update
-                    self._local.save( json_obj )
-
-        else: # fetch from local
-            json_objs = self._local.get_list( model_name, params )
+        # fetch from remote + save in cache if possible
+        json_objs = self._remote.get_list( model_name, params )
 
         if mode == 'json':
             # return pure JSON (no data) if requested
@@ -145,25 +176,21 @@ class Session( Browser ):
                 if data_load:
                     for array_attr in self._meta.get_array_attr_names( model_name ):
                         arr_loc = json_obj['fields'][ array_attr ]['data']
-                        data = self._local.get_data( arr_loc )
+                        data = self._cache.get_data( arr_loc )
+                        
+                        if data == None: # no local data, fetch from remote
+                            cache_path = self._cache._meta.cache_path
+                            data = self._remote.get_data( arr_loc, cache_path )
 
-                        # no local data, fetch from remote
-                        if remote and data == None:
-                                data = self._remote.get_data( arr_loc )
-                                if not data == None:
-                                    self._local.save_data( data, arr_loc )
-
-                        if not data == None:
+                        if not data == None: # raise error?
                             data_refs[ array_attr ] = data
 
                 obj = Serializer.deserialize( json_obj, self._meta, data_refs )
                 objects.append( obj )
 
-        self._local.close()
-        return objects
+        # TODO maybe add objects to cache here..
 
-    def get(self, location, cascade=True):
-        pass
+        return objects
 
 
     def save(self, obj, cascade=True):
@@ -252,7 +279,7 @@ class Session( Browser ):
             else: # new object, create
                 status = 201
 
-            if not status = 304:
+            if not status == 304:
                 self._local.save( json_obj )
 
             # 6. set/update _gnode attr + update children list in obj parents
@@ -400,7 +427,7 @@ class Session( Browser ):
                 if rem_json_obj == 412:
                     print_status('Object at %s has remote changes, cannot sync.\n' \
                         % location)
-                    continue
+                    #continue
 
                 self._local.save( rem_json_obj )
 
@@ -431,7 +458,7 @@ class Session( Browser ):
                     }
         """
         data_refs = {}
-        if target == 'local'
+        if target == 'local':
             backend = self._local
         else:
             backend = self._remote
