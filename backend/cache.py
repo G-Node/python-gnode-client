@@ -85,7 +85,7 @@ class Cache( object ):
             carray = f.listNodes( "/" )[0]
             data = np.array( carray[:] )
 
-        return data
+        return {"id": fid, "path": self.data_map[ fid ], "data": data}
 
 
 

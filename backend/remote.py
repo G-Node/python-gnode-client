@@ -85,7 +85,7 @@ class Remote( BaseBackend ):
         return raw_json['selected']
 
 
-    def get_data(self, location):
+    def get_data(self, location, cache_dir=None):
         """ downloads a datafile from the remote """
         fid = get_id_from_permalink( location )
         url = '%s%s/%s/%s/' % (self._meta.host, "datafiles", str(fid), 'data')
@@ -94,9 +94,10 @@ class Remote( BaseBackend ):
 
         r = requests.get(url, cookies=self.cookie)
 
-        # download and save file to temp folder
-        temp_name = str(fid) + '.h5'
-        path = os.path.join(self._meta.temp_dir, temp_name)
+        # download and save file to cache or temp folder
+        file_name = str(fid) + '.h5'
+        save_dir = cache_dir or self._meta.temp_dir
+        path = os.path.join(save_dir, file_name)
         with open( path, "w" ) as f:
             f.write( r.content )
 
@@ -106,7 +107,7 @@ class Remote( BaseBackend ):
                 init_arr = np.array( carray[:] )
 
             print 'done.'
-            return init_arr
+            return {"id": fid, "path": path, "data": init_arr}
 
         else:
             print 'error. file was not fetched. maybe pull again?'

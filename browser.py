@@ -50,6 +50,10 @@ class Browser(object):
                 app, cls, lid = self._meta.parse_location( location )
 
                 for child in self._meta.app_definitions[ cls ]['children']:
+                    # TODO fetch children only if not empty? can be done by 
+                    # pre-fetching location and parsing children attrs. makes
+                    # sense only for more than one children objects, like
+                    # segment, section, etc.
 
                     parent_name = get_parent_field_name(cls, child)
                     params[ parent_name + '__id' ] = lid
@@ -82,16 +86,23 @@ class Browser(object):
     def _render(self, objs, out):
         """ renders a list of objects for a *nice* output """
         for obj in objs:
+            fields = obj._gnode['fields']
 
             # object location
-            #location = extract_location( obj._gnode['permalink'] )
             out += self._meta.strip_location( obj._gnode['location'] ) + '\t'
 
             # safety level
-            out += str(obj._gnode['fields']['safety_level']) + ' '
+            out += str( fields['safety_level'] ) + ' '
 
             # object owner
-            out += extract_location( obj._gnode['fields']['owner'] ) + '\t'
+            out += extract_location( fields['owner'] ) + '\t'
+
+            # object size
+            obj_size = str( obj._gnode ).__sizeof__()
+            if fields.has_key( 'data_size' ):
+                obj_size += int( fields['data_size'] )
+
+            out += sizeof_fmt( obj_size ) + '\t'
 
             # object __repr__
             out += obj.__repr__()[ : self._meta.max_line_out ] + '\n'

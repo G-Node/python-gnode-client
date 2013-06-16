@@ -166,6 +166,15 @@ def get_json_from_response( resp ):
     return json.loads( jstr )
 
 
+def sizeof_fmt( num ):
+    """ byte size pretty print """
+    for x in ['B','KB','MB','GB']:
+        if num < 1024.0 and num > -1024.0:
+            return "%3.1f%s" % (num, x)
+        num /= 1024.0
+    return "%3.1f%s" % (num, 'TB')
+
+
 # TODO clean these all up
 
 def supports_metadata(cls):

@@ -176,23 +176,115 @@ class Session( Browser ):
                 if data_load:
                     for array_attr in self._meta.get_array_attr_names( model_name ):
                         arr_loc = json_obj['fields'][ array_attr ]['data']
-                        data = self._cache.get_data( arr_loc )
+                        data_info = self._cache.get_data( arr_loc )
                         
-                        if data == None: # no local data, fetch from remote
-                            cache_path = self._cache._meta.cache_path
-                            data = self._remote.get_data( arr_loc, cache_path )
+                        if data_info == None: # no local data, fetch from remote
+                            cache_dir = self._cache._meta.cache_dir
+                            data_info = self._remote.get_data( arr_loc, cache_dir )
 
-                        if not data == None: # raise error?
-                            data_refs[ array_attr ] = data
+                            if not data_info == None: # raise error otherwise?
+                                # update cache with new file
+                                self._cache.data_map[ data_info['id'] ] = data_info['path']
+
+                        data_refs[ array_attr ] = data_info['data']
 
                 obj = Serializer.deserialize( json_obj, self._meta, data_refs )
                 objects.append( obj )
 
-        # TODO maybe add objects to cache here..
+        # TODO maybe a;so add json / memory objects to cache here..
+        self._cache.save_cache() # updates on-disk cache with new objects
 
         return objects
 
 
+
+    def pull(self, location, params={}, cascade=True, data_load=True, _top=True):
+        """ pulls object from the specified location on the server. 
+        caching:    yes
+        cascade:    yes
+        data_load:  yes
+
+        _top:       reserved parameter used to detect the top function call in
+                    cascade (recursive) mode. This is needed to save cache and
+                    make correct printing after new objects are fetched.
+        """
+        if is_permalink( location ):
+            location = extract_location( location )
+        location = self._meta.restore_location( location )
+        app, cls, lid = self._meta.parse_location( location )
+
+        headers = {} # request headers
+        params['q'] = 'full' # always operate in full mode, see API specs
+
+        url = '%s%s/%s/%s/' % (self._meta.host, app, cls, str(lid))
+
+        # find object in cache
+        if location in self._cache.objs_map.keys():
+            headers['If-none-match'] = self._cache.objs_map[ location ]
+
+        # request object from the server (with ETag)
+        resp = requests.get(url, params=params, headers=headers, cookies=self._meta.cookie_jar)
+
+        if resp.status_code == 304: # get object from cache
+            guid = self._cache.objs_map[ location ]
+            obj = self._cache.objs[ guid ]
+
+            print_status('%s loaded from cache.' % location)
+
+        else: # request from server
+
+            # parse response json
+            raw_json = get_json_from_response( resp )
+            if not resp.status_code == 200:
+                message = '%s (%s)' % (raw_json['message'], raw_json['details'])
+                raise errors.error_codes[resp.status_code]( message )
+
+            if not raw_json['selected']:
+                raise ReferenceError('Object does not exist.')
+
+            json_obj = raw_json['selected'][0] # should be single object 
+
+            # download attached data if requested
+            data_refs = self._parse_data_from_json(cls, json_obj, data_load=data_load)
+
+            # download attached metadata if exists
+            metadata = self._fetch_metadata_by_json(cls, json_obj)
+
+            # parse json (+data) into python object
+            obj = Serializer.deserialize(json_obj, self, data_refs, metadata)
+
+            # save it to cache
+            self._cache.add_object( obj )
+
+            print_status("%s fetched from server." % location)
+
+        children = self._meta.app_definitions[cls]['children'] # child object types
+        if cascade and self._meta.app_definitions[cls]['children']:
+            for child in children: # 'child' is like 'segment', 'event' etc.
+
+                field_name = child + '_set'
+                if obj._gnode['fields'].has_key( field_name ) and \
+                    obj._gnode['fields'][ field_name ]:
+                    rel_objs = []
+
+                    for rel_link in obj._gnode['fields'][ field_name ]:
+                        # fetching *child*-type objects
+                        ch = self.pull( rel_link, params=params, data_load=data_load, _top=False )
+                        rel_objs.append( ch )
+
+                    if rel_objs: # parse children into parent attrs
+                        # a way to assign kids depends on object type
+                        self._assign_child( child, obj, rel_objs )
+
+        if _top: # end of the function call if run in recursive mode
+            print_status( 'Object(s) loaded.\n' )
+            self._cache.save_cache() # updates on-disk cache with new objects
+
+        return obj
+
+#-------------------------------------------------------------------------------
+# LEGACY STAFF
+#-------------------------------------------------------------------------------
     def save(self, obj, cascade=True):
         """
         saves a given object to the local (cache).
@@ -579,217 +671,6 @@ class Session( Browser ):
             print_status('%s(s) annotated.' % model_name)
 
         print_status('total %d object(s) annotated.\n' % counter)
-
-
-    def pull(self, location, params={}, cascade=True, data_load=True, _top=True):
-        """ pulls object from the specified location on the server. 
-        caching:    yes
-        cascade:    yes
-        data_load:  yes
-
-        _top:       reserved parameter used to detect the top function call in
-                    cascade (recursive) mode. This is needed to save cache and
-                    make correct printing after new objects are fetched.
-        """
-        if is_permalink( location ):
-            location = extract_location( location )
-        location = self._meta.restore_location( location )
-        app, cls, lid = self._meta.parse_location( location )
-
-        headers = {} # request headers
-        params['q'] = 'full' # always operate in full mode, see API specs
-
-        url = '%s%s/%s/%s/' % (self._meta.host, app, cls, str(lid))
-
-        # find object in cache
-        if location in self._cache.objs_map.keys():
-            headers['If-none-match'] = self._cache.objs_map[ location ]
-
-        # request object from the server (with ETag)
-        resp = requests.get(url, params=params, headers=headers, cookies=self._meta.cookie_jar)
-
-        if resp.status_code == 304: # get object from cache
-            guid = self._cache.objs_map[ location ]
-            obj = self._cache.objs[ guid ]
-
-            print_status('%s loaded from cache.' % location)
-
-        else: # request from server
-
-            # parse response json
-            raw_json = get_json_from_response( resp )
-            if not resp.status_code == 200:
-                message = '%s (%s)' % (raw_json['message'], raw_json['details'])
-                raise errors.error_codes[resp.status_code]( message )
-
-            if not raw_json['selected']:
-                raise ReferenceError('Object does not exist.')
-
-            json_obj = raw_json['selected'][0] # should be single object 
-
-            # download attached data if requested
-            data_refs = self._parse_data_from_json(cls, json_obj, data_load=data_load)
-
-            # download attached metadata if exists
-            metadata = self._fetch_metadata_by_json(cls, json_obj)
-
-            # parse json (+data) into python object
-            obj = Serializer.deserialize(json_obj, self, data_refs, metadata)
-
-            # save it to cache
-            self._cache.add_object( obj )
-
-            print_status("%s fetched from server." % location)
-
-        children = self._meta.app_definitions[cls]['children'] # child object types
-        if cascade and self._meta.app_definitions[cls]['children']:
-            for child in children: # 'child' is like 'segment', 'event' etc.
-
-                field_name = child + '_set'
-                if obj._gnode['fields'].has_key( field_name ) and \
-                    obj._gnode['fields'][ field_name ]:
-                    rel_objs = []
-
-                    for rel_link in obj._gnode['fields'][ field_name ]:
-                        # fetching *child*-type objects
-                        ch = self.pull( rel_link, params=params, data_load=data_load, _top=False )
-                        rel_objs.append( ch )
-
-                    if rel_objs: # parse children into parent attrs
-                        # a way to assign kids depends on object type
-                        self._assign_child( child, obj, rel_objs )
-
-        if _top: # end of the function call if run in recursive mode
-            print_status( 'Object(s) loaded.\n' )
-            self._cache.save_cache() # updates on-disk cache with new objects
-
-        return obj
-
-
-    def gselect(self, model_name, params={}, cascade=False, data_load=False, _top=True):
-        """ requests objects of a given type from server in bulk mode. 
-        caching:    no
-        cascade:    yes
-        data_load:  yes
-
-        Args:
-        model_name: type of the object (like 'block', 'segment' or 'section'.)
-
-        params: dict that can contain several categories of key-value pairs:
-
-        1. filters, like:
-            'owner__username': 'robert'
-            'segment__id__in': [19485,56223,89138]
-            'n_definition__icontains': 'blafoo' # negative filter! (has 'n_')
-
-        2. common params, like
-            'at_time': '2013-02-22 15:34:57'
-            'offset': 50
-            'max_results': 20
-
-        3. data params, to get only parts of the original object(s). These only 
-            work for the data-related objects (like 'analogsignal' or 
-            'spiketrain').
-
-            start_time - start time of the required range (calculated
-                using the same time unit as the t_start of the signal)
-            end_time - end time of the required range (calculated using
-                the same time unit as the t_start of the signal)
-            duration - duration of the required range (calculated using
-                the same time unit as the t_start of the signal)
-            start_index - start index of the required datarange (an index
-                of the starting datapoint)
-            end_index - end index of the required range (an index of the
-                end datapoint)
-            samples_count - number of points of the required range (an
-                index of the end datapoint)
-            downsample - number of datapoints. This parameter is used to
-                indicate whether downsampling is needed. The downsampling
-                is applied on top of the selected data range using other
-                parameters (if specified)
-
-        _top:       reserved parameter used to detect the top function call in
-                    cascade (recursive) mode. This is needed to save cache and
-                    make correct printing after new objects are fetched.
-        Examples:
-        get('analogsignal', params={'id__in': [38551], 'downsample': 100})
-        get('analogsignal', params={'segment__id': 93882, 'start_time': 500.0})
-        get('section', params={'odml_type': 'experiment', 'date_created': '2013-02-22'})
-
-        """
-        # resolve alias - short model name like 'rcg' -> 'recordingchannelgroup'
-        if model_name in self._meta.cls_aliases.values():
-            model_name = [k for k, v in self._meta.cls_aliases.items() if v==model_name][0]
-
-        if not model_name in self._meta.model_names:
-            raise TypeError('Objects of that type are not supported.')
-
-        objects = [] # resulting objects set
-        params['q'] = 'full' # always operate in full mode, see API specs
-        # convert all values to string for a correct GET behavior (encoding??)
-        get_params = dict( [(k, str(v)) for k, v in params.items()] )
-
-        url = '%s%s/%s/' % (self._meta.host, self._meta.app_prefix_dict[model_name], str(model_name))
-
-        # do fetch list of objects from the server
-        resp = requests.get(url, params=get_params, cookies=self._meta.cookie_jar)
-        raw_json = get_json_from_response( resp )
-
-        if not resp.status_code == 200:
-            message = '%s (%s)' % (raw_json['message'], raw_json['details'])
-            raise errors.error_codes[resp.status_code]( message )
-
-        if not raw_json['selected']: # if no objects exist return empty result
-            return []
-
-        for json_obj in raw_json['selected']:
-
-            # download attached data if requested
-            data_refs = self._parse_data_from_json(model_name, json_obj, data_load=data_load)
-
-            # parse json (+data) into python object
-            obj = Serializer.deserialize(json_obj, self, data_refs)
-
-            objects.append(obj)
-
-        print_status('%s(s) fetched.' % model_name)
-
-        # fetch children 'in bulk'
-        children = self._meta.app_definitions[model_name]['children'] # child object types
-        if cascade and self._meta.app_definitions[model_name]['children']:
-            parent_ids = [obj._gnode['id'] for obj in objects]
-
-            for child in children: # 'child' is like 'segment', 'event' etc.
-
-                # filter to fetch objects of type child for ALL parents
-                # FIXME dirty fix!! stupid data model inconsistency
-                parent_name = model_name
-                if (model_name == 'section' and child == 'section') or \
-                    (model_name == 'property' and child == 'value'):
-                    parent_name = 'parent_' + parent_name
-
-                filt = { parent_name + '__id__in': parent_ids }
-                if params.has_key('at_time'): # proxy time if requested
-                    filt = dict(filt, **{"at_time": params['at_time']})
-
-                # fetching *child*-type objects
-                rel_objs = self.select( child, params=filt, data_load=data_load, _top=False )
-
-                if rel_objs:
-                    for obj in objects: # parse children into parent attrs
-                        related = [x for x in rel_objs if \
-                            getattr(x, '_gnode')['fields'][parent_name + '_id'] == obj._gnode['id']]
-                        # a way to assign kids depends on object type
-                        self._assign_child( child, obj, related )
-
-                # FIXME make a special processing for the Block object to avoid
-                # downloading some objects twice
-
-        if _top: # end of the function call if run in recursive mode
-            #print_status( 'Object(s) loaded.\n' )
-            self._cache.save_cache() # updates on-disk cache with new objects
-
-        return objects
 
 
     def zz_sync(self, obj_to_sync, cascade=False):
