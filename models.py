@@ -179,6 +179,12 @@ class Meta( object ):
 
         return app, model_name, int(lid)
 
+    def clean_location(self, location):
+        """ brings location to the '/metadata/section/1838/' form """
+        if is_permalink( location ):
+            location = extract_location( location )
+        return self.restore_location( location )
+
     def is_modified(self, json_obj):
         """ checks if object was modified locally by validating that object
         references are permalinks """

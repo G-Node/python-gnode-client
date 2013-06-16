@@ -337,6 +337,7 @@
       "block"
     ],
     "children": [
+      "unit",
       "recordingchannel",
       "analogsignalarray"
     ]

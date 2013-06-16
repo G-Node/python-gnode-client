@@ -1,5 +1,8 @@
 from utils import *
+
 import os
+import tables as tb
+import numpy as np
 
 class Cache( object ):
     """ THIS CLASS is DEPRECATED. Look for a Local backend class.
@@ -30,8 +33,10 @@ class Cache( object ):
 
     def add_object(self, obj):
         """ adds object to cache """
-        self.objs_map[ obj._gnode['location'] ] = obj._gnode['guid']
-        self.objs[ obj._gnode['guid'] ] = obj
+        location = self._meta.clean_location( obj._gnode['location'] )
+        guid = obj._gnode['fields']['guid']
+        self.objs_map[ location ] = guid
+        self.objs[ guid ] = obj
 
     def clear_cache(self):
         """ removes all objects from the cache """
@@ -76,7 +81,7 @@ class Cache( object ):
 
     def get_data(self, location):
         """ returns a data-array from cached file on disk. None if not exist """
-        fid = get_id_from_permalink( location )
+        fid = str( get_id_from_permalink( location ) )
 
         if not self.data_map.has_key( fid ):
             return None

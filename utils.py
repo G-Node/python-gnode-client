@@ -41,14 +41,6 @@ def parse_model( json_obj ):
     return app_name, model_name
 
 
-def sizeof_fmt(num):
-    for x in ['bytes','KB','MB','GB']:
-        if num < 1024.0 and num > -1024.0:
-            return "%3.1f%s" % (num, x)
-        num /= 1024.0
-    return "%3.1f%s" % (num, 'TB')
-
-
 def has_data(app_definitions, model_name):
     """ checks the given model_name has data fields as per given app_definition """
     if app_definitions[ model_name ].has_key('data_fields') and \

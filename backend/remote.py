@@ -94,14 +94,14 @@ class Remote( BaseBackend ):
 
         r = requests.get(url, cookies=self.cookie)
 
-        # download and save file to cache or temp folder
-        file_name = str(fid) + '.h5'
-        save_dir = cache_dir or self._meta.temp_dir
-        path = os.path.join(save_dir, file_name)
-        with open( path, "w" ) as f:
-            f.write( r.content )
-
         if r.status_code == 200:
+            # download and save file to cache or temp folder
+            file_name = str(fid) + '.h5'
+            save_dir = cache_dir or self._meta.temp_dir
+            path = os.path.join(save_dir, file_name)
+            with open( path, "w" ) as f:
+                f.write( r.content )
+
             with tb.openFile(path, 'r') as f:
                 carray = f.listNodes( "/" )[0]
                 init_arr = np.array( carray[:] )
@@ -110,8 +110,8 @@ class Remote( BaseBackend ):
             return {"id": fid, "path": path, "data": init_arr}
 
         else:
-            print 'error. file was not fetched. maybe pull again?'
-            return None
+            message = 'error. file was not fetched. maybe pull again?'
+            raise errors.error_codes[r.status_code]( message )
 
 
     def get(self, location, params={}, etag=None):
@@ -145,7 +145,7 @@ class Remote( BaseBackend ):
             if not raw_json['selected']:
                 raise ReferenceError('Object does not exist.')
 
-            json_obj = raw_json['selected'][0] # should be single object 
+            json_obj = raw_json['selected'][0] # should be a single object 
             return json_obj
 
 
