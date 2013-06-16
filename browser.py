@@ -83,6 +83,48 @@ class Browser(object):
         print_status( out )
 
 
+    def __tree(self, location=None, filt={}):
+        out = '' # output
+        tree = {} # json-type object tree
+
+        # filters could be also applicable
+        #params = dict( self.ls_config['ls_filt'].items() + filt.items() )
+
+        if not location: # if not given use the current one
+            location = self.ls_config['location']
+
+        if location:
+            out += 'tree at %s:\n' % location
+
+            app, cls, lid = self._meta.parse_location( location )
+            obj = self.select(cls, {"id__in": [lid]})
+
+            for child in self._meta.app_definitions[ cls ]['children']:
+                # TODO fetch children only if not empty? can be done by 
+                # pre-fetching location and parsing children attrs. makes
+                # sense only for more than one children objects, like
+                # segment, section, etc.
+
+                parent_name = get_parent_field_name(cls, child)
+                params[ parent_name + '__id' ] = lid
+                objs = self.select(child, params=params)
+
+                out = self._render( objs, out )
+                params.pop( parent_name + '__id' )
+
+            # FIXME? exception case for Block -> Section
+            if cls == 'section':
+                params[ 'section__id' ] = lid
+                objs = self.select('block', params=params)
+                if objs:
+                    out += '\nDATA:\n'
+                    out = self._render( objs, out )
+
+        else:
+            print "you're at the root. some location has to be specified."
+
+
+
     def _render(self, objs, out):
         """ renders a list of objects for a *nice* output """
         for obj in objs:
