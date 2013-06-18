@@ -134,10 +134,10 @@ class Serializer(object):
             app_name = meta.app_prefix_dict[ model_name ]
             json_obj['model'] = '%s.%s' % (app_name, model_name)
 
-            # 2. define id, location and permalink
-            json_obj['lid'] = get_uid()
-            json_obj['location'] = "/%s/%s/%s/" % (app_name, model_name, lid)
-            json_obj['permalink'] = "/%s/%s/%s/" % (app_name, model_name, lid)
+            # 2. define id, location and permalink OR DO NOTHING?
+            #json_obj['lid'] = get_uid()
+            #json_obj['location'] = "/%s/%s/%s/" % (app_name, model_name, lid)
+            #json_obj['permalink'] = "/%s/%s/%s/" % (app_name, model_name, lid)
 
             # 3. create empty children lists
             children = meta.app_definitions[model_name]['children']

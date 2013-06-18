@@ -49,7 +49,9 @@ class Remote( BaseBackend ):
 
     def close(self):
         """ closes the backend """
+        requests.get(self._meta.host + 'account/logout/', cookies=self.cookie)
         del(self.cookie)
+
 
     @property
     def is_active(self):
@@ -156,9 +158,14 @@ class Remote( BaseBackend ):
             headers = {'If-Match': obj._gnode['fields']['guid']}
 
         params = {'m2m_append': 0}
-        app, model, lid = self._meta.parse_location( json_obj['location'] )
 
-        url = '%s%s/%s/%s/' % (self._meta.host, app, cls, str(lid))
+        if json_obj.has_key('location'): # existing object, update
+            app, cls, lid = self._meta.parse_location( json_obj['location'] )
+            url = '%s%s/%s/%s/' % (self._meta.host, app, cls, str(lid))
+
+        else: # new object, create
+            app, cls = parse_model( json_obj['model'] )
+            url = '%s%s/%s/' % (self._meta.host, app, cls)
 
         resp = requests.post(url, data=json.dumps(json_obj), \
             headers=headers, params=params, cookies=self.cookie)
@@ -168,24 +175,25 @@ class Remote( BaseBackend ):
             message = '%s (%s)' % (raw_json['message'], raw_json['details'])
             raise errors.error_codes[resp.status_code]( message )
 
-        if resp.status_code == 304 or resp.status_code == 412:
-            return resp.status_code
+        if resp.status_code == 412: # lid should be defined
+            message = 'Object at %s was changed. please pull current version first.' % str(lid)
+            raise errors.SyncFailed( message )
 
-        json_obj = raw_json['selected'][0] # should be single object 
-        return json_obj
+        return raw_json['selected'][0] # should be single object 
 
 
-    def save_data(self, data, location):
+    def save_data(self, datapath):
         """ creates / updates object at the remote """
-        app, model, lid = self._meta.parse_location( location )
 
-        url = '%s%s/%s/%s/' % (self._meta.host, 'datafiles', 'datafile', str(lid))
+        print_status('uploading %s...' % datapath)
 
-        files = {'raw_file': data}
+        files = {'raw_file': open(datapath, 'rb')}
         resp = requests.post(url, files=files, cookies=self.cookie)
         raw_json = get_json_from_response( resp )
 
         if not resp.status_code == 201:
             raise errors.FileUploadError('error. file upload failed: %s\nmaybe sync again?' % resp.content)
+
+        return raw_json['selected'][0] # should be single object 
 
 
