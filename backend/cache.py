@@ -5,8 +5,7 @@ import tables as tb
 import numpy as np
 
 class Cache( object ):
-    """ THIS CLASS is DEPRECATED. Look for a Local backend class.
-    a class to handle cached objects and data for Session """
+    """ a class to handle cached objects and data for Session """
 
     objs_map = {} # map of cached objects, location: reference, like 
     # _cache_map = {

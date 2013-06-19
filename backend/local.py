@@ -1,3 +1,12 @@
+"""
+This module is an attempt to implement a simple local HDF5 backend.
+
+For the moment this module is not used, a Cache is used instead.
+See the cache.py module for details.
+
+"""
+
+
 import tables as tb
 import numpy as np
 
@@ -68,25 +77,6 @@ class Local( BaseBackend ):
     # backend supported operations
     #---------------------------------------------------------------------------
 
-    def get_list(self, model_name, params={}):
-        """ get a list of objects of a certain type from the cache file """
-        app = self._meta.app_prefix_dict[ model_name ]
-
-        path = "/%s/%s" % (app, model_name)
-
-        try:
-            nodes = self.f.listNodes( path )
-        except NoSuchNodeError:
-            return None
-
-        json_list = []
-        for node in nodes:
-            json_list.append( json.loads( str(node.read()) ) )
-
-        json_list = self.apply_filter( json_list, params )
-        return json_list
-        
-
     def get(self, location, params={}):
         """ returns a JSON or array object from the object at a given location
         in the cache file. None if not exist """
@@ -114,6 +104,23 @@ class Local( BaseBackend ):
         obj = np.array( node.read() )
         return obj
 
+    def get_list(self, model_name, params={}):
+        """ get a list of objects of a certain type from the cache file """
+        app = self._meta.app_prefix_dict[ model_name ]
+
+        path = "/%s/%s" % (app, model_name)
+
+        try:
+            nodes = self.f.listNodes( path )
+        except NoSuchNodeError:
+            return None
+
+        json_list = []
+        for node in nodes:
+            json_list.append( json.loads( str(node.read()) ) )
+
+        json_list = self.apply_filter( json_list, params )
+        return json_list
 
     def save(self, json_obj):
         """ bla foo """
@@ -133,7 +140,6 @@ class Local( BaseBackend ):
 
         self.f.createArray(where, str(lid), to_save)
 
-
     def save_data(self, data, location):
         """ bla foo """
         if not self.f:
@@ -151,7 +157,6 @@ class Local( BaseBackend ):
             pass
 
         self.f.createArray(where, str(lid), data)
-
 
     def delete(self, location):
         if not self.f:

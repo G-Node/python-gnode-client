@@ -62,60 +62,6 @@ class Remote( BaseBackend ):
     # backend supported operations
     #---------------------------------------------------------------------------
 
-    def get_list(self, model_name, params={}):
-        """ get a list of objects of a certain type from the cache file """
-
-        objects = [] # resulting objects set
-        params['q'] = 'full' # always operate in full mode, see API specs
-        # convert all values to string for a correct GET behavior (encoding??)
-        get_params = dict( [(k, str(v)) for k, v in params.items()] )
-
-        url = '%s%s/%s/' % (self._meta.host, self._meta.app_prefix_dict[model_name], str(model_name))
-
-        # do fetch list of objects from the server
-        resp = requests.get(url, params=get_params, cookies=self.cookie)
-        raw_json = get_json_from_response( resp )
-
-        if not resp.status_code == 200:
-            message = '%s (%s)' % (raw_json['message'], raw_json['details'])
-            raise errors.error_codes[resp.status_code]( message )
-
-        if not raw_json['selected']: # if no objects exist return empty result
-            return []
-
-        print_status('%s(s) fetched.' % model_name)
-        return raw_json['selected']
-
-
-    def get_data(self, location, cache_dir=None):
-        """ downloads a datafile from the remote """
-        fid = get_id_from_permalink( location )
-        url = '%s%s/%s/%s/' % (self._meta.host, "datafiles", str(fid), 'data')
-
-        print_status('loading datafile %s from server...' % fid)
-
-        r = requests.get(url, cookies=self.cookie)
-
-        if r.status_code == 200:
-            # download and save file to cache or temp folder
-            file_name = str(fid) + '.h5'
-            save_dir = cache_dir or self._meta.temp_dir
-            path = os.path.join(save_dir, file_name)
-            with open( path, "w" ) as f:
-                f.write( r.content )
-
-            with tb.openFile(path, 'r') as f:
-                carray = f.listNodes( "/" )[0]
-                init_arr = np.array( carray[:] )
-
-            print 'done.'
-            return {"id": fid, "path": path, "data": init_arr}
-
-        else:
-            message = 'error. file was not fetched. maybe pull again?'
-            raise errors.error_codes[r.status_code]( message )
-
-
     def get(self, location, params={}, etag=None):
         """ returns a JSON or array from the remote. None if not exist """
         if is_permalink( location ):
@@ -151,10 +97,64 @@ class Remote( BaseBackend ):
             return json_obj
 
 
+    def get_data(self, location, cache_dir=None):
+        """ downloads a datafile from the remote """
+        fid = get_id_from_permalink( location )
+        url = '%s%s/%s/%s/' % (self._meta.host, "datafiles", str(fid), 'data')
+
+        print_status('loading datafile %s from server...' % fid)
+
+        r = requests.get(url, cookies=self.cookie)
+
+        if r.status_code == 200:
+            # download and save file to cache or temp folder
+            file_name = str(fid) + '.h5'
+            save_dir = cache_dir or self._meta.temp_dir
+            path = os.path.join(save_dir, file_name)
+            with open( path, "w" ) as f:
+                f.write( r.content )
+
+            with tb.openFile(path, 'r') as f:
+                carray = f.listNodes( "/" )[0]
+                init_arr = np.array( carray[:] )
+
+            print 'done.'
+            return {"id": fid, "path": path, "data": init_arr}
+
+        else:
+            message = 'error. file was not fetched. maybe pull again?'
+            raise errors.error_codes[r.status_code]( message )
+
+
+    def get_list(self, model_name, params={}):
+        """ get a list of objects of a certain type from the cache file """
+
+        objects = [] # resulting objects set
+        params['q'] = 'full' # always operate in full mode, see API specs
+        # convert all values to string for a correct GET behavior (encoding??)
+        get_params = dict( [(k, str(v)) for k, v in params.items()] )
+
+        url = '%s%s/%s/' % (self._meta.host, self._meta.app_prefix_dict[model_name], str(model_name))
+
+        # do fetch list of objects from the server
+        resp = requests.get(url, params=get_params, cookies=self.cookie)
+        raw_json = get_json_from_response( resp )
+
+        if not resp.status_code == 200:
+            message = '%s (%s)' % (raw_json['message'], raw_json['details'])
+            raise errors.error_codes[resp.status_code]( message )
+
+        if not raw_json['selected']: # if no objects exist return empty result
+            return []
+
+        print_status('%s(s) fetched.' % model_name)
+        return raw_json['selected']
+
+
     def save(self, json_obj):
         """ creates / updates object at the remote """
         headers = {}
-        if json_obj['fields']['guid']:
+        if json_obj['fields'].has_key('guid'):
             headers = {'If-Match': obj._gnode['fields']['guid']}
 
         params = {'m2m_append': 0}
@@ -164,7 +164,7 @@ class Remote( BaseBackend ):
             url = '%s%s/%s/%s/' % (self._meta.host, app, cls, str(lid))
 
         else: # new object, create
-            app, cls = parse_model( json_obj['model'] )
+            app, cls = parse_model( json_obj )
             url = '%s%s/%s/' % (self._meta.host, app, cls)
 
         resp = requests.post(url, data=json.dumps(json_obj), \
@@ -184,10 +184,14 @@ class Remote( BaseBackend ):
 
     def save_data(self, datapath):
         """ creates / updates object at the remote """
+        if not os.path.exists( datapath ):
+            raise ValueError('No file exists under a given path.')
 
         print_status('uploading %s...' % datapath)
 
         files = {'raw_file': open(datapath, 'rb')}
+        url = '%s%s/' % (self._meta.host, 'datafiles')
+
         resp = requests.post(url, files=files, cookies=self.cookie)
         raw_json = get_json_from_response( resp )
 
@@ -195,5 +199,27 @@ class Remote( BaseBackend ):
             raise errors.FileUploadError('error. file upload failed: %s\nmaybe sync again?' % resp.content)
 
         return raw_json['selected'][0] # should be single object 
+
+
+    def save_list(self, model_name, json_obj, params={}):
+        """ applies changes to all available objects of a given model, filtered
+        using the criterias defined in params. Changes should be represented in
+        a json_obj. DOES NOT CHECK THE ETags !!! """
+
+        params['bulk_update'] = 1
+        params['m2m_append'] = 0
+
+        app = self._meta.app_prefix_dict[ model_name ]
+        url = '%s%s/%s/' % (self._meta.host, app, model_name)
+
+        resp = requests.post(url, data=json.dumps(json_obj), \
+            params=params, cookies=self.cookie)
+
+        raw_json = get_json_from_response( resp )
+        if not resp.status_code in [200, 304]:
+            message = '%s (%s)' % (raw_json['message'], raw_json['details'])
+            raise errors.error_codes[resp.status_code]( message )
+
+        return raw_json['selected']
 
 

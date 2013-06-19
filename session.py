@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-import os, sys
+import os
+import sys
 import re
 import warnings
 import errors
@@ -318,7 +319,7 @@ class Session( Browser ):
 
                             if rel_objs: # parse children into parent attrs
                                 # a way to assign kids depends on object type
-                                self._assign_child( child, obj, rel_objs )
+                                self.__assign_child( child, obj, rel_objs )
 
         """ TODO add matadata to objects 
         # parse related metadata
@@ -344,7 +345,6 @@ class Session( Browser ):
 
         guid = self._cache.objs_map[ location ]
         return self._cache.objs[ guid ]
-
 
 
     def sync(self, obj_to_sync, cascade=False):
@@ -421,7 +421,10 @@ class Session( Browser ):
 
             # 4. sync main object
             try:
-                json_obj = Serializer.serialize(obj, self, data_refs)
+                json_obj = Serializer.serialize(obj, self._meta, data_refs)
+                for k in list( json_obj['fields'].keys() ):
+                    if k.endswith('_set'):
+                        json_obj['fields'].pop( k, None )
                 raw_json = self._remote.save( json_obj )
 
                 if not raw_json == 304:
@@ -435,15 +438,15 @@ class Session( Browser ):
                 processed.append( obj._gnode['permalink'] )
                 print_status('Object at %s synced.' % obj._gnode['location'])
 
-            except (errors.UnitsError, errors.ValidationError, errors.SyncFailed), e:
-                print_status('%s skipped: %s\n' % (cut_to_render(obj.__repr__(), 15), str(e)))
+            except (errors.UnitsError, errors.ValidationError, \
+                errors.SyncFailed, errors.BadRequestError), e:
+                print_status('%s skipped: %s\n' % (cut_to_render(obj.__repr__(), 20), str(e)))
 
             stack.remove( obj ) # not to forget to remove processed object
 
-            # if cascade put children objects to the stack to sync
+            # 5. if cascade put children objects to the stack to sync
             children = self._meta.app_definitions[cls]['children'] # child object types
             if cascade and children and hasattr(obj, '_gnode'):
-
                 for child in children: # 'child' is like 'segment', 'event' etc.
 
                     # cached children references
@@ -451,14 +454,15 @@ class Session( Browser ):
 
                     for rel in getattr(obj, get_children_field_name( child )):
 
-                        # detect children of that type that were removed (using cache)
+                        # detect children of a given type that were removed (using cache)
                         if hasattr(rel, '_gnode') and rel._gnode['permalink'] in child_link_set:
                             child_link_set.remove( rel._gnode['permalink'] )
 
-                        # prepare to sync child object (skip already scheduled or processed)
+                        # important to skip already scheduled or processed objs
                         if not (hasattr(rel, '_gnode') and rel._gnode['permalink'] in processed):
                             # and not obj in stack:
-                            # stupid NEO!! this raises error, so the workaround
+                            # stupid NEO!! NEO object can't be compared with any
+                            # other object type (error), so the workaround
                             # would be to check if the object was processed 
                             # before processing
                             stack.append( rel )
@@ -472,39 +476,47 @@ class Session( Browser ):
             if success:
                 self._cache.add_object( obj )
 
-        # post-processing
-        # 1. clean objects that were removed from everywhere in this scope
+        # post-processing:
+        # clean objects that were removed from everywhere in this scope
         pure_links = [x[0] for x in to_clean]
         removed = list( set(pure_links) - set(processed) )
         to_clean = [x for x in to_clean if x[0] in removed]
 
         if to_clean:
             print_status('Cleaning removed objects..')
-            for link, par_name in to_clean: # TODO make in bulk? could be faster
+            for link, par_name in to_clean:
 
-                json_data = '{"%s": null}' % par_name
-                requests.post(link, data=json_data, cookies=self._meta.cookie_jar)
+                # TODO make in bulk? could be faster
+                location = extract_location( link )
+                json_obj = {
+                    'location': location,
+                    'permalink': link,
+                    'fields': {
+                        par_name: null
+                    }
+                }
 
-        # 2. final output
+                self._remote.save( json_obj )
+                # here is a question: should cleaned objects be deleted? 
+                # otherwise they will stay as 'orphaned' and may pollute object
+                # space TODO
+
+        # final output
         print_status('sync done, %d objects processed.\n' % len( processed ))
 
-
-    #---------------------------------------------------------------------------
-    #---------------------------------------------------------------------------
 
     def annotate(self, objects, values):
         """ annotates given objects with given values. sends requests to the 
         backend. objects, values - are lists """
 
-        # FIXME split this into the backends
-
         # 1. split given objects by model (class)
         for_annotation = {}
         for obj in objects:
-            model_name = get_type_by_obj( obj )
-            if not hasattr(obj, '_gnode'):
-                raise ValidationError('All objects need to be synced before annotation.')
+            if not hasattr(obj, '_gnode') or not obj._gnode.has_key('permalink'):
+                raise ValidationError('All objects need to be synced ' + \
+                    'before annotation.')
 
+            model_name = get_type_by_obj( obj )
             if not model_name in for_annotation.keys():
                 for_annotation[ model_name ] = [ obj ]
             else:
@@ -517,48 +529,37 @@ class Session( Browser ):
                 raise ValidationError('All properties/values need to be synced before annotation.')
             data['metadata'].append( value._gnode['permalink'] )
 
-
         # 3. for every model annotate objects in bulk
         counter = 0
         for model_name, objects in for_annotation.items():
-            url = '%s%s/%s/' % (self._meta.host, self._meta.app_prefix_dict[model_name], str(model_name))
-            params = {'id__in': [x._gnode['id'] for x in objects], 'bulk_update': 1}
 
-            resp = requests.post(url, data=json.dumps(data), params=params, \
-                cookies=self._meta.cookie_jar)
+            params = {'id__in': [x._gnode['id'] for x in objects]}
+            self._remote.save_list(model_name, json.dumps(data), params=params)
 
-            # parse response json
-            if not resp.status_code in [200, 304]:
-                raw_json = get_json_from_response( resp )
-                message = '%s (%s)' % (raw_json['message'], raw_json['details'])
-                raise errors.error_codes[resp.status_code]( message )
+            for obj in objects:
 
-            if resp.status_code == 200:
+                # 1. update metadata attr in obj._gnode based on values, not 
+                # on the response values so not to face the max_results problem
+                updated = set(obj._gnode['fields']['metadata'] + \
+                    [v._gnode['permalink'] for v in values])
+                obj._gnode['fields']['metadata'] = list( updated )
 
-                for obj in objects:
+                # 2. update .metadata attribute of an object
+                if not hasattr(obj, 'metadata'):
+                    setattr(obj, 'metadata', Metadata())
 
-                    # 1. update metadata attr in obj._gnode (based on values, not 
-                    # on the response values so not to face the max_results problem)
-                    updated = set(obj._gnode['fields']['metadata'] + \
-                        [v._gnode['permalink'] for v in values])
-                    obj._gnode['fields']['metadata'] = list( updated )
+                for p, v in [(v.parent, v) for v in values]:
+                    if hasattr(obj.metadata, p.name):
+                        # add a value to the existing property
+                        new = getattr(obj.metadata, p.name)
+                        new.append( v )
+                        setattr(obj.metadata, p.name, new)
 
-                    # 2. update .metadata attribute of an object
-                    if not hasattr(obj, 'metadata'):
-                        setattr(obj, 'metadata', Metadata())
-
-                    for p, v in [(v.parent, v) for v in values]:
-                        if hasattr(obj.metadata, p.name):
-                            # add a value to the existing property
-                            new = getattr(obj.metadata, p.name)
-                            new.append( v )
-                            setattr(obj.metadata, p.name, new)
-
-                        else:
-                            # clone new property
-                            cloned = p.clone(children=False)
-                            cloned.append( v.clone() )
-                            setattr( obj.metadata, cloned.name, cloned )
+                    else:
+                        # clone new property
+                        cloned = p.clone(children=False)
+                        cloned.append( v.clone() )
+                        setattr( obj.metadata, cloned.name, cloned )
 
             counter += len(objects)
             print_status('%s(s) annotated.' % model_name)
@@ -585,7 +586,7 @@ class Session( Browser ):
         data_refs = {} # collects all references to the related data - output
         model_name = get_type_by_obj( obj )
 
-        data_attrs = self._meta.get_array_attr_names( obj ) # all array-type attrs
+        data_attrs = self._meta.get_array_attr_names( model_name )
 
         if not hasattr(obj, '_gnode'): # True if object never synced
             # sync all arrays
@@ -608,9 +609,9 @@ class Session( Browser ):
                 units = Serializer.parse_units(arr)
 
                 # 2. save it to the cache_dir as HDF5 file
-                cache_dir = self._cache.cache_dir
+                cache_dir = self._meta.cache_dir
                 temp_name = hashlib.sha1( arr ).hexdigest()
-                datapath = cache_dir + temp_name + '.h5'
+                datapath = os.path.join(cache_dir, temp_name + '.h5')
                 with tb.openFile( datapath, "w" ) as f:
                     f.createArray('/', 'gnode_array', arr)
 
@@ -713,7 +714,7 @@ class Session( Browser ):
 
         return attrs_to_sync
 
-    def _assign_child(self, child, obj, related):
+    def __assign_child(self, child, obj, related):
         """ object type-dependent parser adding children to the given obj """
 
         if child in ['section', 'property', 'value']: # basically odML case
@@ -754,6 +755,7 @@ class Session( Browser ):
     def load_session(self, filename):
         """Load a previously saved session """
         raise NotImplementedError
+
 
     def _bulk_update(self, obj_type, *kwargs):
         """ update several homogenious objects on the server """
