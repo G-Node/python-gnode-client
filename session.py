@@ -293,6 +293,7 @@ class Session( Browser ):
                         obj._gnode['fields'][ field_name ]:
 
                         for rel_link in obj._gnode['fields'][ field_name ]:
+
                             cl_link = self._meta.clean_location( rel_link )
 
                             if not cl_link in processed.keys() and not cl_link in stack:

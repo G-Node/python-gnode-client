@@ -126,6 +126,7 @@ class Serializer(object):
 
         if hasattr(obj, '_gnode'): # existing object
             json_obj = obj._gnode
+            app_name, model_name = parse_model( json_obj )
 
         else: # new object (never saved or synced)
             # 1. define a model

@@ -1,0 +1,5 @@
+{
+    "blocks": ["/eph/blk/1", "/eph/blk/23"], 
+    "config_path": "/opt/python-gnode-client/default.json",
+    "models_path": "/opt/python-gnode-client/requirements.json"
+}
