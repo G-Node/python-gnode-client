@@ -124,14 +124,15 @@ class Serializer(object):
             raise TypeError('Object %s is not supported.' % \
                 cut_to_render( obj.__repr__() ))
 
+        model_name = get_type_by_obj(obj)
+        app_name = meta.app_prefix_dict[ model_name ]
+
         if hasattr(obj, '_gnode'): # existing object
             json_obj = obj._gnode
 
         else: # new object (never saved or synced)
             # 1. define a model
             json_obj = {'fields': {}, 'model': ''}
-            model_name = get_type_by_obj(obj)
-            app_name = meta.app_prefix_dict[ model_name ]
             json_obj['model'] = '%s.%s' % (app_name, model_name)
 
             # 2. define id, location and permalink OR DO NOTHING?
@@ -246,8 +247,6 @@ class Serializer(object):
     def update_parent_children(cls, obj, meta):
         """ when the object is synced, it's new parent relationship must be set
         into the parent object """
-        pass
-        """
         model_name = get_type_by_obj(obj)
         app_definition = meta.app_definitions[model_name]
         for par_name in app_definition['parents']:
@@ -264,7 +263,6 @@ class Serializer(object):
                         if parent._gnode['fields'].has_key( model_name + '_set' ):
                             if not link in parent._gnode['fields'][ model_name + '_set' ]:
                                 parent._gnode['fields'][ model_name + '_set' ].append( link )
-        """
 
 
     @classmethod

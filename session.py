@@ -321,7 +321,7 @@ class Session( Browser ):
                                 # a way to assign kids depends on object type
                                 self.__assign_child( child, obj, rel_objs )
 
-        """ TODO add matadata to objects 
+        """ TODO add metadata to objects 
         # parse related metadata
         if not json_obj['fields'].has_key('metadata') or \
             not json_obj['fields']['metadata']:
@@ -431,8 +431,8 @@ class Session( Browser ):
                     # update local in-memory object with newly acquired params
                     setattr(obj, '_gnode', raw_json)
 
-                # update parent children list
-                Serializer.update_parent_children(obj, self)
+                # TODO update parent children list - make nicer
+                Serializer.update_parent_children(obj, self._meta)
 
                 success = True
                 processed.append( obj._gnode['permalink'] )

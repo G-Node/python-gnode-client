@@ -155,7 +155,7 @@ class Remote( BaseBackend ):
         """ creates / updates object at the remote """
         headers = {}
         if json_obj['fields'].has_key('guid'):
-            headers = {'If-Match': obj._gnode['fields']['guid']}
+            headers = {'If-Match': json_obj['fields']['guid']}
 
         params = {'m2m_append': 0}
 
