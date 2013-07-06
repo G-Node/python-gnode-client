@@ -423,15 +423,22 @@ class Session( Browser ):
             try:
                 json_obj = Serializer.serialize(obj, self._meta, data_refs)
                 for k in list( json_obj['fields'].keys() ):
-                    if k.endswith('_set'):
+                    if k.endswith('_set') or k == 'shared_with':
                         json_obj['fields'].pop( k, None )
+
+                import ipdb
+                ipdb.set_trace()
+
                 raw_json = self._remote.save( json_obj )
 
                 if not raw_json == 304:
                     # update local in-memory object with newly acquired params
                     setattr(obj, '_gnode', raw_json)
 
-                # TODO update parent children list - make nicer
+                # a list of children in the _gnode attribute in all parent 
+                # objects for obj must be updated with a newly synced child. it 
+                # should be done here, not at the end of the sync, to keep 
+                # objects updated in case the sync fails.
                 Serializer.update_parent_children(obj, self._meta)
 
                 success = True

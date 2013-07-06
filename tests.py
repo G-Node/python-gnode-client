@@ -30,11 +30,11 @@ RANDOM_VALUES = {
     'channel_indexes':  [np.random.randint(10) for x in range(10)],
     'waveforms':        pq.Quantity(np.random.rand(3,3,3), 'mV'),
     'waveform':         pq.Quantity(np.random.rand(3,3), 'mV'),
-    'durations':        pq.Quantity(np.random.rand(10), 'mV'),
+    'durations':        pq.Quantity(np.random.rand(10), 'ms'),
     'signal':           pq.Quantity(np.random.rand(100), 'mV'),
-    'times':            pq.Quantity(np.random.rand(100), 'mV'),
+    'times':            pq.Quantity(np.random.rand(100), 'ms'),
     'values':           pq.Quantity(np.random.rand(100), 'mV'),
-    't_start':          pq.Quantity(np.random.rand(1)[0], 's'),
+    't_start':          pq.Quantity(0.0, 's'),
     'duration':         pq.Quantity(np.random.rand(1)[0] * 10, 's'),
     't_stop':           pq.Quantity(np.random.rand(1)[0] * 100, 's'),
     'left_sweep':       pq.Quantity(np.random.rand(1)[0], 's'),
@@ -64,13 +64,13 @@ class BaseTest(unittest.TestCase):
 
 class Tests( BaseTest ):
 
-    def test_ls(self):
+    def zztest_ls(self):
         """ test basic browser listing does not raise errors """
         for model_name in self.g._meta.model_names:
             self.g.ls(model_name)
 
 
-    def test_create_metadata(self):
+    def zztest_create_metadata(self):
         """ test creation of odML metadata objects """
 
         template = random.choice(self.g.terminologies)
@@ -98,19 +98,19 @@ class Tests( BaseTest ):
         """ test creation of NEO data objects """
         ordered_classes_tuple = (
             ("block", 1),
-            ("segment", lambda: np.random.randint(2, 4)),
-            ("recordingchannelgroup", lambda: np.random.randint(1, 2)),
-            ("recordingchannel", lambda: np.random.randint(1, 4)),
-            ("unit", lambda: np.random.randint(1, 2)),
-            ("spike", lambda: np.random.randint(1, 2)),
-            ("eventarray", lambda: np.random.randint(1, 4)),
-            ("event", lambda: np.random.randint(1, 4)),
-            ("epocharray", lambda: np.random.randint(1, 4)),
-            ("epoch", lambda: np.random.randint(1, 4)),
-            ("spiketrain", lambda: np.random.randint(1, 4)),
-            ("analogsignalarray", lambda: np.random.randint(1, 4)),
-            ("analogsignal", lambda: np.random.randint(1, 4)),
-            ("irsaanalogsignal", lambda: np.random.randint(1, 4))
+            ("segment", np.random.randint(2, 4)),
+            ("recordingchannelgroup", np.random.randint(1, 2)),
+            ("recordingchannel", np.random.randint(1, 4)),
+            ("unit", np.random.randint(1, 2)),
+            ("spike", np.random.randint(1, 2)),
+            ("eventarray", np.random.randint(1, 4)),
+            ("event", np.random.randint(1, 4)),
+            ("epocharray", np.random.randint(1, 4)),
+            ("epoch", np.random.randint(1, 4)),
+            ("spiketrain", np.random.randint(1, 4)),
+            ("analogsignalarray", np.random.randint(1, 4)),
+            ("analogsignal", np.random.randint(1, 4)),
+            ("irregularlysampledsignal", np.random.randint(1, 4))
         )
 
         collector = {}
@@ -118,7 +118,7 @@ class Tests( BaseTest ):
             collector[k] = []
 
         for model_name, amount_func in ordered_classes_tuple: # for every NEO object type, order!!
-            for i in xrange( amount_func() ): # several objects of every type
+            for i in xrange( amount_func ): # several objects of every type
                 cls = models_map[ model_name ]
                 params = {}
 
@@ -131,10 +131,12 @@ class Tests( BaseTest ):
 
                 obj = cls( **params )
 
+                collector[model_name].append(obj)
+
                 # add parents
                 if many_to_one_relationship.has_key(model_name):
                     for par_type in many_to_one_relationship[model_name]:
-                        parent = random.choice(collector[par_type])
+                        parent = random.choice(collector[par_type.lower()])
                         setattr(obj, par_type.lower(), parent)
                         getattr(parent, model_name + 's').append(obj)
 

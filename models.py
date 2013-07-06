@@ -43,7 +43,7 @@ models_map = {
     'spiketrain': SpikeTrain,
     'analogsignal': AnalogSignal,
     'analogsignalarray': AnalogSignalArray,
-    'irsaanalogsignal': IrregularlySampledSignal,
+    'irregularlysampledsignal': IrregularlySampledSignal,
     'spike': Spike,
     'recordingchannelgroup': RecordingChannelGroup,
     'recordingchannel': RecordingChannel

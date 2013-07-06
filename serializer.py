@@ -128,7 +128,7 @@ class Serializer(object):
         app_name = meta.app_prefix_dict[ model_name ]
 
         if hasattr(obj, '_gnode'): # existing object
-            json_obj = obj._gnode
+            json_obj = dict(obj._gnode)
 
         else: # new object (never saved or synced)
             # 1. define a model

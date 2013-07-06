@@ -170,8 +170,11 @@ class Remote( BaseBackend ):
         resp = requests.post(url, data=json.dumps(json_obj), \
             headers=headers, params=params, cookies=self.cookie)
 
+        if resp.status_code == 304:
+            return 304
+
         raw_json = get_json_from_response( resp )
-        if not resp.status_code in [200, 201, 304, 412]:
+        if not resp.status_code in [200, 201, 412]:
             message = '%s (%s)' % (raw_json['message'], raw_json['details'])
             raise errors.error_codes[resp.status_code]( message )
 
@@ -215,8 +218,11 @@ class Remote( BaseBackend ):
         resp = requests.post(url, data=json.dumps(json_obj), \
             params=params, cookies=self.cookie)
 
+        if resp.status_code == 304:
+            return 304
+
         raw_json = get_json_from_response( resp )
-        if not resp.status_code in [200, 304]:
+        if not resp.status_code == 200:
             message = '%s (%s)' % (raw_json['message'], raw_json['details'])
             raise errors.error_codes[resp.status_code]( message )
 

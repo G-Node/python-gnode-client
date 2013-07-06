@@ -50,7 +50,7 @@
                 "spiketrain": "spt",
                 "analogsignal": "sig",
                 "analogsignalarray": "sga",
-                "irsaanalogsignal": "ias",
+                "irregularlysampledsignal": "ias",
                 "spike": "spk",
                 "recordingchannelgroup": "rcg",
                 "recordingchannel": "rch"

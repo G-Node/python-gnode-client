@@ -155,7 +155,7 @@
     ],
     "children": [
       "analogsignal",
-      "irsaanalogsignal",
+      "irregularlysampledsignal",
       "analogsignalarray",
       "spiketrain",
       "spike",
@@ -369,7 +369,7 @@
     ],
     "children": [
       "analogsignal",
-      "irsaanalogsignal"
+      "irregularlysampledsignal"
     ]
   },
   "unit": {
@@ -542,7 +542,7 @@
       
     ]
   },
-  "irsaanalogsignal": {
+  "irregularlysampledsignal": {
     "attributes": [
       "name",
       "description"
