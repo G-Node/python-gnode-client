@@ -422,12 +422,12 @@ class Session( Browser ):
             # 4. sync main object
             try:
                 json_obj = Serializer.serialize(obj, self._meta, data_refs)
+
+                # TODO ideally the JSON object representation should be unique
+                # and this code excluded
                 for k in list( json_obj['fields'].keys() ):
                     if k.endswith('_set') or k == 'shared_with':
                         json_obj['fields'].pop( k, None )
-
-                import ipdb
-                ipdb.set_trace()
 
                 raw_json = self._remote.save( json_obj )
 

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """Method(s) to reconstruct GNODE objects from JSON python dictionaries."""
 import os
-
 import datetime
 import numpy as np
 import quantities as pq
@@ -11,6 +10,7 @@ import requests
 import errors
 from utils import get_id_from_permalink, get_parent_attr_name
 from models import *
+from copy import deepcopy
 
 # core classes imports
 from neo.core import *
@@ -65,7 +65,7 @@ class Serializer(object):
 
                 kwargs[ attr ] = data_value * units_dict[ fields[attr]['units'] ]
 
-        # and more some params into args for a proper init
+        # and some params into args for a proper init
         for argname in app_definition['init_args']: # order matters!!
             if kwargs.has_key( argname ):
                 args.append( kwargs.pop( argname ) )
@@ -128,7 +128,7 @@ class Serializer(object):
         app_name = meta.app_prefix_dict[ model_name ]
 
         if hasattr(obj, '_gnode'): # existing object
-            json_obj = dict(obj._gnode)
+            json_obj = deepcopy(obj._gnode)
 
         else: # new object (never saved or synced)
             # 1. define a model
