@@ -22,15 +22,6 @@ except ImportError:
 #	for methos using permissions
 safety_level_dict = {1: 'public', 2:'friendly', 3:'private'}
 
-alphabet = list( string.ascii_uppercase + '234567' )
-
-def get_uid():
-    uid = ''
-    for i in range(10):
-        uid += random.choice( alphabet )
-    return uid
-  
-
 def parse_model( json_obj ):
     """ parses incoming JSON object representation and determines model, 
     model_name and app_name """
