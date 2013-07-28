@@ -22,6 +22,47 @@ except ImportError:
 #	for methos using permissions
 safety_level_dict = {1: 'public', 2:'friendly', 3:'private'}
 
+# this is base32hex alphabet, used to create unique IDs
+alphabet = tuple(list( '0123456789' + string.ascii_uppercase )[:32])
+
+def generate_id(length=10):
+    """ generates base32 string ID """
+    uid = random.choice( alphabet[1:] )
+    for i in range(9):
+        uid += random.choice( alphabet )
+    return uid
+
+
+def base32str(value):
+    """ converts base32 integer into the string """
+    result = ''
+    mask = 31
+    while value > 0:
+        result = alphabet[ value & mask ] + result
+        value = value >> 5
+    return result
+
+
+def base32int(value):
+    """ converts base32 string into integer """
+    return long(value, 32)
+
+
+def pathlist(permalink):
+    """ returns a list like ['metadata', 'section', 'HTOS5G16RL'] from a given
+    permalink '/metadata/section/HTOS5G16RL' """
+    if not permalink:
+        return None
+    base_url = urlparse.urlparse(permalink).path
+
+    if base_url[0] == "/":
+        base_url = base_url[1:]
+    if len(base_url) > 1 and base_url[-1] == "/":
+        base_url = base_url[0: -1]
+
+    return [i for i in base_url.split("/") if i != ""]
+
+
 def parse_model( json_obj ):
     """ parses incoming JSON object representation and determines model, 
     model_name and app_name """
@@ -54,7 +95,7 @@ def get_id_from_permalink( link ):
     if is_permalink( link ):
         link = extract_location( link )
 
-    return int( re.search("(?P<id>[\d]+)", link ).group() )
+    return pathlist(link)[2]
 
 
 def build_hostname( profile_data ):
@@ -192,4 +233,19 @@ def get_children_field_name(rel_type):
 def extract_location( permalink ):
     """ parses permalink and returns obj location, like /metadata/section/4 """
     return urlparse.urlparse( permalink ).path
+
+
+def activate_remote(func):
+    """ decorator for functions that require remote connection. opens the 
+    connection if not yet opened, exits if connection fails. """
+    def decorated(self, *args, **kwargs):
+        if not self._remote.is_active:
+            self._remote.open()
+
+        if not self._remote.is_active:
+            print_status('Host %s is not reachable.\n' % self._meta.host) 
+            return None
+        return func(self, *args, **kwargs)
+
+    return decorated
 

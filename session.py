@@ -94,7 +94,7 @@ class Session( Browser ):
         """ removes all objects from the cache """
         self._cache.clear_cache()
 
-
+    @activate_remote
     def select(self, model_name, params={}, data_load=False, mode='obj'):
         """ requests objects of a given type from server in bulk mode. 
 
@@ -154,12 +154,6 @@ class Session( Browser ):
         if not model_name in self._meta.model_names:
             raise TypeError('Objects of that type are not supported.')
 
-        if not self._remote.is_active: # TODO put into "activate_remote" decorator
-            self._remote.open()
-
-        if not self._remote.is_active:
-            return None # no connection, exit
-
         # fetch from remote + save in cache if possible
         json_objs = self._remote.get_list( model_name, params )
 
@@ -187,6 +181,7 @@ class Session( Browser ):
         return objects
 
 
+    @activate_remote
     def pull(self, location, params={}, cascade=True, data_load=True):
         """ pulls object from the specified location on the server. 
 
@@ -347,6 +342,7 @@ class Session( Browser ):
         return self._cache.objs[ guid ]
 
 
+    @activate_remote
     def sync(self, obj_to_sync, cascade=False):
         """ syncs a given object to the server (updates or creates a new one).
 
@@ -605,6 +601,7 @@ class Session( Browser ):
 
         for attr in data_attrs: # attr is like 'times', 'signal' etc.
 
+            arr = None
             if attr in attrs_to_sync:
                 # 1. get current array and units
                 fname = self._meta.app_definitions[model_name]['data_fields'][attr][2]
@@ -613,6 +610,7 @@ class Session( Browser ):
                 else:
                     arr = getattr(obj, fname)
 
+            if not type(arr) == type(None): # because of NEO __eq__
                 units = Serializer.parse_units(arr)
 
                 # 2. save it to the cache_dir as HDF5 file

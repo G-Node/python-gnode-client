@@ -141,7 +141,7 @@ class Browser(object):
 
             # object size
             obj_size = str( obj._gnode ).__sizeof__()
-            if fields.has_key( 'data_size' ):
+            if fields.has_key( 'data_size' ) and fields['data_size']:
                 obj_size += int( fields['data_size'] )
 
             out += sizeof_fmt( obj_size ) + '\t'

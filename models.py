@@ -146,38 +146,28 @@ class Meta( object ):
         'metadata' and 'section' from 'metadata/section/293847/' """
         def is_valid_id( lid ):
             try:
-                int( lid )
+                int(base32int(lid))
                 return True
             except ValueError:
                 return False
 
         l = self.restore_location( location )
 
-        if l.startswith('/'):
-            l = l[ 1 : ]
-        if not l.endswith('/'):
-            l += '/'
-
-        res = []
-        while l:
-            item = l[ : l.find('/') ]
-            res.append( item ) # e.g. 'metadata' or 'section'
-            l = l[ len(item) + 1 : ]
-
-        try:
-            app, model_name, lid = res
-        except ValueError:
+        res = pathlist(l)
+        if not len(res) == 3:
             raise ReferenceError('Cannot parse object location %s. The format \
                 should be like "metadata/section/293847/"' % str(res))
 
-        if not app in self.app_prefix_dict.values():
-            raise TypeError('This app is not supported: %s' % app)
-        if not model_name in self.model_names:
-            raise TypeError('This type of object is not supported: %s' % model_name)
-        if not is_valid_id( lid ):
-            raise TypeError('ID of an object must be of "int" type: %s' % lid)
 
-        return app, model_name, int(lid)
+        if not res[0] in self.app_prefix_dict.values():
+            raise TypeError('This app is not supported: %s' % app)
+        if not res[1] in self.model_names:
+            raise TypeError('This type of object is not supported: %s' % model_name)
+        if not is_valid_id( res[2] ):
+            raise TypeError('ID of an object must be a base32 string: %s' % lid)
+
+        # TODO use a list for path
+        return res[0], res[1], res[2]
 
     def clean_location(self, location):
         """ brings location to the '/metadata/section/1838/' form """
