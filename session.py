@@ -683,9 +683,9 @@ class Session( Browser ):
             data_value = obj._gnode['fields'][ attr ]['data']
 
             if data_value:
-                fid = get_id_from_permalink(data_value)
+                data_info = self._cache.get_data( data_value )
 
-                if fid in self._cache.data_map.keys():
+                if not data_info == None:
                     # get actual array
                     getter = data_fields[attr][2]
                     if getter == 'self':
@@ -700,13 +700,8 @@ class Session( Browser ):
                         # case we ignore this data attribute
                         continue
 
-                    filename = self._cache.data_map[ fid ]
-                    with tb.openFile(filename, 'r') as f:
-                        carray = f.listNodes( "/" )[0]
-                        init_arr = np.array( carray[:] )
-
                     # compare cached (original) and current data
-                    if not np.array_equal(init_arr, curr_arr):
+                    if not np.array_equal(data_info['data'], curr_arr):
                         attrs_to_sync.append( attr )
 
                 else: # nothing to compare with!
