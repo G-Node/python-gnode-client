@@ -8,8 +8,8 @@
     "username": "bob",
     "password": "pass",
     
-    "host": "predata.g-node.org",
-    "port": 8010,
+    "host": "localhost",
+    "port": 8000,
     "https": false,
     "prefix": "",
     "prefixData": "electrophysiology",
@@ -18,7 +18,7 @@
 
     "cacheDir": "./cache/",
     "cache_file_name": "gnode_cache.json",
-    "load_cached_data" : 0,
+    "load_cached_data" : 1,
     "tempDir": "/tmp/",
 
     "odml_repository": "http://portal.g-node.org/odml/terminologies/v1.0/terminologies.xml",

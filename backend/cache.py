@@ -7,16 +7,16 @@ import numpy as np
 class Cache( object ):
     """ a class to handle cached objects and data for Session """
 
-    objs_map = {} # map of cached objects, location: reference, like 
-    # _cache_map = {
-    #   'metadata/section/293847/': '5c142e1ace4bfb766dcec1995428dbd99ea057c7',
-    #   'neo/block/198472/': '16613a7b6b2fa4433a2927b6e9a0b0b63a0b419f'
-    # }
-
     objs = {} # in-memory cache, contains objects by reference, like
     # _cache_objs = {
     #   '5c142e1ace4bfb766dcec1995428dbd99ea057c7': <Section ...>,
     #   '16613a7b6b2fa4433a2927b6e9a0b0b63a0b419f': <Block ...>
+    # }
+
+    objs_map = {} # map of cached objects, location: reference, like 
+    # _cache_map = {
+    #   'metadata/section/293847/': '5c142e1ace4bfb766dcec1995428dbd99ea057c7',
+    #   'neo/block/198472/': '16613a7b6b2fa4433a2927b6e9a0b0b63a0b419f'
     # }
 
     data_map = {} # map of cached data, contains file paths by id, like
@@ -47,8 +47,17 @@ class Cache( object ):
 
     def save_cache(self):
         """ saves cached data map to disk """
+        # 1. loop over all objs, save data to disk if not yet done, update 
+        # data_map with new file references
+
+        # 2. save file references in data_map.json
         with open(self._meta.cache_path, 'w') as f:
             f.write( json.dumps(self.data_map) )
+
+        # 3. save object references in data_map.json
+
+        # 4. loop over objs and serialize all to JSON, save
+
 
     def load_cached_data(self):
         """ loads cached data map from disk and validates cached files """
@@ -78,6 +87,7 @@ class Cache( object ):
             except ValueError:
                 print 'Cache file cannot be parsed. Skip loading cached data.'
 
+
     def get_data(self, location):
         """ returns a data-array from cached file on disk. None if not exist """
         fid = str( get_id_from_permalink( location ) )
@@ -92,5 +102,14 @@ class Cache( object ):
         return {"id": fid, "path": self.data_map[ fid ], "data": data}
 
 
+    def save_data(self, arr):
+        """ saves a given array to the cache_dir as HDF5 file """
+        cache_dir = self._meta.cache_dir
+        temp_name = hashlib.sha1( arr ).hexdigest()
+        datapath = os.path.join(cache_dir, temp_name + '.h5')
+        with tb.openFile( datapath, "w" ) as f:
+            f.createArray('/', 'gnode_array', arr)
+
+        return datapath
 
 

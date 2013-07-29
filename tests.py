@@ -64,13 +64,13 @@ class BaseTest(unittest.TestCase):
 
 class Tests( BaseTest ):
 
-    def test_ls(self):
+    def zztest_ls(self):
         """ test basic browser listing does not raise errors """
         for model_name in self.g._meta.model_names:
             self.g.ls(model_name)
 
 
-    def test_create_metadata(self):
+    def zztest_create_metadata(self):
         """ test creation of odML metadata objects """
 
         template = random.choice(self.g.terminologies)
@@ -94,7 +94,7 @@ class Tests( BaseTest ):
         #self.assertEqual(s1_orig._gnode, s1_new._gnode)
 
 
-    def test_create_data(self):
+    def zztest_create_data(self):
         """ test creation of NEO data objects """
         ordered_classes_tuple = (
             ("block", 1),

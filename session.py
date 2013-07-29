@@ -613,17 +613,10 @@ class Session( Browser ):
             if not type(arr) == type(None): # because of NEO __eq__
                 units = Serializer.parse_units(arr)
 
-                # 2. save it to the cache_dir as HDF5 file
-                cache_dir = self._meta.cache_dir
-                temp_name = hashlib.sha1( arr ).hexdigest()
-                datapath = os.path.join(cache_dir, temp_name + '.h5')
-                with tb.openFile( datapath, "w" ) as f:
-                    f.createArray('/', 'gnode_array', arr)
+                datapath = self._cache.save_data(arr)
+                json_obj = self._remote.save_data(datapath)
 
-                # 3. upload to the server
-                json_obj = self._remote.save_data( datapath )
-
-                # 4. update cache
+                # update cache
                 datalink = json_obj['permalink']
                 fid = str(get_id_from_permalink( datalink ))
                 self._cache.data_map[ fid ] = datapath
