@@ -245,6 +245,26 @@ class Cache( object ):
 
     def get_obj_by_location(self, location):
         """ traverses cached objects tree(s) and searches for an object """
+        def check_location(obj, location):
+            json_obj = self._meta.get_gnode_descr(obj)
+            if json_obj and json_obj.has_key['location']:
+                if json_obj['location'] == location:
+                    return obj
+
+            cls = get_type_by_obj( obj )
+            children = self._meta.app_definitions[cls]['children']
+            for child in children: # 'child' is like 'segment', 'event' etc.
+                for rel in getattr(obj, get_children_field_name( child )):
+                    found = check_location(rel)
+                    if not type(found) == type(None):
+                        return found
+            return None
+
+        for obj in self.__objs:
+            found = check_location(obj, location)
+            if not type(found) == type(None):
+                return found
+
         return None
 
 
