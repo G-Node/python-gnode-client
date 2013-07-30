@@ -19,7 +19,6 @@ from utils import *
 from serializer import Serializer
 from browser import Browser
 from backend.cache import Cache
-from backend.local import Local
 from backend.remote import Remote
 from models import Meta, Metadata, models_map, supported_models, units_dict, get_type_by_obj
 
@@ -94,6 +93,7 @@ class Session( Browser ):
         """ removes all objects from the cache """
         self._cache.clear_cache()
 
+
     @activate_remote
     def select(self, model_name, params={}, data_load=False, mode='obj'):
         """ requests objects of a given type from server in bulk mode. 
@@ -151,7 +151,7 @@ class Session( Browser ):
         if model_name in self._meta.cls_aliases.values(): # TODO put into model_safe decorator
             model_name = [k for k, v in self._meta.cls_aliases.items() if v==model_name][0]
 
-        if not model_name in self._meta.model_names:
+        if not model_name in self._meta.models_map.keys():
             raise TypeError('Objects of that type are not supported.')
 
         # fetch from remote + save in cache if possible
@@ -175,8 +175,7 @@ class Session( Browser ):
                 obj = Serializer.deserialize( json_obj, self._meta, data_refs )
                 objects.append( obj )
 
-        # TODO maybe also add json / memory objects to cache here..
-        self._cache.save_cache() # updates on-disk cache with new objects
+        self._cache.save_data_map() # updates on-disk cache with new datafiles
 
         return objects
 
@@ -227,6 +226,11 @@ class Session( Browser ):
 
         """
         location = self._meta.clean_location( location )
+        supp_models = [k for k in models_map.keys() if \
+            not k in ['property', 'value']]
+        app, cls, lid = self._meta.parse_location( location )
+        if not cls in supp_models:
+            raise TypeError('Objects of that type are not supported.')
 
         processed = {} # collector of processed objects like
                        # {"metadata/section/2394/": <object..>, ...}
@@ -238,16 +242,17 @@ class Session( Browser ):
 
             # find object in cache
             etag = None
-            if loc in self._cache.objs_map.keys():
-                etag = self._cache.objs_map[ loc ]
+            #if loc in self._cache.objs_map.keys():
+            #    etag = self._cache.objs_map[ loc ]
+            cached_obj = self._cache.get_obj_by_location( loc )
+            if not type(cached_obj) == type(None):
+                etag = self._meta.get_gnode_descr(cached_obj)[ loc ]
 
             # request object from the server (with ETag)
             json_obj = self._remote.get(loc, params, etag)
 
             if json_obj == 304: # get object from cache
-                guid = self._cache.objs_map[ loc ]
-                obj = self._cache.objs[ guid ]
-
+                obj = cached_obj
                 print_status('%s loaded from cache.' % loc)
 
             else: # request from server
@@ -268,26 +273,23 @@ class Session( Browser ):
 
                 # or just download attached metadata here?
                 # metadata = self._fetch_metadata_by_json(cls, json_obj)
-
-                # save it to cache
-                self._cache.add_object( obj )
-
                 print_status("%s fetched from server." % loc)
 
             stack.remove( loc ) # not to forget to remove processed object
             processed[ loc ] = obj # add it to processed
-            self._cache.add_object( obj ) # and to the cache
+            #self._cache.add_object( obj ) # and to the cache
 
             app, cls, lid = self._meta.parse_location( loc )
             children = self._meta.app_definitions[cls]['children'] # child object types
-            if cascade and children and hasattr(obj, '_gnode'):
+            obj_descr = self._meta.get_gnode_descr(obj)
+            if cascade and children and obj_descr:
                 for child in children: # 'child' is like 'segment', 'event' etc.
 
                     field_name = child + '_set'
-                    if obj._gnode['fields'].has_key( field_name ) and \
-                        obj._gnode['fields'][ field_name ]:
+                    if obj_descr['fields'].has_key( field_name ) and \
+                        obj_descr['fields'][ field_name ]:
 
-                        for rel_link in obj._gnode['fields'][ field_name ]:
+                        for rel_link in obj_descr['fields'][ field_name ]:
                             cl_link = self._meta.clean_location( rel_link )
 
                             if not cl_link in processed.keys() and not cl_link in stack:
@@ -297,20 +299,20 @@ class Session( Browser ):
         for loc, obj in processed.items():
             # TODO make some iterator below to avoid duplicate code
             app, cls, lid = self._meta.parse_location( loc )
-            children = self._meta.app_definitions[cls]['children'] # child object types
-            if cascade and children and hasattr(obj, '_gnode'):  
+            children = self._meta.app_definitions[cls]['children']
+            obj_descr = self._meta.get_gnode_descr(obj)
+            if cascade and children and obj_descr:  
                 for child in children: # 'child' is like 'segment', 'event' etc.
 
                     field_name = child + '_set'
-                    if obj._gnode['fields'].has_key( field_name ) and \
-                        obj._gnode['fields'][ field_name ]:
+                    if obj_descr['fields'].has_key( field_name ) and \
+                        obj_descr['fields'][ field_name ]:
 
                             rel_objs = []
 
-                            for rel_link in obj._gnode['fields'][ field_name ]:
+                            for rel_link in obj_descr['fields'][ field_name ]:
                                 cl_link = self._meta.clean_location( rel_link )
-                                guid = self._cache.objs_map[ cl_link ]
-                                rel_objs.append( self._cache.objs[ guid ] )
+                                rel_objs.append( processed[cl_link] )
 
                             if rel_objs: # parse children into parent attrs
                                 # a way to assign kids depends on object type
@@ -336,10 +338,12 @@ class Session( Browser ):
         """
 
         print_status( 'Object(s) loaded.\n' )
-        self._cache.save_cache() # updates on-disk cache with new objects
 
-        guid = self._cache.objs_map[ location ]
-        return self._cache.objs[ guid ]
+        obj = processed[ location ]
+        self._cache.add_object(obj)
+        self._cache.save_data_map()
+
+        return obj
 
 
     @activate_remote
@@ -350,15 +354,21 @@ class Session( Browser ):
 
         Arguments:
 
-        obj_to_sync:a python object to sync. If an object has _gnode attribute,
-                    it means it will be updated on the server. If no _gnode
-                    attribute would be found a new object will be submitted.
+        obj_to_sync:a python object to sync. If an object has gnode attribute,
+                    it means it will be updated on the server. If no gnode
+                    attribute is found a new object will be submitted.
         cascade:    sync all children recursively (True/False)
         """
+        supp_models = [m for k, m in models_map.items() if \
+            not k in ['property', 'value']]
+        if not obj_to_sync.__class__ in supp_models:
+            raise TypeError('Objects of that type are not supported.')
 
         processed = [] # collector of permalinks of processed objects
         to_clean = [] # collector of ids of objects to clean parent
         stack = [ obj_to_sync ] # a stack of objects to sync
+
+        self._cache.add_object(obj_to_sync) # if not yet there
 
         while len( stack ) > 0:
 
@@ -367,7 +377,8 @@ class Session( Browser ):
             cls = get_type_by_obj( obj ) # type of the object, like 'segment'
 
             # bloody workaround for duplications because of NEO
-            if hasattr(obj, '_gnode') and obj._gnode['permalink'] in processed:
+            obj_descr = self._meta.get_gnode_descr(obj)
+            if obj_descr and obj_descr['permalink'] in processed:
                 stack.remove( obj )
                 continue
 
@@ -397,10 +408,10 @@ class Session( Browser ):
                     to_sync = []
                     for name, prp in metadata.__dict__.items():
                         if prp.value:
-                            if not hasattr(prp.value, '_gnode'):
+                            if not self._meta.get_gnode_descr(prp.value):
                                 to_sync.insert(0, prp.value) # sync value if never synced
 
-                            if not hasattr(prp, '_gnode'):
+                            if not self._meta.get_gnode_descr(prp):
                                 to_sync.insert(0, prp) # sync property if never synced
                                 if not prp.parent:
                                     print_status('Cannot sync %s for %s: section is not defined.\n' % \
@@ -408,7 +419,7 @@ class Session( Browser ):
                                     stack.remove( prp )
                                     continue # move to other property
 
-                                if not hasattr(prp.parent, '_gnode'):
+                                if not self._meta.get_gnode_descr(prp.parent):
                                     to_sync.insert(0, prp.parent) # sync parent section
 
                     if to_sync: # sync what's needed first
@@ -429,17 +440,18 @@ class Session( Browser ):
 
                 if not raw_json == 304:
                     # update local in-memory object with newly acquired params
-                    setattr(obj, '_gnode', raw_json)
+                    self._meta.set_gnode_descr(obj, raw_json)
 
-                # a list of children in the _gnode attribute in all parent 
+                # a list of children in the gnode attribute in all parent 
                 # objects for obj must be updated with a newly synced child. it 
                 # should be done here, not at the end of the sync, to keep 
                 # objects updated in case the sync fails.
                 Serializer.update_parent_children(obj, self._meta)
 
                 success = True
-                processed.append( obj._gnode['permalink'] )
-                print_status('Object at %s synced.' % obj._gnode['location'])
+                obj_descr = self._meta.get_gnode_descr(obj)
+                processed.append( obj_descr['permalink'] )
+                print_status('Object at %s synced.' % obj_descr['location'])
 
             except (errors.UnitsError, errors.ValidationError, \
                 errors.SyncFailed, errors.BadRequestError), e:
@@ -449,20 +461,22 @@ class Session( Browser ):
 
             # 5. if cascade put children objects to the stack to sync
             children = self._meta.app_definitions[cls]['children'] # child object types
-            if cascade and children and hasattr(obj, '_gnode'):
+            obj_descr = self._meta.get_gnode_descr(obj)
+            if cascade and children and obj_descr:
                 for child in children: # 'child' is like 'segment', 'event' etc.
 
                     # cached children references
-                    child_link_set = list( obj._gnode['fields'][ child + '_set' ] )
+                    child_link_set = list( obj_descr['fields'][ child + '_set' ] )
 
                     for rel in getattr(obj, get_children_field_name( child )):
 
                         # detect children of a given type that were removed (using cache)
-                        if hasattr(rel, '_gnode') and rel._gnode['permalink'] in child_link_set:
-                            child_link_set.remove( rel._gnode['permalink'] )
+                        rel_descr = self._meta.get_gnode_descr(rel)
+                        if rel_descr and rel_descr['permalink'] in child_link_set:
+                            child_link_set.remove( rel_descr['permalink'] )
 
                         # important to skip already scheduled or processed objs
-                        if not (hasattr(rel, '_gnode') and rel._gnode['permalink'] in processed):
+                        if not (not (rel_descr == None) and rel_descr['permalink'] in processed):
                             # and not obj in stack:
                             # stupid NEO!! NEO object can't be compared with any
                             # other object type (error), so the workaround
@@ -473,11 +487,6 @@ class Session( Browser ):
                     par_name = get_parent_field_name(cls, child)
                     # collect permalinks of removed objects as (link, par_field_name)
                     to_clean += [(x, par_name) for x in child_link_set]
-
-            # save to the cache after processing children, so in case of a 
-            # new object it goes to the cache with all children already synced
-            if success:
-                self._cache.add_object( obj )
 
         # post-processing:
         # clean objects that were removed from everywhere in this scope
@@ -515,7 +524,8 @@ class Session( Browser ):
         # 1. split given objects by model (class)
         for_annotation = {}
         for obj in objects:
-            if not hasattr(obj, '_gnode') or not obj._gnode.has_key('permalink'):
+            obj_descr = self._meta.get_gnode_descr(obj)
+            if not obj_descr or not obj_descr.has_key('permalink'):
                 raise ValidationError('All objects need to be synced ' + \
                     'before annotation.')
 
@@ -528,7 +538,9 @@ class Session( Browser ):
         # 2. build values list to POST
         data = {'metadata': []}
         for value in values:
-            if not hasattr(value, '_gnode') or not hasattr(value.parent, '_gnode'):
+            val_descr = self._meta.get_gnode_descr(value)
+            if not self._meta.get_gnode_descr(value) or not \
+                self._meta.get_gnode_descr(value.parent):
                 raise ValidationError('All properties/values need to be synced before annotation.')
             data['metadata'].append( value._gnode['permalink'] )
 
@@ -536,16 +548,17 @@ class Session( Browser ):
         counter = 0
         for model_name, objects in for_annotation.items():
 
-            params = {'id__in': [x._gnode['id'] for x in objects]}
+            params = {'id__in': [self._meta.get_gnode_descr(x)['id'] for x in objects]}
             self._remote.save_list(model_name, json.dumps(data), params=params)
 
             for obj in objects:
+                obj_descr = self._meta.get_gnode_descr(obj)
 
-                # 1. update metadata attr in obj._gnode based on values, not 
+                # 1. update metadata attr in gnode based on values, not 
                 # on the response values so not to face the max_results problem
-                updated = set(obj._gnode['fields']['metadata'] + \
-                    [v._gnode['permalink'] for v in values])
-                obj._gnode['fields']['metadata'] = list( updated )
+                updated = set(obj_descr['fields']['metadata'] + \
+                    [self._meta.get_gnode_descr(v)['permalink'] for v in values])
+                obj_descr['fields']['metadata'] = list( updated )
 
                 # 2. update .metadata attribute of an object
                 if not hasattr(obj, 'metadata'):
@@ -575,7 +588,7 @@ class Session( Browser ):
         if self._remote.is_active:
             self._remote.close()
 
-        self._cache.save_cache()
+        self._cache.save_all()
 
 
     #---------------------------------------------------------------------------
@@ -590,14 +603,7 @@ class Session( Browser ):
         model_name = get_type_by_obj( obj )
 
         data_attrs = self._meta.get_array_attr_names( model_name )
-
-        if not hasattr(obj, '_gnode'): # True if object never synced
-            # sync all arrays
-            attrs_to_sync = data_attrs
-
-        else:
-            # sync only changed arrays
-            attrs_to_sync = self.__detect_changed_data_fields( obj )
+        attrs_to_sync = self._cache.detect_changed_data_fields( obj )
 
         for attr in data_attrs: # attr is like 'times', 'signal' etc.
 
@@ -616,10 +622,10 @@ class Session( Browser ):
                 datapath = self._cache.save_data(arr)
                 json_obj = self._remote.save_data(datapath)
 
-                # update cache
+                # update cache data map
                 datalink = json_obj['permalink']
                 fid = str(get_id_from_permalink( datalink ))
-                self._cache.data_map[ fid ] = datapath
+                self._cache.update_data_map(fid, datapath)
 
                 data_refs[ attr ] = {'data': datalink, 'units': units}
 
@@ -648,7 +654,7 @@ class Session( Browser ):
 
                 if not data_info == None: # raise error otherwise?
                     # update cache with new file
-                    self._cache.data_map[ data_info['id'] ] = data_info['path']
+                    self._cache.update_data_map(data_info['id'], data_info['path'])
 
             data_refs[ array_attr ] = data_info['data']
 

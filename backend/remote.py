@@ -182,10 +182,6 @@ class Remote( BaseBackend ):
             message = 'Object at %s was changed. please pull current version first.' % str(lid)
             raise errors.SyncFailed( message )
 
-        if not raw_json.has_key('selected'):
-            import ipdb
-            ipdb.set_trace()
-
         return raw_json['selected'][0] # should be single object 
 
 

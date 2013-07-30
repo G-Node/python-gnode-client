@@ -249,3 +249,25 @@ def activate_remote(func):
 
     return decorated
 
+
+def model_safe(func):
+    """ decorator for functions that have model name, object or location as the
+    first argument. validates first agrument is supported """
+    def decorated(self, *args, **kwargs):
+        first_arg = args[0] # can be model name, object or location
+
+        if func.__name__ == 'select':
+            if model_name in self._meta.cls_aliases.values():
+                model_name = [k for k, v in self._meta.cls_aliases.items() if \
+                    v==model_name][0]
+
+            if not model_name in self._meta.models_map.keys():
+                raise TypeError('Objects of that type are not supported.')
+
+        # FIXME!!
+
+        return func(self, *args, **kwargs)
+
+    return decorated
+
+

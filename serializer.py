@@ -75,8 +75,8 @@ class Serializer(object):
         # 4. init object
         obj = model( *args, **kwargs )
 
-        # 5. adds _gnode attr to the object as it's JSON representation
-        setattr(obj, '_gnode', json_obj)
+        # 5. adds gnode attr to the object as it's JSON representation
+        meta.set_gnode_descr(obj, json_obj)
 
         return obj
 

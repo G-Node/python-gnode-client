@@ -94,8 +94,7 @@ class Meta( object ):
         # init cache settings
         self.load_cached_data = bool( profile_data['load_cached_data'] )
         self.cache_dir = os.path.abspath( profile_data['cacheDir'] )
-        self.cache_path = os.path.join( profile_data['cacheDir'], \
-            profile_data['cache_file_name'] )
+        self.models_map = models_map
 
     def get_array_attr_names(self, model_name):
         """ return attr names that are arrays with ndim > 0 """
@@ -200,7 +199,28 @@ class Meta( object ):
                     return True
 
         return False
-        
+
+
+    def get_gnode_descr(self, obj):
+        """ returns G-Node JSON description assigned to a given object """
+        if obj.__class__ in [BaseSection, BaseProperty, BaseValue]:
+            if hasattr(obj, '_gnode'):
+                return obj._gnode
+        else:
+            if obj.annotations.has_key('gnode'):
+                return obj.annotations['gnode']
+        return None
+
+    def set_gnode_descr(self, obj, json_obj):
+        """ assigns G-Node JSON description to a given object """
+        if not obj.__class__ in supported_models:
+            raise TypeError("This type of object is not supported %s" % str(obj))
+
+        if obj.__class__ in [BaseSection, BaseProperty, BaseValue]:
+            setattr(obj, '_gnode', json_obj)
+        else:
+            obj.annotations['gnode'] = json_obj
+
 
 class Metadata(object):
     """ class containing metadata property-value pairs for a single object. """
