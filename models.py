@@ -203,12 +203,12 @@ class Meta( object ):
 
     def get_gnode_descr(self, obj):
         """ returns G-Node JSON description assigned to a given object """
-        if obj.__class__ in [BaseSection, BaseProperty, BaseValue]:
-            if hasattr(obj, '_gnode'):
-                return obj._gnode
-        else:
-            if obj.annotations.has_key('gnode'):
-                return obj.annotations['gnode']
+        #if obj.__class__ in [BaseSection, BaseProperty, BaseValue]:
+        if hasattr(obj, '_gnode'):
+            return obj._gnode
+        #else:
+        #    if obj.annotations.has_key('gnode'):
+        #        return obj.annotations['gnode']
         return None
 
     def set_gnode_descr(self, obj, json_obj):
@@ -216,10 +216,10 @@ class Meta( object ):
         if not obj.__class__ in supported_models:
             raise TypeError("This type of object is not supported %s" % str(obj))
 
-        if obj.__class__ in [BaseSection, BaseProperty, BaseValue]:
-            setattr(obj, '_gnode', json_obj)
-        else:
-            obj.annotations['gnode'] = json_obj
+        #if obj.__class__ in [BaseSection, BaseProperty, BaseValue]:
+        setattr(obj, '_gnode', json_obj)
+        #else:
+        #    obj.annotations['gnode'] = json_obj
 
 
 class Metadata(object):
