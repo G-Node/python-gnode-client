@@ -64,12 +64,7 @@ class Remote( BaseBackend ):
 
     def get(self, location, params={}, etag=None):
         """ returns a JSON or array from the remote. None if not exist """
-        if is_permalink( location ):
-            location = extract_location( location )
-        location = self._meta.restore_location( location )
-        app, cls, lid = self._meta.parse_location( location )
-
-        url = '%s%s/%s/%s/' % (self._meta.host, app, cls, str(lid))
+        url = '%s%s/%s/%s/' % (self._meta.host, location[0], location[1], location[2])
         #params['q'] = 'full' # always operate in full mode, see API specs
 
         headers = {} # request headers
@@ -99,7 +94,7 @@ class Remote( BaseBackend ):
 
     def get_data(self, location, cache_dir=None):
         """ downloads a datafile from the remote """
-        fid = get_id_from_permalink( location )
+        fid = location[2]
         url = '%s%s/%s/%s/' % (self._meta.host, "datafiles", str(fid), 'data')
 
         print_status('loading datafile %s from server...' % fid)
@@ -160,8 +155,8 @@ class Remote( BaseBackend ):
         params = {'m2m_append': 0}
 
         if json_obj.has_key('location'): # existing object, update
-            app, cls, lid = self._meta.parse_location( json_obj['location'] )
-            url = '%s%s/%s/%s/' % (self._meta.host, app, cls, str(lid))
+            location = self._meta.parse_location( json_obj['location'] )
+            url = '%s%s/%s/%s/' % (self._meta.host, location[0], location[1], location[2])
 
         else: # new object, create
             app, cls = parse_model( json_obj )

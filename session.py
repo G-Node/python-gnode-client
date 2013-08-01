@@ -20,7 +20,7 @@ from serializer import Serializer
 from browser import Browser
 from backend.cache import Cache
 from backend.remote import Remote
-from models import Meta, Metadata, models_map, supported_models, units_dict, get_type_by_obj
+from models import Meta, Metadata, models_map, supported_models, units_dict
 
 #-------------------------------------------------------------------------------
 # common factory functions
@@ -225,12 +225,11 @@ class Session( Browser ):
                 parameters (if specified)
 
         """
-        location = self._meta.clean_location( location )
+        location = self._meta.parse_location( location )
         supp_models = [k for k in models_map.keys() if \
             not k in ['property', 'value']]
-        app, cls, lid = self._meta.parse_location( location )
-        if not cls in supp_models:
-            raise TypeError('Objects of that type are not supported.')
+        if not location[1] in supp_models:
+            raise TypeError('Objects of that type are not pull-supported.')
 
         processed = {} # collector of processed objects like
                        # {"metadata/section/2394/": <object..>, ...}
@@ -242,18 +241,18 @@ class Session( Browser ):
 
             # find object in cache
             etag = None
-            #if loc in self._cache.objs_map.keys():
-            #    etag = self._cache.objs_map[ loc ]
             cached_obj = self._cache.get_obj_by_location( loc )
             if not type(cached_obj) == type(None):
-                etag = self._meta.get_gnode_descr(cached_obj)[ loc ]
+                obj_descr = self._meta.get_gnode_descr(cached_obj)
+                if obj_descr and obj_descr['fields'].has_key('guid'):
+                    etag = obj_descr['fields']['guid']
 
             # request object from the server (with ETag)
             json_obj = self._remote.get(loc, params, etag)
 
             if json_obj == 304: # get object from cache
                 obj = cached_obj
-                print_status('%s loaded from cache.' % loc)
+                print_status('%s loaded from cache.' % str(loc))
 
             else: # request from server
 
@@ -276,10 +275,9 @@ class Session( Browser ):
                 print_status("%s fetched from server." % loc)
 
             stack.remove( loc ) # not to forget to remove processed object
-            processed[ loc ] = obj # add it to processed
-            #self._cache.add_object( obj ) # and to the cache
+            processed[ str(loc) ] = obj # add it to processed
 
-            app, cls, lid = self._meta.parse_location( loc )
+            app, cls, lid = loc[0], loc[1], loc[2]
             children = self._meta.app_definitions[cls]['children'] # child object types
             obj_descr = self._meta.get_gnode_descr(obj)
             if cascade and children and obj_descr:
@@ -290,15 +288,17 @@ class Session( Browser ):
                         obj_descr['fields'][ field_name ]:
 
                         for rel_link in obj_descr['fields'][ field_name ]:
-                            cl_link = self._meta.clean_location( rel_link )
+                            cl_link = self._meta.parse_location( rel_link )
 
-                            if not cl_link in processed.keys() and not cl_link in stack:
+                            if not str(cl_link) in processed.keys() and not \
+                                str(cl_link) in [str(o) for o in stack]:
                                 stack.insert( 0, cl_link )
 
         # building relationships for python objects
-        for loc, obj in processed.items():
+        for key, obj in processed.items():
             # TODO make some iterator below to avoid duplicate code
-            app, cls, lid = self._meta.parse_location( loc )
+            loc = self._meta.parse_location( key )
+            app, cls, lid = loc[0], loc[1], loc[2]
             children = self._meta.app_definitions[cls]['children']
             obj_descr = self._meta.get_gnode_descr(obj)
             if cascade and children and obj_descr:  
@@ -311,8 +311,8 @@ class Session( Browser ):
                             rel_objs = []
 
                             for rel_link in obj_descr['fields'][ field_name ]:
-                                cl_link = self._meta.clean_location( rel_link )
-                                rel_objs.append( processed[cl_link] )
+                                cl_link = self._meta.parse_location( rel_link )
+                                rel_objs.append( processed[str(cl_link)] )
 
                             if rel_objs: # parse children into parent attrs
                                 # a way to assign kids depends on object type
@@ -339,7 +339,7 @@ class Session( Browser ):
 
         print_status( 'Object(s) loaded.\n' )
 
-        obj = processed[ location ]
+        obj = processed[ str(location) ]
         self._cache.add_object(obj)
         self._cache.save_data_map()
 
@@ -374,7 +374,7 @@ class Session( Browser ):
 
             obj = stack[0] # take first object from stack
             success = False # flag to indicate success of the syncing
-            cls = get_type_by_obj( obj ) # type of the object, like 'segment'
+            cls = self._meta.get_type_by_obj( obj ) # type of the object, like 'segment'
 
             # bloody workaround for duplications because of NEO
             obj_descr = self._meta.get_gnode_descr(obj)
@@ -436,6 +436,8 @@ class Session( Browser ):
                     if k.endswith('_set') or k == 'shared_with':
                         json_obj['fields'].pop( k, None )
 
+                import ipdb
+                ipdb.set_trace()
                 raw_json = self._remote.save( json_obj )
 
                 if not raw_json == 304:
@@ -499,7 +501,7 @@ class Session( Browser ):
             for link, par_name in to_clean:
 
                 # TODO make in bulk? could be faster
-                location = extract_location( link )
+                location = str(self._meta.parse_location(link))
                 json_obj = {
                     'location': location,
                     'permalink': link,
@@ -529,7 +531,7 @@ class Session( Browser ):
                 raise ValidationError('All objects need to be synced ' + \
                     'before annotation.')
 
-            model_name = get_type_by_obj( obj )
+            model_name = self._meta.get_type_by_obj( obj )
             if not model_name in for_annotation.keys():
                 for_annotation[ model_name ] = [ obj ]
             else:
@@ -600,7 +602,7 @@ class Session( Browser ):
         server according to the arrays of the given obj. Saves datafile objects 
         to cache """
         data_refs = {} # collects all references to the related data - output
-        model_name = get_type_by_obj( obj )
+        model_name = self._meta.get_type_by_obj( obj )
 
         data_attrs = self._meta.get_array_attr_names( model_name )
         attrs_to_sync = self._cache.detect_changed_data_fields( obj )
@@ -646,11 +648,12 @@ class Session( Browser ):
             if arr_loc == None:
                 continue # no data for this attribute
 
-            data_info = self._cache.get_data( arr_loc )
+            arr_loc = self._meta.parse_location(arr_loc)
+            data_info = self._cache.get_data(arr_loc)
             
             if data_info == None: # no local data, fetch from remote
                 cache_dir = self._cache._meta.cache_dir
-                data_info = self._remote.get_data( arr_loc, cache_dir )
+                data_info = self._remote.get_data(arr_loc, cache_dir)
 
                 if not data_info == None: # raise error otherwise?
                     # update cache with new file
@@ -660,58 +663,6 @@ class Session( Browser ):
 
         return data_refs
 
-    #---------------------------------------------------------------------------
-    # helper functions that DO NOT send HTTP requests
-    #---------------------------------------------------------------------------
-
-    def __detect_changed_data_fields(self, obj):
-        """ compares all current in-memory data fields (arrays) for a given 
-        object with cached (on-disk) versions of these data arrays and returns
-        names of the fields where arrays do NOT match """
-
-        if not hasattr(obj, '_gnode'):
-            raise TypeError('This object was never synced, cannot detect changes')
-
-        attrs_to_sync = []
-        model_name = get_type_by_obj( obj )
-        data_fields = self._meta.app_definitions[model_name]['data_fields']
-        data_attrs = self._meta.get_array_attr_names( model_name )
-
-        for attr in data_attrs:
-
-            data_value = obj._gnode['fields'][ attr ]['data']
-
-            if data_value:
-                data_info = self._cache.get_data( data_value )
-
-                if not data_info == None:
-                    # get actual array
-                    getter = data_fields[attr][2]
-                    if getter == 'self':
-                        # some NEO objects like signal inherit array
-                        curr_arr = obj
-                    else:
-                        curr_arr = getattr(obj, getter)
-
-                    if len(curr_arr) < 2:
-                        # we treat array with < 2 values as when object was 
-                        # fetched without data for performance reasons. in this 
-                        # case we ignore this data attribute
-                        continue
-
-                    # compare cached (original) and current data
-                    if not np.array_equal(data_info['data'], curr_arr):
-                        attrs_to_sync.append( attr )
-
-                else: # nothing to compare with!
-                    # this could happen when an object was fetched without data.
-                    # ignore, treat as data was not changed
-                    pass
-
-            else: # no real reference! treat as array was changed
-                attrs_to_sync.append( attr )
-
-        return attrs_to_sync
 
     def __assign_child(self, child, obj, related):
         """ object type-dependent parser adding children to the given obj """
@@ -731,7 +682,7 @@ class Session( Browser ):
             setattr(obj, child + 's', related) # replace all
 
             # 2. assign parent to every child
-            model_name = get_type_by_obj( obj )
+            model_name = self._meta.get_type_by_obj( obj )
             for rel in related:
                 setattr(rel, model_name, obj)
 

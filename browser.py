@@ -47,7 +47,8 @@ class Browser(object):
 
             if location:
                 out += 'location %s:\n' % location
-                app, cls, lid = self._meta.parse_location( location )
+                loc = self._meta.parse_location( location )
+                app, cls, lid = loc[0], loc[1], loc[2]
 
                 for child in self._meta.app_definitions[ cls ]['children']:
                     # TODO fetch children only if not empty? can be done by 
@@ -131,7 +132,7 @@ class Browser(object):
             fields = obj._gnode['fields']
 
             # object location
-            out += self._meta.strip_location( obj._gnode['location'] ) + '\t'
+            out += self._meta.parse_location( obj._gnode['location'] ).stripped + '\t'
 
             # safety level
             out += str( fields['safety_level'] ) + ' '

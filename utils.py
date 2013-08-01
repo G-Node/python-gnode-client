@@ -18,6 +18,7 @@ try:
 except ImportError:
     import json
 
+
 # 'bidirectional dictionary to convert between the two nomenclatures used
 #	for methos using permissions
 safety_level_dict = {1: 'public', 2:'friendly', 3:'private'}

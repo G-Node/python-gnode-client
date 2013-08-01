@@ -52,16 +52,6 @@ models_map = {
 supported_models = models_map.values()
 
 #-------------------------------------------------------------------------------
-# helper functions that depend on models
-#-------------------------------------------------------------------------------
-
-def get_type_by_obj( obj ):
-    types = [k for k, v in models_map.items() if isinstance(obj, v)]
-    if len(types) > 0:
-        return types[0]
-    return None
-
-#-------------------------------------------------------------------------------
 # common Client classes
 #-------------------------------------------------------------------------------
 
@@ -106,73 +96,15 @@ class Meta( object ):
 
         return names
 
-    def restore_location(self, location):
-        """ restore a full version of the location using alias_map, like
-        'mtd/sec/293847/' -> 'metadata/section/293847/' """
-        l = str( location )
-        if not l.startswith('/'):
-            l = '/' + l
-
-        almap = dict(self.app_aliases.items() + self.cls_aliases.items())
-        for name, alias in almap.items():
-            if l.find(alias) > -1 and l[l.find(alias)-1] == '/' and \
-                l[l.find(alias) + len(alias)] == '/':
-                l = l.replace(alias, name)
-
-        l = l[1:] # remove preceeding slash
-        if not l.endswith('/'):
-            l += '/'
-
-        return l
-
-    def strip_location(self, location):
-        """ make a shorter version of the location using alias_map, like
-        'metadata/section/293847/' -> 'mtd/sec/293847/' """
-        l = str( location )
-        if not l.startswith('/'):
-            l = '/' + l
-
-        almap = dict(self.app_aliases.items() + self.cls_aliases.items())
-        for name, alias in almap.items():
-            if l.find(name) > -1 and l[l.find(name)-1] == '/' and\
-                l[l.find(name) + len(name)] == '/':
-                l = l.replace(name, alias)
-
-        return l
-
     def parse_location(self, location):
-        """ extracts app name and object type from the current location, e.g.
-        'metadata' and 'section' from 'metadata/section/293847/' """
-        def is_valid_id( lid ):
-            try:
-                int(base32int(lid))
-                return True
-            except ValueError:
-                return False
+        return Location(location, self)
 
-        l = self.restore_location( location )
-
-        res = pathlist(l)
-        if not len(res) == 3:
-            raise ReferenceError('Cannot parse object location %s. The format \
-                should be like "metadata/section/293847/"' % str(res))
-
-
-        if not res[0] in self.app_prefix_dict.values():
-            raise TypeError('This app is not supported: %s' % app)
-        if not res[1] in self.model_names:
-            raise TypeError('This type of object is not supported: %s' % model_name)
-        if not is_valid_id( res[2] ):
-            raise TypeError('ID of an object must be a base32 string: %s' % lid)
-
-        # TODO use a list for path
-        return res[0], res[1], res[2]
-
-    def clean_location(self, location):
-        """ brings location to the '/metadata/section/1838/' form """
-        if is_permalink( location ):
-            location = extract_location( location )
-        return self.restore_location( location )
+    def is_valid_id(self, lid):
+        try:
+            int(base32int(lid))
+            return True
+        except ValueError:
+            return False
 
     def is_modified(self, json_obj):
         """ checks if object was modified locally by validating that object
@@ -200,26 +132,93 @@ class Meta( object ):
 
         return False
 
+    def get_type_by_obj(self, obj):
+        types = [k for k, v in self.models_map.items() if isinstance(obj, v)]
+        if len(types) > 0:
+            return types[0]
+        return None
 
     def get_gnode_descr(self, obj):
         """ returns G-Node JSON description assigned to a given object """
-        #if obj.__class__ in [BaseSection, BaseProperty, BaseValue]:
         if hasattr(obj, '_gnode'):
             return obj._gnode
-        #else:
-        #    if obj.annotations.has_key('gnode'):
-        #        return obj.annotations['gnode']
         return None
 
     def set_gnode_descr(self, obj, json_obj):
         """ assigns G-Node JSON description to a given object """
         if not obj.__class__ in supported_models:
             raise TypeError("This type of object is not supported %s" % str(obj))
-
-        #if obj.__class__ in [BaseSection, BaseProperty, BaseValue]:
         setattr(obj, '_gnode', json_obj)
-        #else:
-        #    obj.annotations['gnode'] = json_obj
+
+    @property
+    def mtd_classes(self):
+        return [m for k, m in self.models_map.items() if k in \
+            ['section', 'property', 'value']]
+
+    @property
+    def neo_classes(self):
+        return [m for k, m in self.models_map.items() if k not in \
+            ['section', 'property', 'value']]
+
+
+class Location(list):
+
+    def __init__(self, location, meta):
+        if isinstance(location, self.__class__):
+            loc = list(location)
+        else:
+            self._meta = meta
+            loc = pathlist(location)
+            if len(loc) < 3:
+                raise ReferenceError('Cannot parse object location %s. The format \
+                    should be like "metadata/section/293847/"' % str(loc))
+
+            loc = self.restore_location(loc)
+            if not loc[0] in self._meta.app_prefix_dict.values() + ['datafiles']:
+                raise TypeError('This app is not supported: %s' % loc[0])
+            if not loc[1] in self._meta.model_names + ['datafile']:
+                raise TypeError('This type of object is not supported: %s' % loc[1])
+            if not self._meta.is_valid_id( loc[2] ):
+                raise TypeError('ID of an object must be a base32 string: %s' % loc[2])
+        self.__location = loc
+
+    def __getitem__(self, index):
+        return self.__location[index]
+
+    def __setitem__(self, key, value):
+        self.__path[key] = value
+
+    def __len__(self):
+        return len(self.__location)
+
+    def __str__(self):
+        return "/" + "/".join(self.__location) + "/"
+
+    def __repr__(self):
+        return "Location(%s)" % (str(self))
+
+    def __iter__(self):
+        return iter(self.__location)
+
+    def restore_location(self, loc):
+        """ restore a full version of the location using alias_map, like
+        ['mtd', 'sec', 'HTOS5G16RL'] -> ['metadata', 'section', 'HTOS5G16RL']"""
+        almap = dict(self._meta.app_aliases.items() + self._meta.cls_aliases.items())
+        for name, alias in almap.items():
+            if loc[0] == alias: loc[0] = name
+            if loc[1] == alias: loc[1] = name
+        return loc
+
+    @property
+    def stripped(self):
+        """ make a shorter version of the location using alias_map, like
+        'metadata/section/293847/' -> 'mtd/sec/293847/' """
+        loc = list(self.__location)
+        almap = dict(self._meta.app_aliases.items() + self._meta.cls_aliases.items())
+        for name, alias in almap.items():
+            if loc[0] == name: loc[0] = alias
+            if loc[1] == name: loc[1] = alias
+        return "/" + "/".join(loc) + "/"
 
 
 class Metadata(object):

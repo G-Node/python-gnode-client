@@ -124,7 +124,7 @@ class Serializer(object):
             raise TypeError('Object %s is not supported.' % \
                 cut_to_render( obj.__repr__() ))
 
-        model_name = get_type_by_obj(obj)
+        model_name = meta.get_type_by_obj(obj)
         app_name = meta.app_prefix_dict[ model_name ]
 
         if hasattr(obj, '_gnode'): # existing object
@@ -247,7 +247,7 @@ class Serializer(object):
     def update_parent_children(cls, obj, meta):
         """ when the object is synced, it's new parent relationship must be set
         into the parent object """
-        model_name = get_type_by_obj(obj)
+        model_name = meta.get_type_by_obj(obj)
         app_definition = meta.app_definitions[model_name]
         for par_name in app_definition['parents']:
             attr = get_parent_attr_name( model_name, par_name )

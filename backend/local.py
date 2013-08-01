@@ -13,7 +13,6 @@ import numpy as np
 import os
 
 from tables.exceptions import NoSuchNodeError
-from models import get_type_by_obj
 from base import BaseBackend
 from utils import *
 
@@ -245,7 +244,7 @@ class Local( BaseBackend ):
         data_refs = self.save_data( obj )
         json_obj = Serializer.serialize(obj, self._meta, data_refs)
 
-        cls = get_type_by_obj( obj )
+        cls = self._meta.get_type_by_obj( obj )
         app = self._meta.app_prefix_dict[cls]
         location = json_obj['location']
 
