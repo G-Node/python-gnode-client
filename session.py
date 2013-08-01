@@ -436,8 +436,6 @@ class Session( Browser ):
                     if k.endswith('_set') or k == 'shared_with':
                         json_obj['fields'].pop( k, None )
 
-                import ipdb
-                ipdb.set_trace()
                 raw_json = self._remote.save( json_obj )
 
                 if not raw_json == 304:
@@ -627,7 +625,11 @@ class Session( Browser ):
                 # update cache data map
                 datalink = json_obj['permalink']
                 fid = str(get_id_from_permalink( datalink ))
-                self._cache.update_data_map(fid, datapath)
+
+                folder, tempname = os.path.split(datapath)
+                new_path = os.path.join(folder, fid + tempname[tempname.find('.'):])
+                os.rename(datapath, new_path)
+                self._cache.update_data_map(fid, new_path)
 
                 data_refs[ attr ] = {'data': datalink, 'units': units}
 

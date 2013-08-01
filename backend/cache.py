@@ -1,10 +1,11 @@
-from utils import *
-
+import hashlib
 import neo
 import odml
 import os
 import tables as tb
 import numpy as np
+
+from utils import *
 
 class Cache( object ):
     """ a class to handle cached objects and data for Session """
@@ -53,6 +54,7 @@ class Cache( object ):
         json_obj = self._meta.get_gnode_descr(obj)
         if json_obj: # synced object
             if self.get_obj_by_location(json_obj['location']):
+                self.save_single_object(obj)
                 return None # object already cached
 
         self.save_single_object(obj)
@@ -234,6 +236,7 @@ class Cache( object ):
 
     def get_data(self, location):
         """ returns a data-array from cached file on disk. None if not exist """
+        location = self._meta.parse_location(location)
         fid = location[2]
 
         if not self.__data_map.has_key( fid ):
