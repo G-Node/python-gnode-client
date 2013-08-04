@@ -347,7 +347,7 @@ class Session( Browser ):
 
 
     @activate_remote
-    def sync(self, obj_to_sync, cascade=False):
+    def push(self, obj_to_sync, cascade=False):
         """ syncs a given object to the server (updates or creates a new one).
 
         cascade:    True/False

@@ -110,9 +110,13 @@ class Cache( object ):
 
         # 3. serializing
         if obj.__class__ in [self._meta.models_map['section']]: # odml object
-            document = odml.tools.xmlparser.load(self.odml_path)
+
+            if os.path.exists( self.odml_path ):
+                document = odml.tools.xmlparser.load(self.odml_path)
+            else:
+                document = odml.Document()
             document.append(obj)
-            writer = XMLWriter(document)
+            writer = odml.tools.xmlparser.XMLWriter(document)
             writer.write_file(self.odml_path)
 
         else: # NEO object
