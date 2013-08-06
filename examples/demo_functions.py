@@ -24,9 +24,10 @@ g.ls('/eph/blk/H7GCCA5O4J/')
 
 # 5. build a query for remote
 filt = {}
-filt['block__id'] = 'H7GCCA5O4J'
+filt['block'] = 'H7GCCA5O4J'
 filt['color'] = '270'
 filt['orientation'] = '135'
+filt['condition'] = 'saccade'
 segs = g.select('segment', filt)
 segs
 
@@ -91,9 +92,45 @@ g.push(experiment, cascade=True)
 # sync + only changes are synced
 g.push(experiment, cascade=True) # FIXME
 
-# query for analysis
+# query for analysis: for selected LFP channel, calculate the averages of the 
+# LFP traces over all trials for selected unique experimental condition (2 behav 
+# cond, 4x4 stimuli). Save the averages because they will be used often. Plot 
+# the LFP responses together with the mean for a given LFP channel, color, and 
+# orientation.
+query = {}
+
+filt
+query['segment__in'] = [s._gnode['id'] for s in segs]
+
+g.ls('/eph/blk/H7GCCA5O4J/')
+g.ls('/eph/rcg/GRE8TL33PR/')
+query['recordingchannel'] = 'SCK5228IN7'
+
+signals = g.select('analogsignal', query, data_load=True)
+for s in sigs:
+    pl.plot(s.times, s)
+
+#-------------------------------------------------------------------------------
+# NOT IMPLEMENTED
+#-------------------------------------------------------------------------------
+
+# annotation
+
+# delete
 
 # sharing
+
+# diff
+
+# file management
+
+# quick version history
+
+# search of course (do we need it on the client?)
+
+#-------------------------------------------------------------------------------
+# ISSUES
+#-------------------------------------------------------------------------------
 
 # query local NEO objects
 

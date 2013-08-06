@@ -445,7 +445,7 @@ class Session( Browser ):
                 # a list of children in the gnode attribute in all parent 
                 # objects for obj must be updated with a newly synced child. it 
                 # should be done here, not at the end of the sync, to keep 
-                # objects updated in case the sync fails.
+                # objects updated in case the sync fails. 
                 Serializer.update_parent_children(obj, self._meta)
 
                 success = True
@@ -513,10 +513,18 @@ class Session( Browser ):
                 # otherwise they will stay as 'orphaned' and may pollute object
                 # space TODO
 
+        # because of the API feature of updating a parent's guid with every 
+        # object update 'parent'-type objects after sync may have outdated 
+        # guids, which could be solved by pulling all object at the end of the
+        # sync (below) or better remove this feature on the API level.
+        #print_status('updating object references..')
+        #obj_to_sync = g.pull(obj_to_sync._gnode['location'])
+
         # final output
         print_status('sync done, %d objects processed.\n' % len( processed ))
 
 
+    @activate_remote
     def annotate(self, objects, values):
         """ annotates given objects with given values. sends requests to the 
         backend. objects, values - are lists """
@@ -694,8 +702,15 @@ class Session( Browser ):
     # experimental functions (in development)
     #---------------------------------------------------------------------------
 
+    @activate_remote
     def delete(self, obj_type, obj_id=None, *kwargs):
         """ delete (archive) one or several objects on the server """
+        raise NotImplementedError
+
+
+    @activate_remote
+    def set_permissions(self, location, level=None, acl={}):
+        """ updates object acl and / or access level """
         raise NotImplementedError
 
 
