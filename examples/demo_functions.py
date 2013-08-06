@@ -69,20 +69,27 @@ for s in sigs:
 pl.show()
 
 # use of terminologies
-
+g.terminologies
+experiment = g.terminologies['Experiment'].clone()
+experiment.name = 'Saccade and Fixation Tasks'
+experiment.properties
 
 # local cache for new objects
+g._cache.add_object(experiment)
 
 # find cached objects after session brake
+g.shutdown()
+g = init()
 g._cache.ls()
-s1 = g._cache.objs[0]
+restored_experiment = g._cache.objs[28]
+experiment == restored_experiment
 
-
-# find cached objects after session brake
-
-# sync function
+# push function
+g.push(experiment)
+g.push(experiment, cascade=True)
 
 # sync + only changes are synced
+g.push(experiment, cascade=True) # FIXME
 
 # query for analysis
 

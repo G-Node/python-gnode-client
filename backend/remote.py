@@ -168,14 +168,14 @@ class Remote( BaseBackend ):
         if resp.status_code == 304:
             return 304
 
+        if resp.status_code == 412: # lid should be defined
+            message = 'Object at %s was changed. please pull current version first.' % str(lid)
+            raise errors.SyncFailed( message )
+
         raw_json = get_json_from_response( resp )
         if not resp.status_code in [200, 201, 412]:
             message = '%s (%s)' % (raw_json['message'], raw_json['details'])
             raise errors.error_codes[resp.status_code]( message )
-
-        if resp.status_code == 412: # lid should be defined
-            message = 'Object at %s was changed. please pull current version first.' % str(lid)
-            raise errors.SyncFailed( message )
 
         return raw_json['selected'][0] # should be single object 
 
