@@ -84,6 +84,8 @@ class Meta( object ):
         # init cache settings
         self.load_cached_data = bool( profile_data['load_cached_data'] )
         self.cache_dir = os.path.abspath( profile_data['cacheDir'] )
+        if not os.path.exists( self.cache_dir ):
+            os.mkdir( self.cache_dir )
         self.models_map = models_map
 
     def get_array_attr_names(self, model_name):

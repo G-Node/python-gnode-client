@@ -146,11 +146,12 @@ class Remote( BaseBackend ):
         return raw_json['selected']
 
 
-    def save(self, json_obj):
+    def save(self, json_obj, force_update=False):
         """ creates / updates object at the remote """
         headers = {}
-        if json_obj['fields'].has_key('guid'):
-            headers = {'If-Match': json_obj['fields']['guid']}
+        if not force_update: # skip eTag in force_update mode
+            if json_obj['fields'].has_key('guid'):
+                headers = {'If-Match': json_obj['fields']['guid']}
 
         params = {'m2m_append': 0}
 
@@ -168,12 +169,12 @@ class Remote( BaseBackend ):
         if resp.status_code == 304:
             return 304
 
-        if resp.status_code == 412: # lid should be defined
-            message = 'Object at %s was changed. please pull current version first.' % str(lid)
+        if resp.status_code == 412: # location should be defined
+            message = 'Object at %s was changed. please pull current version first.' % location
             raise errors.SyncFailed( message )
 
         raw_json = get_json_from_response( resp )
-        if not resp.status_code in [200, 201, 412]:
+        if not resp.status_code in [200, 201]:
             message = '%s (%s)' % (raw_json['message'], raw_json['details'])
             raise errors.error_codes[resp.status_code]( message )
 

@@ -115,7 +115,7 @@ class Cache( object ):
                 document = odml.tools.xmlparser.load(self.odml_path)
             else:
                 document = odml.Document()
-            document.append(obj)
+            document.append(obj) # FIXME duplicate if the same object?
             writer = odml.tools.xmlparser.XMLWriter(document)
             writer.write_file(self.odml_path)
 

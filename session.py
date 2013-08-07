@@ -272,6 +272,7 @@ class Session( Browser ):
 
                 # or just download attached metadata here?
                 # metadata = self._fetch_metadata_by_json(cls, json_obj)
+                
                 print_status("%s fetched from server." % loc)
 
             stack.remove( loc ) # not to forget to remove processed object
@@ -347,17 +348,19 @@ class Session( Browser ):
 
 
     @activate_remote
-    def push(self, obj_to_sync, cascade=False):
+    def push(self, obj_to_sync, cascade=False, force_update=False):
         """ syncs a given object to the server (updates or creates a new one).
 
         cascade:    True/False
 
         Arguments:
 
-        obj_to_sync:a python object to sync. If an object has gnode attribute,
-                    it means it will be updated on the server. If no gnode
-                    attribute is found a new object will be submitted.
-        cascade:    sync all children recursively (True/False)
+        obj_to_sync:    a python object to sync. If an object has gnode 
+                        attribute, it means it will be updated on the server. If
+                        no gnode attribute is found a new object will be 
+                        submitted.
+        cascade:        sync all children recursively (True/False)
+        force_update:   overwrites changes on the remote, if any.
         """
         supp_models = [m for k, m in models_map.items() if \
             not k in ['property', 'value']]
@@ -436,7 +439,7 @@ class Session( Browser ):
                     if k.endswith('_set') or k == 'shared_with':
                         json_obj['fields'].pop( k, None )
 
-                raw_json = self._remote.save( json_obj )
+                raw_json = self._remote.save(json_obj, force_update=force_update)
 
                 if not raw_json == 304:
                     # update local in-memory object with newly acquired params
@@ -508,7 +511,7 @@ class Session( Browser ):
                     }
                 }
 
-                self._remote.save( json_obj )
+                self._remote.save(json_obj, force_update=force_update)
                 # here is a question: should cleaned objects be deleted? 
                 # otherwise they will stay as 'orphaned' and may pollute object
                 # space TODO
@@ -517,8 +520,10 @@ class Session( Browser ):
         # object update 'parent'-type objects after sync may have outdated 
         # guids, which could be solved by pulling all object at the end of the
         # sync (below) or better remove this feature on the API level.
-        #print_status('updating object references..')
-        #obj_to_sync = g.pull(obj_to_sync._gnode['location'])
+        print_status('updating object references..')
+        updated = self.pull(obj_to_sync._gnode['location'])
+        # FIXME update _gnode attributes updated - obj_to_sync recursively
+        self._cache.save_single_object(obj_to_sync) # save updated etags etc.
 
         # final output
         print_status('sync done, %d objects processed.\n' % len( processed ))
