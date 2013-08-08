@@ -76,7 +76,7 @@ experiment.name = 'Saccade and Fixation Tasks'
 experiment.properties
 
 # local cache for new objects
-g._cache.add_object(experiment)
+g._cache.push(experiment)
 
 # find cached objects after session brake
 g.shutdown()

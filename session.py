@@ -367,6 +367,7 @@ class Session( Browser ):
 
         processed = [] # collector of permalinks of processed objects
         to_clean = [] # collector of ids of objects to clean parent
+        to_update_refs = [] # collector of parent-type objs to update etags
         stack = [ obj_to_sync ] # a stack of objects to sync
 
         self._cache.push(obj_to_sync) # if not yet there
@@ -442,6 +443,8 @@ class Session( Browser ):
                 if not raw_json == 304:
                     # update local in-memory object with newly acquired params
                     self._meta.set_gnode_descr(obj, raw_json)
+                    if self._meta.is_container(cls):
+                        to_update_refs.append(obj)
 
                 # a list of children in the gnode attribute in all parent 
                 # objects for obj must be updated with a newly synced child. it 
@@ -519,12 +522,16 @@ class Session( Browser ):
         # guids, which could be solved by pulling all object at the end of the
         # sync (below) or better remove this feature on the API level.
         print_status('updating object references..')
-        def update_reference(obj):
-            self.__update_gnode_attr(obj_to_sync)
-            for rel in self._meta.iterate_children(obj):
-                pre_process(rel)
+        #def update_reference(obj):
+        #    try:
+        #        self.__update_gnode_attr(obj)
+        #    except AttributeError:
+        #        pass # object wasn't properly synced
+        #    for rel in self._meta.iterate_children(obj):
+        #        update_reference(rel)
 
-        update_reference(obj_to_sync) # update all eTags from the remote
+        for obj in to_update_refs:
+            self.__update_gnode_attr(obj) # update all eTags from the remote
         self._cache.save_all() # save updated etags etc.
 
         # final output
@@ -708,12 +715,12 @@ class Session( Browser ):
 
     def __update_gnode_attr(self, obj):
         """ non-recursive update of a gnode attribute for a given object """
-        json_obj = self.get_gnode_descr(obj)
+        json_obj = self._meta.get_gnode_descr(obj)
         if not json_obj:
-            raise "Object %s was never synced. Can't update gnode attribute." % str(obj)
-        obj_type = self._meta.parse_location(json_obj['location'])
+            raise AttributeError("Object %s was never synced. Can't update gnode attribute." % str(obj))
+        obj_type = self._meta.parse_location(json_obj['location'])[1]
         new_json = self.select(obj_type, {"id": json_obj['id']}, mode="json")[0]
-        self.set_gnode_descr(obj, new_json)
+        self._meta.set_gnode_descr(obj, new_json)
     
     #---------------------------------------------------------------------------
     # experimental functions (in development)

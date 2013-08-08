@@ -103,9 +103,9 @@ class Meta( object ):
         cls = self.get_type_by_obj( obj )
         if not cls:
             raise "This object is not supported: %s" % str(obj)
-        children = self._meta.app_definitions[cls]['children']
+        children = self.app_definitions[cls]['children']
         for child_type in children: # child_type is like 'segment', 'event' etc.
-            for rel in getattr(obj, get_children_field_name( child )):
+            for rel in getattr(obj, get_children_field_name( child_type )):
                 yield rel
 
     def parse_location(self, location):
@@ -117,6 +117,11 @@ class Meta( object ):
             return True
         except ValueError:
             return False
+
+    def is_container(self, model_name):
+        containers = ['section', 'block', 'segment', 'unit',\
+            'recordingchannelgroup', 'recordingchannel']
+        return model_name in containers
 
     def is_modified(self, json_obj):
         """ checks if object was modified locally by validating that object

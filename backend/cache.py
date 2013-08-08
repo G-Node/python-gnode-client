@@ -26,6 +26,7 @@ class Cache( object ):
     def __init__(self, meta):
         self._meta = meta
         self.neo_path = os.path.join( self._meta.cache_dir, 'neo.h5' )
+        self.temp_neo_path = os.path.join( self._meta.cache_dir, 'tempneo.h5' )
         self.odml_path = os.path.join( self._meta.cache_dir, 'meta.odml' )
         self.data_map_path = os.path.join( self._meta.cache_dir, 'data_map.json' )
         if meta.load_cached_data:
@@ -70,7 +71,9 @@ class Cache( object ):
                 self.save_single_object(obj)
                 return None # object already cached
 
-        self.save_single_object(obj)
+        self.save_single_object(o            # 4. clean-up from gnode attributes
+            post_process(obj)
+bj)
         self.__objs.append(obj)
     """
       
@@ -98,7 +101,7 @@ class Cache( object ):
             for rel in self._meta.iterate_children(obj):
                 post_process(rel)
 
-        iom = neo.io.hdf5io.NeoHdf5IO(filename=self.neo_path)
+        iom = neo.io.hdf5io.NeoHdf5IO(filename=self.temp_neo_path)
         document = odml.Document()
         for obj in self.__objs:
             # 1. object type validation
@@ -116,12 +119,15 @@ class Cache( object ):
             else: # NEO object
                 iom.save(obj)
 
-            # 4. clean-up from gnode attributes
-            post_process(obj)
-            
         iom.close()
+        os.rename(self.temp_neo_path, self.neo_path)
         writer = odml.tools.xmlparser.XMLWriter(document)
         writer.write_file(self.odml_path)
+
+        # 4. clean-up from gnode attributes
+        for obj in self.__objs:
+            post_process(obj)
+
 
 
     def save_data_map(self):
