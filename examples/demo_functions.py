@@ -11,7 +11,7 @@ g.ls('/mtd/sec/ACJKFO8I1E/')
 stimulus = g.pull('/mtd/sec/E9DU7B5Q1D/')
 stimulus # odml section
 stimulus.properties
-stimulus.properties['Author'].values
+stimulus.properties['Colors'].values
 stimulus.properties['Orientations'].values
 g.ls()
 
@@ -57,18 +57,6 @@ g.shutdown()
 g = init()
 s1 = g.pull('/eph/seg/AV3MPA8FES')
 
-# 11. plot selected segment
-from matplotlib import pylab as pl
-sigs = s1.analogsignals
-
-pl.xlabel(sigs[0].times.units)
-pl.ylabel(sigs[0].units)
-
-for s in sigs:
-    pl.plot(s.times, s)
-
-pl.show()
-
 # use of terminologies
 g.terminologies
 experiment = g.terminologies['Experiment'].clone()
@@ -82,8 +70,7 @@ g._cache.push(experiment)
 g.shutdown()
 g = init()
 g._cache.ls()
-restored_experiment = g._cache.objs[28]
-experiment == restored_experiment
+experiment = g._cache.objs[28]
 
 # push function
 g.push(experiment)
@@ -106,9 +93,16 @@ g.ls('/eph/blk/H7GCCA5O4J/')
 g.ls('/eph/rcg/GRE8TL33PR/')
 query['recordingchannel'] = 'SCK5228IN7'
 
-signals = g.select('analogsignal', query, data_load=True)
+# 11. plot selected data
+from matplotlib import pylab as pl
+sigs = g.select('analogsignal', query, data_load=True)
 for s in sigs:
     pl.plot(s.times, s)
+
+pl.xlabel(sigs[0].times.units)
+pl.ylabel(sigs[0].units)
+
+pl.show()
 
 #-------------------------------------------------------------------------------
 # NOT IMPLEMENTED

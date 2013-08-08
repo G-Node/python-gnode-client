@@ -293,23 +293,27 @@ bj)
     def is_there(self, original):
         """ traverses cached objects tree and searches for an equal object """
         def check_obj(obj, original):
-            try:
-                if obj == original:
-                    return obj
-            except:
-                pass # failed comparisons for NEO np-based objects
+            model_obj = self._meta.get_type_by_obj(obj)
+            model_orig = self._meta.get_type_by_obj(original)
+            if model_obj == model_orig and model_obj in \
+                ['analogsignal', 'irregularlysampledsignal']:
+                # how to f..king do that?
+                comp = (obj == original)
+                if comp.all():
+                    return True
+            else:
+                try:
+                    if obj == original:
+                        return True
+                except:
+                    pass # because of NEO
                 
             for rel in self._meta.iterate_children(obj):
-                found = check_obj(rel, original)
-                if not type(found) == type(None):
-                    return found
+                return check_obj(rel, original)
             return None
 
         for obj in self.__objs:
-            found = check_obj(obj, original)
-            if not type(found) == type(None):
-                return found
-
+            return check_obj(obj, original)
         return None
         
     
