@@ -41,16 +41,29 @@ class Cache( object ):
             out += obj.__repr__()[ : self._meta.max_line_out ] + '\n'
         print_status( out )
 
+
     @property
     def objects(self):
         return self.__objs
 
+
+    def push(self, obj, save=False):
+        if not self.is_there(obj):
+            self.__objs.append(obj)
+                
+        if save:
+            self.save_objects()
+
+
+    def update_data_map(self, fid, datapath):
+        self.__data_map[ fid ] = datapath
+        
     #---------------------------------------------------------------------------
-    # ON DISK operations with OBJECTS
+    # WRITING TO DISK operations
     #---------------------------------------------------------------------------
 
+    """
     def add_object(self, obj):
-        """ adds object to cache map + saves it to the cache HDF5 file """
         json_obj = self._meta.get_gnode_descr(obj)
         if json_obj: # synced object
             if self.get_obj_by_location(json_obj['location']):
@@ -59,17 +72,10 @@ class Cache( object ):
 
         self.save_single_object(obj)
         self.__objs.append(obj)
-
-
+    """
+      
     def save_objects(self):
         """ saves all objects in the objs list """
-        for obj in self.__objs:
-            self.save_single_object(obj)
-
-
-    def save_single_object(self, obj):
-        """ uses NeoHDF5IO to store a given object in the root (cascade!!) """
-
         def pre_process(obj):
             """ tag objects with gnode attribute """
             json_obj = self._meta.get_gnode_descr(obj)
@@ -79,12 +85,8 @@ class Cache( object ):
                 else:
                     obj.annotations['gnode'] = json_obj
 
-            cls = self._meta.get_type_by_obj( obj )
-            children = self._meta.app_definitions[cls]['children']
-            for child in children: # 'child' is like 'segment', 'event' etc.
-                for rel in getattr(obj, get_children_field_name( child )):
-                    pre_process(rel)
-
+            for rel in self._meta.iterate_children(obj):
+                pre_process(rel)
 
         def post_process(obj):
             """ clean objects from gnode attribute """
@@ -93,41 +95,58 @@ class Cache( object ):
             else:
                 obj.annotations.pop('gnode', None)
 
-            cls = self._meta.get_type_by_obj( obj )
-            children = self._meta.app_definitions[cls]['children']
-            for child in children: # 'child' is like 'segment', 'event' etc.
-                for rel in getattr(obj, get_children_field_name( child )):
-                    post_process(rel)
+            for rel in self._meta.iterate_children(obj):
+                post_process(rel)
 
-        # 1. object type validation
-        supp_models = [m for k, m in self._meta.models_map.items() if \
-            not k in ['property', 'value']]
-        if not obj.__class__ in supp_models:
-            raise TypeError('Objects of that type are not supported.')
+        iom = neo.io.hdf5io.NeoHdf5IO(filename=self.neo_path)
+        document = odml.Document()
+        for obj in self.__objs:
+            # 1. object type validation
+            supp_models = [m for k, m in self._meta.models_map.items() if \
+                not k in ['property', 'value']]
+            if not obj.__class__ in supp_models:
+                raise TypeError('Objects of that type are not supported.')
 
-        # 2. preprocessing
-        pre_process(obj)
+            # 2. tagging object with gnode attributes, if exists
+            pre_process(obj)
 
-        # 3. serializing
-        if obj.__class__ in [self._meta.models_map['section']]: # odml object
+            # 3. serializing
+            if obj.__class__ in [self._meta.models_map['section']]: # odml object
+                document.append(obj)
+            else: # NEO object
+                iom.save(obj)
 
-            if os.path.exists( self.odml_path ):
-                document = odml.tools.xmlparser.load(self.odml_path)
-            else:
-                document = odml.Document()
-            document.append(obj) # FIXME duplicate if the same object?
-            writer = odml.tools.xmlparser.XMLWriter(document)
-            writer.write_file(self.odml_path)
-
-        else: # NEO object
-            iom = neo.io.hdf5io.NeoHdf5IO(filename=self.neo_path)
-            iom.save(obj)
-            iom.close()
-
-        # 4. clean-up
-        post_process(obj)
+            # 4. clean-up from gnode attributes
+            post_process(obj)
+            
+        iom.close()
+        writer = odml.tools.xmlparser.XMLWriter(document)
+        writer.write_file(self.odml_path)
 
 
+    def save_data_map(self):
+        """ save file references in data_map.json """
+        with open(self.data_map_path, 'w') as f:
+            f.write( json.dumps(self.__data_map) )
+
+
+    def save_all(self):
+        """ saves all maps / objects to disk """
+        self.save_data_map()
+        self.save_objects()
+
+
+    def clear_cache(self):
+        """ removes all objects from the cache """
+        self.__objs = []
+        self.__data_map = {}
+        self.save_all()
+        # TODO clear downloaded files from disk??
+                
+    #---------------------------------------------------------------------------
+    # READING FROM DISK operations
+    #---------------------------------------------------------------------------
+    
     def load_cached_data(self):
         """ loads cache from disk, validates cached files """
         def pre_process(obj):
@@ -145,11 +164,8 @@ class Cache( object ):
                 if type(json_obj) == type({}) and json_obj.has_key('id'):
                     self._meta.set_gnode_descr(obj, json_obj)
 
-            cls = self._meta.get_type_by_obj( obj )
-            children = self._meta.app_definitions[cls]['children']
-            for child in children: # 'child' is like 'segment', 'event' etc.
-                for rel in getattr(obj, get_children_field_name( child )):
-                    pre_process(rel)
+            for rel in self._meta.iterate_children(obj):
+                pre_process(rel)
 
         # 1. loading data_map
         if not os.path.exists( self.data_map_path ):
@@ -210,30 +226,6 @@ class Cache( object ):
         # clean _gnode properties and annotations
         print_status('Objects loaded (%d).\n' % len(self.__objs))
 
-
-    def update_data_map(self, fid, datapath):
-        self.__data_map[ fid ] = datapath
-
-
-    def save_data_map(self):
-        """ save file references in data_map.json """
-        with open(self.data_map_path, 'w') as f:
-            f.write( json.dumps(self.__data_map) )
-
-
-    def save_all(self):
-        """ saves all maps / objects to disk """
-        self.save_data_map()
-        self.save_objects()
-
-
-    def clear_cache(self):
-        """ removes all objects from the cache """
-        self.__objs = []
-        self.__data_map = {}
-        self.save_all()
-        # TODO clear downloaded files from disk??
-
     #---------------------------------------------------------------------------
     # ON DISK operations with DATAFILES
     #---------------------------------------------------------------------------
@@ -268,7 +260,8 @@ class Cache( object ):
     #---------------------------------------------------------------------------
 
     def get_obj_by_location(self, location):
-        """ traverses cached objects tree(s) and searches for an object """
+        """ traverses cached objects tree(s) and searches for an object by 
+        location, if it exists """
         def check_location(obj, location):
             json_obj = self._meta.get_gnode_descr(obj)
             if json_obj and json_obj.has_key('location'):
@@ -276,13 +269,10 @@ class Cache( object ):
                 if str(curr_loc) == str(location):
                     return obj
 
-            cls = self._meta.get_type_by_obj( obj )
-            children = self._meta.app_definitions[cls]['children']
-            for child in children: # 'child' is like 'segment', 'event' etc.
-                for rel in getattr(obj, get_children_field_name( child )):
-                    found = check_location(rel, location)
-                    if not type(found) == type(None):
-                        return found
+            for rel in self._meta.iterate_children(obj):
+                found = check_location(rel, location)
+                if not type(found) == type(None):
+                    return found
             return None
 
         location = self._meta.parse_location(location)
@@ -294,6 +284,29 @@ class Cache( object ):
         return None
 
 
+    def is_there(self, original):
+        """ traverses cached objects tree and searches for an equal object """
+        def check_obj(obj, original):
+            try:
+                if obj == original:
+                    return obj
+            except:
+                pass # failed comparisons for NEO np-based objects
+                
+            for rel in self._meta.iterate_children(obj):
+                found = check_obj(rel, original)
+                if not type(found) == type(None):
+                    return found
+            return None
+
+        for obj in self.__objs:
+            found = check_obj(obj, original)
+            if not type(found) == type(None):
+                return found
+
+        return None
+        
+    
     def detect_changed_data_fields(self, obj):
         """ compares all current in-memory data fields (arrays) for a given 
         object with cached (on-disk) versions of these data arrays and returns

@@ -98,6 +98,16 @@ class Meta( object ):
 
         return names
 
+    def iterate_children(self, obj):
+        """ iterator over all children of a certain object """
+        cls = self.get_type_by_obj( obj )
+        if not cls:
+            raise "This object is not supported: %s" % str(obj)
+        children = self._meta.app_definitions[cls]['children']
+        for child_type in children: # child_type is like 'segment', 'event' etc.
+            for rel in getattr(obj, get_children_field_name( child )):
+                yield rel
+
     def parse_location(self, location):
         return Location(location, self)
 
@@ -188,7 +198,7 @@ class Location(list):
         return self.__location[index]
 
     def __setitem__(self, key, value):
-        self.__path[key] = value
+        self.__location[key] = value
 
     def __len__(self):
         return len(self.__location)

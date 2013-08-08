@@ -332,18 +332,16 @@ class Session( Browser ):
                 prp.append( val )
 
                 # save both objects to cache
-                self._cache.add_object( prp )
-                self._cache.add_object( val )
+                self._cache.push( prp )
+                self._cache.push( val )
 
                 setattr( mobj, prp.name, prp )
         """
-
-        print_status( 'Object(s) loaded.\n' )
-
         obj = processed[ str(location) ]
-        self._cache.add_object(obj)
+        self._cache.push(obj)
         self._cache.save_data_map()
 
+        print_status( 'Object(s) loaded.\n' )
         return obj
 
 
@@ -371,7 +369,7 @@ class Session( Browser ):
         to_clean = [] # collector of ids of objects to clean parent
         stack = [ obj_to_sync ] # a stack of objects to sync
 
-        self._cache.add_object(obj_to_sync) # if not yet there
+        self._cache.push(obj_to_sync) # if not yet there
 
         while len( stack ) > 0:
 
@@ -521,9 +519,13 @@ class Session( Browser ):
         # guids, which could be solved by pulling all object at the end of the
         # sync (below) or better remove this feature on the API level.
         print_status('updating object references..')
-        updated = self.pull(obj_to_sync._gnode['location'])
-        # FIXME update _gnode attributes updated - obj_to_sync recursively
-        self._cache.save_single_object(obj_to_sync) # save updated etags etc.
+        def update_reference(obj):
+            self.__update_gnode_attr(obj_to_sync)
+            for rel in self._meta.iterate_children(obj):
+                pre_process(rel)
+
+        update_reference(obj_to_sync) # update all eTags from the remote
+        self._cache.save_all() # save updated etags etc.
 
         # final output
         print_status('sync done, %d objects processed.\n' % len( processed ))
@@ -703,6 +705,16 @@ class Session( Browser ):
 
         return obj
 
+
+    def __update_gnode_attr(self, obj):
+        """ non-recursive update of a gnode attribute for a given object """
+        json_obj = self.get_gnode_descr(obj)
+        if not json_obj:
+            raise "Object %s was never synced. Can't update gnode attribute." % str(obj)
+        obj_type = self._meta.parse_location(json_obj['location'])
+        new_json = self.select(obj_type, {"id": json_obj['id']}, mode="json")[0]
+        self.set_gnode_descr(obj, new_json)
+    
     #---------------------------------------------------------------------------
     # experimental functions (in development)
     #---------------------------------------------------------------------------
@@ -772,8 +784,8 @@ class Session( Browser ):
             prp.append( val )
 
             # save both objects to cache
-            self._cache.add_object( prp )
-            self._cache.add_object( val )
+            self._cache.push( prp )
+            self._cache.push( val )
 
             setattr( mobj, prp.name, prp )
 
