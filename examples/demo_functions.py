@@ -5,97 +5,109 @@ g = init()
 
 # 2. ls function
 g.ls()
-g.ls('/mtd/sec/ACJKFO8I1E/')
+g.ls('/mtd/sec/HNHB7OSSAM/')
 
-# 3. pull function
-stimulus = g.pull('/mtd/sec/E9DU7B5Q1D/')
+# 3. cd function
+g.cd('/mtd/sec/HNHB7OSSAM/')
+g.ls()
+
+# 4. pull function
+stimulus = g.pull('/mtd/sec/TMDCSTMLK7/')
 stimulus # odml section
 stimulus.properties
 stimulus.properties['Colors'].values
 stimulus.properties['Orientations'].values
 g.ls()
 
-# 3. cd function
-g.cd('/mtd/sec/ACJKFO8I1E/')
-g.ls()
+# 5. explore dataset
+g.ls('/eph/blk/4M47OCTV0M/')
 
-# 4. explore dataset
-g.ls('/eph/blk/H7GCCA5O4J/')
-
-# 5. build a query for remote
+# 6. build a query for remote
 filt = {}
-filt['block'] = 'H7GCCA5O4J'
+filt['block'] = '4M47OCTV0M'
 filt['color'] = '270'
 filt['orientation'] = '135'
-filt['condition'] = 'saccade'
-segs = g.select('segment', filt)
-segs
+#filt['condition'] = 'saccade'
+segs = g.select('segment', filt) # only segments, no data
+len(segs)
 
-# 6. get to know an id of a certain trial
+# 7. get to know an id of a certain trial
 segs[0]._gnode
 [(s._gnode['fields']['date_created'], s._gnode['id']) for s in segs]
 
-# 7. get the whole segment
-s1 = g.pull('/eph/seg/AV3MPA8FES')
-s1
+# 8. get the whole segment
+s1 = g.pull('/eph/seg/R8KV2OP75L')
+type(s1)
 s1.analogsignals
 s1.spiketrains
-s1.metadata # FIXME
+#s1.metadata # FIXME
 
-# 8. pulled objects are cached
-s1 = g.pull('/eph/seg/AV3MPA8FES')
+# 9. pulled objects are cached
+s1 = g.pull('/eph/seg/R8KV2OP75L')
 
-# 9. only changed objects are pulled again
+# 10. only changed objects are pulled again
 s1.analogsignals[0].name
 s1.analogsignals[0]._gnode['location']
 # change name here
-s1 = g.pull('/eph/seg/AV3MPA8FES')
+s1 = g.pull('/eph/seg/R8KV2OP75L')
 s1.analogsignals[0].name
 
-# 10. cached objects are kept after a session brake
-g.shutdown()
-g = init()
-s1 = g.pull('/eph/seg/AV3MPA8FES')
+# 11. you can fetch objects at previous states
+a1 = g.pull('/eph/sig/IV57JQPFSL/', {"at_time": '2013-08-09 09:56:44'})
+a1.name
 
-# use of terminologies
+# 12. cached objects are kept after a session brake
+g.shutdown()
+# quit here
+from session import init
+g = init()
+s1 = g.pull('/eph/seg/R8KV2OP75L')
+
+# 13. use of terminologies
 g.terminologies
 experiment = g.terminologies['Experiment'].clone()
 experiment.name = 'Saccade and Fixation Tasks'
 experiment.properties
 
-# local cache for new objects
-g._cache.push(experiment)
+# 14. local cache for new objects
+g._cache.push(experiment, save=True)
 
-# find cached objects after session brake
-g.shutdown()
+# 15. find cached objects after session brake
+# quit here
+from session import init
 g = init()
 g._cache.ls()
-experiment = g._cache.objs[28]
+experiment = g._cache.objects[5]
 
-# push function
+# 16. push function
 g.push(experiment)
 g.push(experiment, cascade=True)
 
-# sync + only changes are synced
-g.push(experiment, cascade=True) # FIXME
+# 17. sync only once if no changes
+g.push(experiment, cascade=True)
 
-# query for analysis: for selected LFP channel, calculate the averages of the 
+# 18. query for analysis: for selected LFP channel, calculate the averages of  
 # LFP traces over all trials for selected unique experimental condition (2 behav 
 # cond, 4x4 stimuli). Save the averages because they will be used often. Plot 
 # the LFP responses together with the mean for a given LFP channel, color, and 
 # orientation.
 query = {}
 
-filt
+filt = {}
+filt['block'] = '4M47OCTV0M'
+filt['color'] = '270'
+filt['orientation'] = '135'
+segs = g.select('segment', filt) # only segments, no data
+
 query['segment__in'] = [s._gnode['id'] for s in segs]
 
-g.ls('/eph/blk/H7GCCA5O4J/')
-g.ls('/eph/rcg/GRE8TL33PR/')
-query['recordingchannel'] = 'SCK5228IN7'
+g.ls('/eph/blk/4M47OCTV0M/')
+g.ls('/eph/rcg/L79SUDNQKU/')
+query['recordingchannel'] = '1GGA033LPN'
+len(sigs) = g.select('analogsignal', query, data_load=True)
 
-# 11. plot selected data
+# 19. plot selected data
 from matplotlib import pylab as pl
-sigs = g.select('analogsignal', query, data_load=True)
 for s in sigs:
     pl.plot(s.times, s)
 

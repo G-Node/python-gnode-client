@@ -48,7 +48,7 @@ class Cache( object ):
         return self.__objs
 
 
-    def push(self, obj, save=False):
+    def push(self, obj, save=True):
         if not self.is_there(obj):
             self.__objs.append(obj)
                 
