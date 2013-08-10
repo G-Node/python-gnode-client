@@ -10,8 +10,8 @@ from utils import *
 class Cache( object ):
     """ a class to handle cached objects and data for Session """
 
-    __objs = [] # in-memory cache, contains in-memory list of objects, like
-    # __objs = [
+    _objs = [] # in-memory cache, contains in-memory list of objects, like
+    # _objs = [
     #   <Section ...>,
     #   <Section ...>,
     #   <Block ...>
@@ -45,12 +45,14 @@ class Cache( object ):
 
     @property
     def objects(self):
-        return self.__objs
+        return self._objs
 
 
     def push(self, obj, save=True):
+        import ipdb
+        ipdb.set_trace()
         if not self.is_there(obj):
-            self.__objs.append(obj)
+            self._objs.append(obj)
                 
         if save:
             self.save_objects()
@@ -74,7 +76,7 @@ class Cache( object ):
         self.save_single_object(o            # 4. clean-up from gnode attributes
             post_process(obj)
 bj)
-        self.__objs.append(obj)
+        self._objs.append(obj)
     """
       
     def save_objects(self):
@@ -103,7 +105,7 @@ bj)
 
         iom = neo.io.hdf5io.NeoHdf5IO(filename=self.temp_neo_path)
         document = odml.Document()
-        for obj in self.__objs:
+        for obj in self._objs:
             # 1. object type validation
             supp_models = [m for k, m in self._meta.models_map.items() if \
                 not k in ['property', 'value']]
@@ -125,7 +127,7 @@ bj)
         writer.write_file(self.odml_path)
 
         # 4. clean-up from gnode attributes
-        for obj in self.__objs:
+        for obj in self._objs:
             post_process(obj)
 
 
@@ -144,7 +146,7 @@ bj)
 
     def clear_cache(self):
         """ removes all objects from the cache """
-        self.__objs = []
+        self._objs = []
         self.__data_map = {}
         self.save_all()
         # TODO clear downloaded files from disk??
@@ -209,7 +211,7 @@ bj)
                 try:
                     obj = iom.get(filepath)
                     pre_process(obj)
-                    self.__objs.append(obj)
+                    self._objs.append(obj)
                 except LookupError:
                     not_found.append( filepath )
             iom.close()
@@ -227,10 +229,10 @@ bj)
 
             for section in document.sections:
                 pre_process(section)
-                self.__objs.append(section)
+                self._objs.append(section)
 
         # clean _gnode properties and annotations
-        print_status('Objects loaded (%d).\n' % len(self.__objs))
+        print_status('Objects loaded (%d).\n' % len(self._objs))
 
     #---------------------------------------------------------------------------
     # ON DISK operations with DATAFILES
@@ -282,7 +284,7 @@ bj)
             return None
 
         location = self._meta.parse_location(location)
-        for obj in self.__objs:
+        for obj in self._objs:
             found = check_location(obj, location)
             if not type(found) == type(None):
                 return found
@@ -293,28 +295,18 @@ bj)
     def is_there(self, original):
         """ traverses cached objects tree and searches for an equal object """
         def check_obj(obj, original):
-            model_obj = self._meta.get_type_by_obj(obj)
-            model_orig = self._meta.get_type_by_obj(original)
-            if model_obj == model_orig and model_obj in \
-                ['analogsignal', 'irregularlysampledsignal']:
-                # how to f..king do that?
-                comp = (obj == original)
-                if comp.all():
-                    return True
-            else:
-                try:
-                    if obj == original:
-                        return True
-                except:
-                    pass # because of NEO
+            if id(obj) == id(original):
+                return True
                 
             for rel in self._meta.iterate_children(obj):
-                return check_obj(rel, original)
-            return None
+                if check_obj(rel, original):
+                    return True
+            return False
 
-        for obj in self.__objs:
-            return check_obj(obj, original)
-        return None
+        for obj in self._objs:
+            if check_obj(obj, original):
+                return True
+        return False
         
     
     def detect_changed_data_fields(self, obj):
