@@ -10,20 +10,19 @@ from utils import *
 class Cache( object ):
     """ a class to handle cached objects and data for Session """
 
-    _objs = [] # in-memory cache, contains in-memory list of objects, like
-    # _objs = [
-    #   <Section ...>,
-    #   <Section ...>,
-    #   <Block ...>
-    # ]
-
-    __data_map = {} # map of downloaded files, contains file paths by ID, like
-    # __data_map = {
-    #   'MAM4O5B431': '/.cache/MAM4O5B431.h5',
-    #   'IKU354JH1L': '/.cache/IKU354JH1L.h5',
-    # }
-
     def __init__(self, meta):
+        self._objs = [] # in-memory cache, contains list of object refs, like
+        # _objs = [
+        #   <Section ...>,
+        #   <Section ...>,
+        #   <Block ...>
+        # ]
+
+        self._data_map = {} # map of downloaded files, has ID:file path, like
+        # _data_map = {
+        #   'MAM4O5B431': '/.cache/MAM4O5B431.h5',
+        #   'IKU354JH1L': '/.cache/IKU354JH1L.h5',
+        # }
         self._meta = meta
         self.neo_path = os.path.join( self._meta.cache_dir, 'neo.h5' )
         self.temp_neo_path = os.path.join( self._meta.cache_dir, 'tempneo.h5' )
@@ -49,8 +48,6 @@ class Cache( object ):
 
 
     def push(self, obj, save=True):
-        import ipdb
-        ipdb.set_trace()
         if not self.is_there(obj):
             self._objs.append(obj)
                 
@@ -59,7 +56,7 @@ class Cache( object ):
 
 
     def update_data_map(self, fid, datapath):
-        self.__data_map[ fid ] = datapath
+        self._data_map[ fid ] = datapath
         
     #---------------------------------------------------------------------------
     # WRITING TO DISK operations
@@ -86,7 +83,8 @@ bj)
             json_obj = self._meta.get_gnode_descr(obj)
             if json_obj:
                 if obj.__class__ in self._meta.mtd_classes:
-                    obj.definition = json.dumps(json_obj)
+                    obj.definition = (obj.definition or '') + \
+                        "GNODE" + json.dumps(json_obj)
                 else:
                     obj.annotations['gnode'] = json_obj
 
@@ -96,7 +94,9 @@ bj)
         def post_process(obj):
             """ clean objects from gnode attribute """
             if obj.__class__ in self._meta.mtd_classes:
-                obj.definition = None
+                index = obj.definition.find('GNODE')
+                if index > 0:
+                    obj.definition = obj.definition[:index]
             else:
                 obj.annotations.pop('gnode', None)
 
@@ -131,11 +131,10 @@ bj)
             post_process(obj)
 
 
-
     def save_data_map(self):
         """ save file references in data_map.json """
         with open(self.data_map_path, 'w') as f:
-            f.write( json.dumps(self.__data_map) )
+            f.write( json.dumps(self._data_map) )
 
 
     def save_all(self):
@@ -147,7 +146,7 @@ bj)
     def clear_cache(self):
         """ removes all objects from the cache """
         self._objs = []
-        self.__data_map = {}
+        self._data_map = {}
         self.save_all()
         # TODO clear downloaded files from disk??
                 
@@ -160,13 +159,15 @@ bj)
         def pre_process(obj):
             """ clean objects from gnode attribute """
             if obj.__class__ in self._meta.mtd_classes:
-                try:
-                    json_obj = json.loads(obj.definition)
-                    if type(json_obj) == type({}) and json_obj.has_key('id'):
-                        self._meta.set_gnode_descr(obj, json_obj)
-                        obj.definition = None
-                except:
-                    pass
+                index = obj.definition.find('GNODE')
+                if index > 0:
+                    try:
+                        json_obj = json.loads(obj.definition[index+5:])
+                        if type(json_obj) == type({}) and json_obj.has_key('id'):
+                            self._meta.set_gnode_descr(obj, json_obj)
+                            obj.definition = obj.definition[:index]
+                    except:
+                        pass
             else:
                 json_obj = obj.annotations.pop('gnode', None)
                 if type(json_obj) == type({}) and json_obj.has_key('id'):
@@ -187,14 +188,14 @@ bj)
                 not_found = []
                 for lid, filepath in data_map.items():
                     if os.path.exists( filepath ):
-                        self.__data_map[ lid ] = filepath
+                        self._data_map[ lid ] = filepath
                     else:
                         not_found.append( filepath )
                 if not_found:
                     to_render = str( not_found )[:100]
                     print_status('Some cached files cannot be found, remove them from cache: %s\n' % to_render)
 
-                print_status('Data map loaded (%d).\n' % len( self.__data_map.keys() ))
+                print_status('Data map loaded (%d).\n' % len( self._data_map.keys() ))
 
             except ValueError:
                 print_status('Data map file cannot be parsed. Skip loading downloaded files.')
@@ -243,14 +244,14 @@ bj)
         location = self._meta.parse_location(location)
         fid = location[2]
 
-        if not self.__data_map.has_key( fid ):
+        if not self._data_map.has_key( fid ):
             return None
 
-        with tb.openFile( self.__data_map[ fid ], 'r') as f:
+        with tb.openFile( self._data_map[ fid ], 'r') as f:
             carray = f.listNodes( "/" )[0]
             data = np.array( carray[:] )
 
-        return {"id": fid, "path": self.__data_map[ fid ], "data": data}
+        return {"id": fid, "path": self._data_map[ fid ], "data": data}
 
 
     def save_data(self, arr):
