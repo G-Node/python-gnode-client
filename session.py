@@ -73,7 +73,7 @@ class Session( Browser ):
         self._meta = meta
 
         # 2. init Cache and Remote backend
-        self._cache = Cache( meta )
+        self.cache = Cache( meta )
         self._remote = Remote( meta )
         self._remote.open() # authenticate at the remote
 
@@ -91,7 +91,7 @@ class Session( Browser ):
 
     def clear_cache(self):
         """ removes all objects from the cache """
-        self._cache.clear_cache()
+        self.cache.clear_cache()
 
 
     @activate_remote
@@ -175,7 +175,7 @@ class Session( Browser ):
                 obj = Serializer.deserialize( json_obj, self._meta, data_refs )
                 objects.append( obj )
 
-        self._cache.save_data_map() # updates on-disk cache with new datafiles
+        self.cache.save_data_map() # updates on-disk cache with new datafiles
 
         return objects
 
@@ -241,7 +241,7 @@ class Session( Browser ):
 
             # find object in cache
             etag = None
-            cached_obj = self._cache.get_obj_by_location( loc )
+            cached_obj = self.cache.get_obj_by_location( loc )
             if not type(cached_obj) == type(None):
                 obj_descr = self._meta.get_gnode_descr(cached_obj)
                 if obj_descr and obj_descr['fields'].has_key('guid'):
@@ -332,14 +332,14 @@ class Session( Browser ):
                 prp.append( val )
 
                 # save both objects to cache
-                self._cache.push( prp )
-                self._cache.push( val )
+                self.cache.push( prp )
+                self.cache.push( val )
 
                 setattr( mobj, prp.name, prp )
         """
         obj = processed[ str(location) ]
-        self._cache.push(obj)
-        self._cache.save_data_map()
+        self.cache.push(obj)
+        self.cache.save_data_map()
 
         print_status( 'Object(s) loaded.\n' )
         return obj
@@ -370,7 +370,7 @@ class Session( Browser ):
         to_update_refs = [] # collector of parent-type objs to update etags
         stack = [ obj_to_sync ] # a stack of objects to sync
 
-        self._cache.push(obj_to_sync) # if not yet there
+        self.cache.push(obj_to_sync) # if not yet there
 
         while len( stack ) > 0:
 
@@ -532,7 +532,7 @@ class Session( Browser ):
 
         for obj in to_update_refs:
             self.__update_gnode_attr(obj) # update all eTags from the remote
-        self._cache.save_all() # save updated etags etc.
+        self.cache.save_all() # save updated etags etc.
 
         # final output
         print_status('sync done, %d objects processed.\n' % len( processed ))
@@ -610,7 +610,7 @@ class Session( Browser ):
         if self._remote.is_active:
             self._remote.close()
 
-        self._cache.save_all()
+        self.cache.save_all()
 
 
     #---------------------------------------------------------------------------
@@ -625,7 +625,7 @@ class Session( Browser ):
         model_name = self._meta.get_type_by_obj( obj )
 
         data_attrs = self._meta.get_array_attr_names( model_name )
-        attrs_to_sync = self._cache.detect_changed_data_fields( obj )
+        attrs_to_sync = self.cache.detect_changed_data_fields( obj )
 
         for attr in data_attrs: # attr is like 'times', 'signal' etc.
 
@@ -641,7 +641,7 @@ class Session( Browser ):
             if not type(arr) == type(None): # because of NEO __eq__
                 units = Serializer.parse_units(arr)
 
-                datapath = self._cache.save_data(arr)
+                datapath = self.cache.save_data(arr)
                 json_obj = self._remote.save_data(datapath)
 
                 # update cache data map
@@ -651,7 +651,7 @@ class Session( Browser ):
                 folder, tempname = os.path.split(datapath)
                 new_path = os.path.join(folder, fid + tempname[tempname.find('.'):])
                 os.rename(datapath, new_path)
-                self._cache.update_data_map(fid, new_path)
+                self.cache.update_data_map(fid, new_path)
 
                 data_refs[ attr ] = {'data': datalink, 'units': units}
 
@@ -673,15 +673,15 @@ class Session( Browser ):
                 continue # no data for this attribute
 
             arr_loc = self._meta.parse_location(arr_loc)
-            data_info = self._cache.get_data(arr_loc)
+            data_info = self.cache.get_data(arr_loc)
             
             if data_info == None: # no local data, fetch from remote
-                cache_dir = self._cache._meta.cache_dir
+                cache_dir = self.cache._meta.cache_dir
                 data_info = self._remote.get_data(arr_loc, cache_dir)
 
                 if not data_info == None: # raise error otherwise?
                     # update cache with new file
-                    self._cache.update_data_map(data_info['id'], data_info['path'])
+                    self.cache.update_data_map(data_info['id'], data_info['path'])
 
             data_refs[ array_attr ] = data_info['data']
 
@@ -791,8 +791,8 @@ class Session( Browser ):
             prp.append( val )
 
             # save both objects to cache
-            self._cache.push( prp )
-            self._cache.push( val )
+            self.cache.push( prp )
+            self.cache.push( val )
 
             setattr( mobj, prp.name, prp )
 
