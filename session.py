@@ -23,70 +23,50 @@ from backend.remote import Remote
 from models import Meta, Metadata, models_map, supported_models, units_dict
 
 #-------------------------------------------------------------------------------
-# common factory functions
-#-------------------------------------------------------------------------------
-
-def init(config_file='default.json', models_file='requirements.json'):
-    """Initialize session using data specified in a JSON configuration files
-
-    Args:
-        config_file: name of the configuration file in which the profile
-            to be loaded is contained the standard profile is located at
-            default.json
-
-        models_file: name of the configuration file defining models structure
-
-        about the model definitions file: FIXME put here the full description!!
-
-        'data_fields': a dict containing names of data fields for an object as
-            keys, and a list of attr names as values like
-            [<API_attr_name>, <local_name_setter>, <local_name_getter>]
-    """
-
-    try:
-        # 1. load profile configuration
-        with open(str(config_file), 'r') as f:
-            profile_data = json.load(f)
-
-        # 2. load apps and models definitions
-        with open(str(models_file), 'r') as f:
-            model_data = json.load(f)
-        
-    except IOError as err:
-        raise errors.AbsentConfigurationFileError(err)
-    except ValueError as err:
-        raise errors.MisformattedConfigurationFileError(err)
-
-    return Session(profile_data, model_data)
-
-#-------------------------------------------------------------------------------
 # core Client classes
 #-------------------------------------------------------------------------------
 
-class Session( Browser ):
+class GNode( Browser ):
     """ Object to handle connection and client-server data transfer """
 
-    def __init__(self, profile_data, model_data):
+    def __init__(self, config_file='default.json', models_file='requirements.json'):
+        """ creates session using data specified in a JSON configuration files
 
-        # 1. load meta info: store all settings in Meta class as _meta attribute
+        config_file: name of the configuration file in which the profile to be 
+                     loaded is contained the standard profile is located at
+                     default.json
+
+        models_file: name of the configuration file defining models structure"""
+        try:
+            with open(str(config_file), 'r') as f:
+                profile_data = json.load(f)
+
+            with open(str(models_file), 'r') as f:
+                model_data = json.load(f)
+            
+        except IOError as err:
+            raise errors.AbsentConfigurationFileError(err)
+        except ValueError as err:
+            raise errors.MisformattedConfigurationFileError(err)
+
         meta = Meta( profile_data, model_data )
         self._meta = meta
 
-        # 2. init Cache and Remote backend
         self.cache = Cache( meta )
         self._remote = Remote( meta )
         self._remote.open() # authenticate at the remote
 
-        # 3. load odML terminologies
         # TODO make odML to load terms into our cache folder, not default /tmp
         terms = terminology.terminologies.load(profile_data['odml_repository'])
         self.terminologies = terms.sections
-
-        # 4. attach supported models
         self.models = dict( models_map )
 
         warnings.simplefilter('ignore', tb.NaturalNameWarning)
         print "Session initialized."
+
+
+    def __del__(self):
+        self.cache.save_all()
 
 
     def clear_cache(self):
