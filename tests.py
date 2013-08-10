@@ -56,7 +56,7 @@ class BaseTest(unittest.TestCase):
 	"""BaseTest class for all tests"""
 	
 	def setUp(self):
-		self.g = session.init()
+		self.g = session.GNode()
 
 	def tearDown(self):
 		self.g.shutdown()

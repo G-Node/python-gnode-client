@@ -1,7 +1,7 @@
 
 # 1. init a session
-from session import init
-g = init()
+from session import GNode
+g = GNode()
 
 # 2. ls function
 g.ls()

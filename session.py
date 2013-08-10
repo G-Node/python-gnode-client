@@ -12,8 +12,7 @@ except ImportError:
 
 import tables as tb
 import numpy as np
-
-import odml.terminology as terminology
+import odml
 
 from utils import *
 from serializer import Serializer
@@ -57,7 +56,7 @@ class GNode( Browser ):
         self._remote.open() # authenticate at the remote
 
         # TODO make odML to load terms into our cache folder, not default /tmp
-        terms = terminology.terminologies.load(profile_data['odml_repository'])
+        terms = odml.terminology.terminologies.load(profile_data['odml_repository'])
         self.terminologies = terms.sections
         self.models = dict( models_map )
 
@@ -128,18 +127,30 @@ class GNode( Browser ):
         get('section', params={'odml_type': 'experiment', 'date_created': '2013-02-22'})
 
         """
+        def clean_params(params):
+            filt = {}
+            for k, v in params.items():
+                if v.__class__ in  self._meta.models_map.values():
+                    val_descr = self._meta.get_gnode_descr(v)
+                    if not val_descr:
+                        raise ValidationError('All models need to be synced ' + \
+                            'before making a query.')
+                    filt[k] = val_descr['id']
+                else:
+                    filt[k] = v
+            return filt
+
         if model_name in self._meta.cls_aliases.values(): # TODO put into model_safe decorator
             model_name = [k for k, v in self._meta.cls_aliases.items() if v==model_name][0]
 
         if not model_name in self._meta.models_map.keys():
             raise TypeError('Objects of that type are not supported.')
 
-        # fetch from remote + save in cache if possible
-        json_objs = self._remote.get_list( model_name, params )
+        filt = clean_params(params)
+        json_objs = self._remote.get_list(model_name, filt)
 
         if mode == 'json':
-            # return pure JSON (no data) if requested
-            objects = json_objs
+            objects = json_objs # return pure JSON (no data) if requested
 
         else:
             # convert to objects in 'obj' mode
@@ -541,8 +552,7 @@ class GNode( Browser ):
         data = {'metadata': []}
         for value in values:
             val_descr = self._meta.get_gnode_descr(value)
-            if not self._meta.get_gnode_descr(value) or not \
-                self._meta.get_gnode_descr(value.parent):
+            if not val_descr or not self._meta.get_gnode_descr(value.parent):
                 raise ValidationError('All properties/values need to be synced before annotation.')
             data['metadata'].append( value._gnode['permalink'] )
 
