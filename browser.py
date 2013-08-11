@@ -11,8 +11,27 @@ class Browser(object):
         'modes': ['data', 'metadata'] # could browse in data mode too
     }
 
+    def cd(self, location=''):
+        """ changes the current location within the data structure """
+        if location == '':
+            self.ls_config['location'] = ''
+            print 'back to root'
+
+        else:
+            # 1. compile url
+            url = str( location )
+            if is_permalink( location ):
+                url = url.replace(self._meta.host, '')
+
+            # 2. get the object at the location
+            obj = self.pull(url, cascade=False, data_load=False)
+
+            self.ls_config['location'] = url
+            print "entered %s" % url
+
+
     def ls(self, location=None, filt={}):
-        """ cmd-type ls function """
+        """ cmd-type ls function to browse objects at the remote """
         out = '' # output
         params = dict( self.ls_config['ls_filt'].items() + filt.items() )
 
@@ -28,9 +47,14 @@ class Browser(object):
 
             if location:
                 out += 'location %s:\n' % location
-                app, cls, lid = self._parse_location( location )
+                loc = self._meta.parse_location( location )
+                app, cls, lid = loc[0], loc[1], loc[2]
 
                 for child in self._meta.app_definitions[ cls ]['children']:
+                    # TODO fetch children only if not empty? can be done by 
+                    # pre-fetching location and parsing children attrs. makes
+                    # sense only for more than one children objects, like
+                    # segment, section, etc.
 
                     parent_name = get_parent_field_name(cls, child)
                     params[ parent_name + '__id' ] = lid
@@ -59,38 +83,69 @@ class Browser(object):
 
         print_status( out )
 
-    def cd(self, location=''):
-        """ changes the current location within the data structure """
-        if location == '':
-            self.ls_config['location'] = ''
-            print 'back to root'
+
+    def __tree(self, location=None, filt={}):
+        out = '' # output
+        tree = {} # json-type object tree
+
+        # filters could be also applicable
+        #params = dict( self.ls_config['ls_filt'].items() + filt.items() )
+
+        if not location: # if not given use the current one
+            location = self.ls_config['location']
+
+        if location:
+            out += 'tree at %s:\n' % location
+
+            app, cls, lid = self._meta.parse_location( location )
+            obj = self.select(cls, {"id__in": [lid]})
+
+            for child in self._meta.app_definitions[ cls ]['children']:
+                # TODO fetch children only if not empty? can be done by 
+                # pre-fetching location and parsing children attrs. makes
+                # sense only for more than one children objects, like
+                # segment, section, etc.
+
+                parent_name = get_parent_field_name(cls, child)
+                params[ parent_name + '__id' ] = lid
+                objs = self.select(child, params=params)
+
+                out = self._render( objs, out )
+                params.pop( parent_name + '__id' )
+
+            # FIXME? exception case for Block -> Section
+            if cls == 'section':
+                params[ 'section__id' ] = lid
+                objs = self.select('block', params=params)
+                if objs:
+                    out += '\nDATA:\n'
+                    out = self._render( objs, out )
 
         else:
-            # 1. compile url
-            url = str( location )
-            if is_permalink( location ):
-                url = url.replace(self._meta.host, '')
+            print "you're at the root. some location has to be specified."
 
-            # 2. get the object at the location
-            obj = self.pull(url, cascade=False, data_load=False)
-
-            self.ls_config['location'] = url
-            print "entered %s" % url
 
 
     def _render(self, objs, out):
         """ renders a list of objects for a *nice* output """
         for obj in objs:
+            fields = obj._gnode['fields']
 
             # object location
-            location = obj._gnode['permalink'].replace(self._meta.host, '')
-            out += self._strip_location(location) + '\t'
+            out += self._meta.parse_location( obj._gnode['location'] ).stripped + '\t'
 
             # safety level
-            out += str(obj._gnode['safety_level']) + ' '
+            out += str( fields['safety_level'] ) + ' '
 
             # object owner
-            out += obj._gnode['owner'].replace(self._meta.host, '') + '\t'
+            out += extract_location( fields['owner'] ) + '\t'
+
+            # object size
+            obj_size = str( obj._gnode ).__sizeof__()
+            if fields.has_key( 'data_size' ) and fields['data_size']:
+                obj_size += int( fields['data_size'] )
+
+            out += sizeof_fmt( obj_size ) + '\t'
 
             # object __repr__
             out += obj.__repr__()[ : self._meta.max_line_out ] + '\n'

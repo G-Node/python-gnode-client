@@ -6,6 +6,8 @@ import simplejson as json
 import numpy as np
 import quantities as pq
 import neo
+import os
+
 from neo.core import *
 from odml.section import BaseSection
 from odml.property import BaseProperty
@@ -41,13 +43,200 @@ models_map = {
     'spiketrain': SpikeTrain,
     'analogsignal': AnalogSignal,
     'analogsignalarray': AnalogSignalArray,
-    'irsaanalogsignal': IrregularlySampledSignal,
+    'irregularlysampledsignal': IrregularlySampledSignal,
     'spike': Spike,
     'recordingchannelgroup': RecordingChannelGroup,
     'recordingchannel': RecordingChannel
 }
 
 supported_models = models_map.values()
+
+#-------------------------------------------------------------------------------
+# common Client classes
+#-------------------------------------------------------------------------------
+
+class Meta( object ):
+    """ class that handles settings, auth information etc. and some helper
+    functions for backends / session manager """
+
+    def __init__(self, profile_data, model_data):
+
+        # init user / server info
+        self.username = profile_data['username']
+        self.password = profile_data['password']
+        self.temp_dir = os.path.abspath( profile_data['tempDir'] )
+        self.max_line_out = profile_data['max_line_out']
+        self.verbose = bool( profile_data['verbose'] )
+        self.host = build_hostname( profile_data )
+        self.port = profile_data['port']
+
+        # init application settings
+        self.app_definitions, self.model_names, self.app_prefix_dict = \
+            load_app_definitions(model_data)
+        # a) app_definitions is a dict parsed from requirements.json
+        # b) model names is a list like ['segment', 'event', ...]
+        # c) app_prefix_dict is like 
+        #       {'section': 'metadata', 'block': 'electrophysiology', ...}
+
+        self.app_aliases, self.cls_aliases = build_alias_dicts( \
+            profile_data['alias_map'] )
+
+        # init cache settings
+        self.load_cached_data = bool( profile_data['load_cached_data'] )
+        self.cache_dir = os.path.abspath( profile_data['cacheDir'] )
+        if not os.path.exists( self.cache_dir ):
+            os.mkdir( self.cache_dir )
+        self.models_map = models_map
+
+    def get_array_attr_names(self, model_name):
+        """ return attr names that are arrays with ndim > 0 """
+        data_fields = self.app_definitions[model_name]['data_fields']
+
+        # FIXME dirty alternative
+        names = [n for n in data_fields if n in ['times', 'durations', \
+            'signal', 'waveform', 'waveforms']]
+
+        return names
+
+    def iterate_children(self, obj):
+        """ iterator over all children of a certain object """
+        cls = self.get_type_by_obj( obj )
+        if not cls:
+            raise "This object is not supported: %s" % str(obj)
+        children = self.app_definitions[cls]['children']
+        for child_type in children: # child_type is like 'segment', 'event' etc.
+            for rel in getattr(obj, get_children_field_name( child_type )):
+                yield rel
+
+    def parse_location(self, location):
+        return Location(location, self)
+
+    def is_valid_id(self, lid):
+        try:
+            int(base32int(lid))
+            return True
+        except ValueError:
+            return False
+
+    def is_container(self, model_name):
+        containers = ['section', 'block', 'segment', 'unit',\
+            'recordingchannelgroup', 'recordingchannel']
+        return model_name in containers
+
+    def is_modified(self, json_obj):
+        """ checks if object was modified locally by validating that object
+        references are permalinks """
+
+        # 1. check permalink
+        if not is_permalink( json_obj['permalink'] ):
+            return True
+
+        app_name, model_name = parse_model( json_obj )
+
+        # 2. check data fields
+        for attr in self.get_array_attr_names( model_name ):
+            data = json_obj['fields'][ attr ]['data']
+            if data: # should not be null
+                if not is_permalink( data ):
+                    return True
+
+        # 3. check parent fields
+        for attr in self.app_definitions[model_name]['parents']:
+            parent = json_obj['fields'][ attr ]
+            if parent: # should not be null
+                if not is_permalink( parent ):
+                    return True
+
+        return False
+
+    def get_type_by_obj(self, obj):
+        types = [k for k, v in self.models_map.items() if isinstance(obj, v)]
+        if len(types) > 0:
+            return types[0]
+        return None
+
+    def get_gnode_descr(self, obj):
+        """ returns G-Node JSON description assigned to a given object """
+        if hasattr(obj, '_gnode'):
+            return obj._gnode
+        return None
+
+    def set_gnode_descr(self, obj, json_obj):
+        """ assigns G-Node JSON description to a given object """
+        if not obj.__class__ in supported_models:
+            raise TypeError("This type of object is not supported %s" % str(obj))
+        setattr(obj, '_gnode', json_obj)
+
+    @property
+    def mtd_classes(self):
+        return [m for k, m in self.models_map.items() if k in \
+            ['section', 'property', 'value']]
+
+    @property
+    def neo_classes(self):
+        return [m for k, m in self.models_map.items() if k not in \
+            ['section', 'property', 'value']]
+
+
+class Location(list):
+
+    def __init__(self, location, meta):
+        if isinstance(location, self.__class__):
+            loc = list(location)
+        else:
+            self._meta = meta
+            loc = pathlist(location)
+            if len(loc) < 3:
+                raise ReferenceError('Cannot parse object location %s. The format \
+                    should be like "metadata/section/293847/"' % str(loc))
+
+            loc = self.restore_location(loc)
+            if not loc[0] in self._meta.app_prefix_dict.values() + ['datafiles']:
+                raise TypeError('This app is not supported: %s' % loc[0])
+            if not loc[1] in self._meta.model_names + ['datafile']:
+                raise TypeError('This type of object is not supported: %s' % loc[1])
+            if not self._meta.is_valid_id( loc[2] ):
+                raise TypeError('ID of an object must be a base32 string: %s' % loc[2])
+        self.__location = loc
+
+    def __getitem__(self, index):
+        return self.__location[index]
+
+    def __setitem__(self, key, value):
+        self.__location[key] = value
+
+    def __len__(self):
+        return len(self.__location)
+
+    def __str__(self):
+        return "/" + "/".join(self.__location) + "/"
+
+    def __repr__(self):
+        return "Location(%s)" % (str(self))
+
+    def __iter__(self):
+        return iter(self.__location)
+
+    def restore_location(self, loc):
+        """ restore a full version of the location using alias_map, like
+        ['mtd', 'sec', 'HTOS5G16RL'] -> ['metadata', 'section', 'HTOS5G16RL']"""
+        almap = dict(self._meta.app_aliases.items() + self._meta.cls_aliases.items())
+        for name, alias in almap.items():
+            if loc[0] == alias: loc[0] = name
+            if loc[1] == alias: loc[1] = name
+        return loc
+
+    @property
+    def stripped(self):
+        """ make a shorter version of the location using alias_map, like
+        'metadata/section/293847/' -> 'mtd/sec/293847/' """
+        loc = list(self.__location)
+        almap = dict(self._meta.app_aliases.items() + self._meta.cls_aliases.items())
+        for name, alias in almap.items():
+            if loc[0] == name: loc[0] = alias
+            if loc[1] == name: loc[1] = alias
+        return "/" + "/".join(loc) + "/"
+
 
 class Metadata(object):
     """ class containing metadata property-value pairs for a single object. """
@@ -60,335 +249,3 @@ class Metadata(object):
             out += '%s: %s\n' % ( property_out, value_out )
         return out
 
-
-class BaseObject(object):
-    """ Class containing base methods used by Gnode but not present in NEO """
-
-    def __init__(self, permalink=None, session=None, file_origin_id=None):
-        """Init BaseObject, setting attributes necessary for Gnode methods"""
-        if permalink:
-            self.permalink = permalink
-            #permalink to access/update object permissions
-            self._permalink_perms = self.permalink + '/acl/'
-        
-        if session:
-            self._session = session
-
-        self._file_origin_id = file_origin_id
-
-        if file_origin_id and session:
-            self._file_origin_id = file_origin_id
-            self._file_origin = session.files_url+str(file_origin_id)+'/download/'
-
-    #This bit is not really necessary because now these properties assume
-    #boolean values; only later on for more sophisticated automatic behavior
-    # def _is_instant_change(self):
-    #     """ indicates whether object properties are updated immediately or
-    #     only upon issuing the save command """
-    #     return self._session.instant_change == 'lazy'
-
-    # def _is_rel_lazy(self):
-    #     """ indicates whether object relations should be lazy loaded """
-    #     return self._session.rel_mode == 'lazy'
-
-    # def _is_data_lazy(self):
-    #     """ indicates whether object data should be lazy loaded """
-    #     return self._session.data_mode == 'lazy'
-    
-    def save(self):
-        """ a convenience method to save object from itself """
-        self._session.save(obj=self)
-
-    def _fget_permissions(attr):
-        def get_any(self):
-            """Common getter for attributes safety_level, shared_with, logged_in_as"""
-            try:
-                return getattr(self, attr)
-            except AttributeError:
-                try:
-                    perms_resp = requests.get(self._permalink_perms, cookies=self._session.cookie_jar)
-                    if perms_resp.status_code != 200:
-                        raise error_codes[perms_resp.status_code]
-                    else:
-                        perms_data = perms_resp.json
-                        self._logged_in_as = perms_data['logged_in_as']
-                        self._safety_level = perms_data['safety_level']
-                        self._shared_with = perms_data['shared_with']
-                    return getattr(self, attr)
-                except AttributeError:
-                    if self._session:
-                        raise NotInDataStorage
-                    else:
-                        raise NotBoundToSession
-        return get_any
-
-    safety_level = property(fget=_fget_permissions('_safety_level'))
-    shared_with = property(fget=_fget_permissions('_shared_with'))
-    logged_in_as = property(fget=_fget_permissions('_logged_in_as'))
-    
-
-
-    def set_permissions(self, safety_level=None, shared_with=None, recursive=False,
-        notify=False):
-        """Change object permissions
-
-        Args:
-            safety_level:
-                1 -- 'public'
-                2 -- 'friendly'
-                3 -- 'private'
-            shared_with: dictionary with {'user_id' : 'user_permissions'},
-                where user_role can be:
-                1 -- read-only
-                2 -- read and write
-        """
-        if not safety_level and not shared_with:
-            raise errors.EmptyRequest
-            
-        elif self.permalink and self._session:
-            #json.dumps turns True into true, thus respecting the right syntax
-            perm_params = {'recursive': json.dumps(recursive),
-            'notify': json.dumps(notify)}
-            
-            perms_data={}
-            if safety_level:
-                perms_data['safety_level'] = safety_level
-            if shared_with:
-                perms_data['shared_with'] = shared_with
-
-            resp = requests.post(self._permalink_perms, params=perm_params,
-                data=json.dumps(perms_data), cookies=self._session.cookie_jar)
-
-            if resp.status_code != 200:
-                raise error_codes[resp.status_code]
-            else:
-                perms_data = resp.json
-                self._logged_in_as = perms_data['logged_in_as']
-                self._safety_level = perms_data['safety_level']
-                self._shared_with = perms_data['shared_with']
-        
-        elif self._session:
-            raise NotInDataStorage
-        else:
-            raise NotBoundToSession
-
-    def download_original_file(self, file_name):
-        """Download original data file where object was extracted from.
-
-        Args:
-            file_name: string containing name of the file to save
-        """
-        try:
-            resp = requests.get(self.file_origin,
-                cookies=self._session.cookie_jar)
-        except AttributeError:
-            raise errors.NotBoundToSession
-
-        with open(file_name, 'wb') as file:
-            file.write(resp.content)
-
-class BaseDataObject(object):
-    """ Base Object to be inherited by the objects containing data so that
-    they can implement lazy loading and correct representations"""
-    
-    def __init__(self, datafile_url=None, signal_size=None):
-        self._datafile_url = datafile_url
-
-    def __call__(self):
-        #we want to support lazy loading here
-        if not self:
-            data_array = self._get_data_array()
-            #this bit was adapted from the NEO way of for example rescaling
-            #   arrays
-            new = self.__class__(signal=data_array, units=self.units,
-                sampling_rate=self.sampling_rate)
-            new._copy_data_complement(self)
-            new.annotations.update(self.annotations)
-            self = new
-            return self
-        else:
-            return self
-
-
-    def __len__(self):
-        #we want to get the right length for that object
-        pass
-
-    def _get_data_array(self):
-        """Method to retrieve a NumPy array containing the signal data.
-
-        It first checks for the existance of the file in the cache directory.
-        """
-        file_req = request_file = requests.get(self.datafile_url,
-            cookies=session.cookie_jar, prefetch=False)
-        
-        headers = file_req.headers
-        content_disposition = headers['content-disposition']
-        filename = content_disposition.split('filename=')[-1]
-        
-        #do the same trick browsers do to resolve filenames with
-        # a forward slash
-        filename = filename.replace('/', '_')
-        
-        try:
-            hdf5_file = tables.openFile(os.path.join(session.cache_dir,
-                filename), 'r')
-            array = np.array(hdf5_file.listNodes('/')[0])
-        except:
-            filepath = os.path.join(session.cache_dir, filename)
-            with open(filepath, 'wb') as f:
-                f.write(file_req.content)
-            hdf5_file = tables.openFile(os.path.join(session.cache_dir,
-                filename), 'r')
-            array = np.array(hdf5_file.listNodes('/')[0])
-        finally:
-            hdf5_file.close()
-
-        return array
-
-
-
-class AnalogSignal(neo.core.AnalogSignal, BaseObject, BaseDataObject):
-    """ G-Node Client class for managing Block object """
-    def __init__(self, signal, units=None, dtype=None, copy=True,
-        t_start=0 * pq.s, sampling_rate=None, sampling_period=None,
-        name=None, file_origin=None, description=None, permalink=None,
-        session=None, file_origin_id=None, datafile_url=None,
-        signal__units=None):
-        super(AnalogSignal, self).__init__(signal, units=units,
-            dtype=dtype, copy=copy, t_start=t_start,
-            sampling_rate=sampling_rate, sampling_period=sampling_period,
-            name=name, file_origin=file_origin, description=description)
-        BaseObject.__init__(self, permalink=permalink, session=session,
-            file_origin_id=file_origin_id)
-        BaseDataObject.__init__(self, datafile_url=datafile_url,
-            signal__units=signal__units)
-        self._obj_type = 'analogsignal'
-        
-    def __repr__(self):
-        #TODO have a pretty print here
-        return super(AnalogSignal, self).__repr__(self)
-    
-    def __todict__(self):
-        """Convert the object into a dictionary that can be passed on to
-        the JSON library.
-        """
-        pass
-
-    @Property
-    def segments():
-        doc = 'Extends basic NEO property to enable lazy mode'
-
-        def fget(self):
-            if self._segments: # segments already loaded
-                return self._segments
-            elif self.id:
-                segments = self._session.get('segment', { 'block': self.id })
-            else:
-                return None
-
-        def fset(self, segments):
-            try:
-                # make an update as one transaction
-                self._session.bulk_update('segment', id__in = \
-                    [s.id for s in segments] )
-                self._segments = segments
-
-            except IOError: # connection error 
-                raise ConnectionError # TBD
-
-        def fdel(self):
-            del self._segments
-
-        return locals()
-
-class Block(neo.core.Block, BaseObject):
-    """ G-Node Client class for managing Block object """
-
-    def __init__(self, *args, **kwargs):
-        super(Block, self).__init__(*args, **kwargs)
-        # assign the session object
-        self._session = kwargs.pop('session')
-
-    def __todict__(self):
-        """Convert the object into a dictionary that can be passed on to
-        the JSON library.
-        """
-        pass
-
-    @property
-    def segments(self):
-        """ Extends basic NEO property to enable lazy mode """
-
-        def fget(self):
-            if self._segments: # segments already loaded
-                return self._segments
-            elif self.id:
-                segments = self._session.get('segment', { 'block': self.id })
-            else:
-                return None
-
-        def fset(self, segments):
-            try:
-                # make an update as one transaction
-                self._session.bulk_update('segment', id__in = \
-                    [s.id for s in segments] )
-                self._segments = segments
-
-            except IOError: # connection error 
-                raise ConnectionError # TBD
-
-        def fdel(self):
-            del self._segments
-
-        return locals()
-
-class SpikeTrain(neo.core.SpikeTrain, BaseObject):
-    """ G-node Client class for managing a SpikeTrain object """
-
-    def __init__(self, times, t_stop, units=None, copy=True,
-        sampling_rate=1.0 * pq.Hz, t_start=0.0 * pq.s, waveforms=None,
-        left_sweep=None, name=None, file_origin=None, description=None,
-        permalink=None, session=None, file_origin_id=None):
-        super(neo.core.SpikeTrain, self).__init__(times=times, t_stop=t_stop,
-            units=units, copy=copy, sampling_rate=sampling_rate,
-            t_start=t_start, waveforms=waveforms, left_sweep=left_sweep,
-            name=name, file_origin=file_origin, description=description)
-        BaseObject.__init__(self, permalink=permalink, session=session,
-            file_origin_id=file_origin_id)
-
-        self._obj_type = 'spiketrain'
-        
-
-    def __todict__(self):
-        """Convert the object into a dictionary that can be passed on to
-        the JSON library.
-        """
-        pass
-
-    @Property
-    def segments():
-        doc = 'Extends basic NEO property to enable lazy mode'
-
-        def fget(self):
-            if self._segments: # segments already loaded
-                return self._segments
-            elif self.id:
-                segments = self._session.get('segment', { 'block': self.id })
-            else:
-                return None
-
-        def fset(self, segments):
-            try:
-                # make an update as one transaction
-                self._session.bulk_update('segment', id__in = \
-                    [s.id for s in segments] )
-                self._segments = segments
-
-            except IOError: # connection error 
-                raise ConnectionError # TBD
-
-        def fdel(self):
-            del self._segments
-
-        return locals()
