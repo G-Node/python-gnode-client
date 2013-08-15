@@ -96,31 +96,33 @@ class Meta( object ):
     """ class that handles settings, auth information etc. and some helper
     functions for backends / session manager """
 
-    def __init__(self, profile_data, model_data):
+    def __init__(self, profile_data):
+        with open(profile_data['definition'], 'r') as f:
+            model_data = json.load(f)
+        with open(profile_data['alias'], 'r') as f:
+            alias_data = json.load(f)
 
         # init user / server info
         self.username = profile_data['username']
         self.password = profile_data['password']
-        self.temp_dir = os.path.abspath( profile_data['tempDir'] )
+        self.temp_dir = os.path.abspath( profile_data['temp_dir'] )
         self.max_line_out = profile_data['max_line_out']
         self.verbose = bool( profile_data['verbose'] )
         self.host = build_hostname( profile_data )
         self.port = profile_data['port']
 
         # init application settings
+        self.app_aliases, self.cls_aliases = build_alias_dicts(alias_data)
         self.app_definitions, self.model_names, self.app_prefix_dict = \
             load_app_definitions(model_data)
-        # a) app_definitions is a dict parsed from requirements.json
+        # a) app_definitions is a dict parsed from definition.json
         # b) model names is a list like ['segment', 'event', ...]
         # c) app_prefix_dict is like 
         #       {'section': 'metadata', 'block': 'electrophysiology', ...}
 
-        self.app_aliases, self.cls_aliases = build_alias_dicts( \
-            profile_data['alias_map'] )
-
         # init cache settings
-        self.load_cached_data = bool( profile_data['load_cached_data'] )
-        self.cache_dir = os.path.abspath( profile_data['cacheDir'] )
+        self.load_cached_data = bool( profile_data['load_cache'] )
+        self.cache_dir = os.path.abspath( profile_data['cache_dir'] )
         if not os.path.exists( self.cache_dir ):
             os.mkdir( self.cache_dir )
         self.models_map = models_map

@@ -1,0 +1,22 @@
+{
+    "_comment": "G-NODE CONFIGURATION FILE",
+    
+    "username": "bob",
+    "password": "pass",
+    "host": "localhost",
+    "port": 8000,
+    "prefix": "",
+    "https": false,
+
+    "temp_dir": "/tmp/",
+    "cache_dir": "./cache/",
+    "load_cache" : true,    
+
+    "odml_repository": "http://portal.g-node.org/odml/terminologies/v1.0/terminologies.xml",
+
+    "max_line_out": 40,
+    "verbose" : true,
+
+    "definition": "./definition.json",
+    "alias": "./alias.json"
+}
