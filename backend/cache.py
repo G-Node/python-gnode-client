@@ -5,7 +5,7 @@ import os
 import tables as tb
 import numpy as np
 
-from utils import *
+from gnode.utils import *
 
 class Cache( object ):
     """ a class to handle cached objects and data for Session """

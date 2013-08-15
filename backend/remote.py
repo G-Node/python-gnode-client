@@ -8,7 +8,7 @@ import requests
 
 from requests.exceptions import ConnectionError
 from tables.exceptions import NoSuchNodeError
-from utils import *
+from gnode.utils import *
 from base import BaseBackend
 
 class Remote( BaseBackend ):

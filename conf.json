@@ -17,6 +17,6 @@
     "max_line_out": 40,
     "verbose" : true,
 
-    "definition": "./definition.json",
-    "alias": "./alias.json"
+    "definition": "./gnode/definition.json",
+    "alias": "./gnode/alias.json"
 }

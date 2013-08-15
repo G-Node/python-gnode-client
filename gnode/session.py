@@ -25,7 +25,7 @@ from models import Meta, Metadata, models_map, supported_models, units_dict
 # core Client classes
 #-------------------------------------------------------------------------------
 
-class GNode( Browser ):
+class Session( Browser ):
     """ Object to handle connection and client-server data transfer """
 
     def __init__(self, config_file='conf.json'):
