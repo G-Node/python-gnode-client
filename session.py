@@ -232,7 +232,7 @@ class GNode( Browser ):
 
             # find object in cache
             etag = None
-            cached_obj = self.cache.get_obj_by_location( loc )
+            cached_obj = self.cache.get( loc )
             if not type(cached_obj) == type(None):
                 obj_descr = self._meta.get_gnode_descr(cached_obj)
                 if obj_descr and obj_descr['fields'].has_key('guid'):
@@ -513,14 +513,6 @@ class GNode( Browser ):
         # guids, which could be solved by pulling all object at the end of the
         # sync (below) or better remove this feature on the API level.
         print_status('updating object references..')
-        #def update_reference(obj):
-        #    try:
-        #        self.__update_gnode_attr(obj)
-        #    except AttributeError:
-        #        pass # object wasn't properly synced
-        #    for rel in self._meta.iterate_children(obj):
-        #        update_reference(rel)
-
         for obj in to_update_refs:
             self.__update_gnode_attr(obj) # update all eTags from the remote
         self.cache.save_all() # save updated etags etc.
@@ -614,6 +606,18 @@ class GNode( Browser ):
         data_refs = {} # collects all references to the related data - output
         model_name = self._meta.get_type_by_obj( obj )
 
+        if model_name == 'datafile':
+            if not self._meta.get_gnode_descr(obj): # otherwise already uploaded
+                json_obj = self._remote.save_data(obj.path)
+                
+                # update cache data map
+                datalink = json_obj['permalink']
+                fid = str(get_id_from_permalink( datalink ))
+                self.cache.update_data_map(fid, obj.path)
+                self._meta.set_gnode_descr(obj, json_obj)
+                
+            return data_refs
+
         data_attrs = self._meta.get_array_attr_names( model_name )
         attrs_to_sync = self.cache.detect_changed_data_fields( obj )
 
@@ -654,26 +658,33 @@ class GNode( Browser ):
     def __parse_data_from_json(self, json_obj):
         """ parses incoming json object representation and fetches related 
         object data, either from cache or from the server. """
-        app_name, model_name = parse_model( json_obj )
-
-        data_refs = {} # is a dict like {'signal': <array...>, ...}
-        for array_attr in self._meta.get_array_attr_names( model_name ):
-            arr_loc = json_obj['fields'][ array_attr ]['data']
-            if arr_loc == None:
-                continue # no data for this attribute
-
-            arr_loc = self._meta.parse_location(arr_loc)
-            data_info = self.cache.get_data(arr_loc)
+        def fetch_data(location):
+            location = self._meta.parse_location(location)
+            data_info = self.cache.get_data(location)
             
             if data_info == None: # no local data, fetch from remote
                 cache_dir = self.cache._meta.cache_dir
-                data_info = self._remote.get_data(arr_loc, cache_dir)
+                data_info = self._remote.get_data(location, cache_dir)
 
                 if not data_info == None: # raise error otherwise?
                     # update cache with new file
                     self.cache.update_data_map(data_info['id'], data_info['path'])
+            return data_info
 
-            data_refs[ array_attr ] = data_info['data']
+        app_name, model_name = parse_model( json_obj )
+        data_refs = {} # is a dict like {'signal': <array...>, ...}
+
+        if model_name == 'datafile':
+            location = json_obj['permalink']
+            data_info = fetch_data(location)
+            data_refs['path'] = data_info['path']
+        else:
+            for data_attr in self._meta.get_array_attr_names( model_name ):
+                location = json_obj['fields'][ data_attr ]['data']
+                if location == None:
+                    continue # no data for this attribute
+                data_info = fetch_data(location)
+                data_refs[ data_attr ] = data_info['data']
 
         return data_refs
 
@@ -689,6 +700,10 @@ class GNode( Browser ):
             for rel in related:
                 if not rel in getattr(obj, attr_name): # avoid duplicates
                     obj.append( rel )
+                    
+        elif child in ['datafile']:
+            for rel in related:
+                obj.add_file(rel)
 
         else: # here is basically the NEO case
 

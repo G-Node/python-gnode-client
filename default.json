@@ -54,6 +54,12 @@
                 "recordingchannelgroup": "rcg",
                 "recordingchannel": "rch"
             }
+        },
+        "datafile": {
+            "alias": "dtf",
+            "models": {
+                "datafile": "fil"
+            }
         }
     }
     

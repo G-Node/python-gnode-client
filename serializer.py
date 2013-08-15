@@ -30,7 +30,8 @@ class Serializer(object):
         meta      - meta information from the current session.
 
         data_refs - a dict with arrays, required to instantiate new object, like 
-                    {'signal': <array...>, ...}
+                    {'signal': <array...>, ...} or path for datafiles like
+                    {'path': '/tmp/foo.bar'}
         """
 
         args = [] # args to init an object
@@ -48,6 +49,9 @@ class Serializer(object):
                 kwargs[ attr ] = fields[ attr ]
 
         # 3. resolve data fields
+        if model_name == 'datafile':
+            args.append(data_refs['path'])
+            
         for attr in app_definition['data_fields'].keys():
             array_attrs = meta.get_array_attr_names( model_name )
 
@@ -258,7 +262,7 @@ class Serializer(object):
                     parents = [ parents ]
 
                 for parent in parents:                
-                    if parent and hasattr(parent, '_gnode'):
+                    if parent and meta.get_gnode_descr(parent):
                         link = obj._gnode['permalink']
                         if parent._gnode['fields'].has_key( model_name + '_set' ):
                             if not link in parent._gnode['fields'][ model_name + '_set' ]:
@@ -286,123 +290,3 @@ class Serializer(object):
             return value
 
 
-
-
-
-class DataDeserializer(object):
-	"""Class of NEO data serializers"""
-
-	@classmethod
-	def deserialize(cls, json_dict, session):
-		"""Meta function to deserialize any NEO data object"""
-		
-		s = json_dict['selected'][0]
-		model = s['model']
-
-		if model == 'neo_api.analogsignal':
-			obj = cls.full_analogsignal(s, session=session)
-		elif model == 'neo_api.spiketrain':
-			obj = cls.full_spiketrain(s, session=session)
-		else:
-			raise errors.ObjectTypeNotYetSupported
-
-		return obj
-
-
-	@classmethod
-	def full_analogsignal(cls, json_selected, session):
-		"""Rebuild the analogsignal object from a JSON python dictionary.
-		"""
-		permalink = json_selected['permalink']
-
-		fields = json_selected['fields']
-
-		name = fields['name']
-		file_origin_id = fields['file_origin']
-		
-		signal = fields['signal']['data']
-		#maps G-node server unit names to NEO unit names; usually different
-		#	just by one character in lower case
-		signal__units = units_dict[fields['signal']['units']]
-		
-		try:
-			t_start = fields['t_start']['data']
-			t_start__units = units_dict[fields['t_start']['units']]
-		except KeyError:
-			t_start = 0.0
-			t_start__units = pq.s
-
-		sampling_rate = fields['sampling_rate']['data']
-		sampling_rate__units = units_dict[fields['sampling_rate']['units']]
-		
-		asig = AnalogSignal(signal*signal__units, t_start=t_start*
-			t_start__units, sampling_rate=sampling_rate*sampling_rate__units,
-			name=name, file_origin_id=file_origin_id, permalink=permalink,
-			session=session)
-		
-		asig._safety_level = fields['safety_level']
-		
-		for a in ('last_modified', 'date_created', 'owner'):
-			setattr(asig, a, fields[a])
-
-		for a in ('analogsignalarray', 'segment', 'recordingchannel'):
-			setattr(asig, '_'+a+'_ids', fields[a])
-			
-		return asig
-
-	@staticmethod
-	def full_spiketrain(json_selected, session):
-		"""Rebuild the analogsignal object from a JSON python dictionary.
-		"""
-		permalink = json_selected['permalink']
-
-		fields = json_selected['fields']
-
-		#temporary workaround waiting for Gnode to implement 'name'
-		try:
-			name = fields['name']
-		except KeyError:
-			name = ""
-
-		file_origin_id = fields['file_origin']
-		times = fields['times']['data']
-		
-		#maps G-node server unit names to NEO unit names; usually different
-		#	just by one character in lower case
-		#FIXME: Temporary workaround! The server is returning 'mV'!!
-		times__units = fields['times']['units']
-		if times__units in ('ms', 's'):
-			times__units = units_dict[fields['times']['units']]
-		elif times__units in ('mV', 'mv'):
-			times__units = pq.s
-		else:
-			raise ValueError('Got wrong unit type for times__units')
-
-		try:
-			t_start = fields['t_start']['data']
-			t_start__units = units_dict[fields['t_start']['units']]
-		except KeyError:
-			t_start = 0.0
-			t_strart__units = pq.s
-
-		t_stop = fields['t_stop']['data']
-		t_stop__units = units_dict[fields['t_stop']['units']]
-		
-		if fields['waveform_set']:
-			waveforms = fields['waveform_set']
-		else:
-			waveforms=None
-
-		spiketr = SpikeTrain(times*times__units, t_stop=t_stop*t_stop__units,
-			t_start=t_start*t_start__units, waveforms=waveforms, name=name,
-			file_origin_id=file_origin_id, permalink=permalink,
-			session=session)
-		
-		spiketr._safety_level = fields['safety_level']
-		
-		for a in ('last_modified', 'date_created', 'owner'):
-			setattr(spiketr, a, fields[a])
-
-		setattr(spiketr, '_'+a+'_ids', fields[a])
-			
-		return spiketr

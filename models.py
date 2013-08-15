@@ -2,59 +2,96 @@
 
 import requests
 import simplejson as json
-
 import numpy as np
 import quantities as pq
-import neo
 import os
 
 from neo.core import *
 from odml.section import BaseSection
 from odml.property import BaseProperty
 from odml.value import BaseValue
-from errors import NotInDataStorage, NotBoundToSession, error_codes
 
 from utils import *
 
-units_dict = {
-    'V': pq.V,
-    'mV': pq.mV,
-    'uV': pq.uV,
-    's': pq.s,
-    'ms': pq.ms,
-    'us': pq.us,
-    'MHz': pq.MHz,
-    'kHz': pq.kHz,
-    'Hz': pq.Hz,
-    '1/s': pq.Hz
-}
+#-------------------------------------------------------------------------------
+# some patching is needed
+#-------------------------------------------------------------------------------
 
-models_map = {
-    'section': BaseSection,
-    'property': BaseProperty,
-    'value': BaseValue,
-    'block': Block,
-    'segment': Segment,
-    'event': Event,
-    'eventarray': EventArray,
-    'epoch': Epoch,
-    'epocharray': EpochArray,
-    'unit': Unit,
-    'spiketrain': SpikeTrain,
-    'analogsignal': AnalogSignal,
-    'analogsignalarray': AnalogSignalArray,
-    'irregularlysampledsignal': IrregularlySampledSignal,
-    'spike': Spike,
-    'recordingchannelgroup': RecordingChannelGroup,
-    'recordingchannel': RecordingChannel
-}
-
-supported_models = models_map.values()
+# monkeys crying    
+def fget(self):
+    if not hasattr(self, '__datafiles'):
+        self.__datafiles = []
+    return tuple(self.__datafiles)
+def fset(self, value):
+    raise ReferenceError('Please use add_file / remove_file methods to manipulate file list')
+    
+def add_file(self, f):
+    if not isinstance(f, Datafile):
+        raise ValueError('Can add only Datafiles')
+    if not f in self.datafiles:
+        self.__datafiles.append(f)
+        f.section = self
+        
+def remove_file(self, f):
+    if f in self.datafiles:
+        self.__datafiles.remove(f)
+        f.section = None
+    
+setattr(BaseSection, 'datafiles', property(fget, fset))
+setattr(BaseSection, 'add_file', add_file)
+setattr(BaseSection, 'remove_file', remove_file)
 
 #-------------------------------------------------------------------------------
 # common Client classes
 #-------------------------------------------------------------------------------
 
+class Datafile(object):
+
+    def __init__(self, path, section=None):
+        self.__section = None
+        if os.path.exists(path):
+            self.__path = path
+        else:
+            raise ValueError('File does not exist: %s' % path)
+        if section:
+            self.section = section
+
+    @property            
+    def path(self):
+        return self.__path
+
+    @property
+    def section(self):
+        return self.__section
+
+    @section.setter
+    def section(self, section):
+        if section == None:
+            self.section.remove_file(self)
+            self.__section = None
+            
+        elif not isinstance(section, BaseSection):
+            raise ValueError('A given section must be an odml Section instance')
+
+        elif not self in section.datafiles:
+            section.add_file(self)
+            if self.section:
+                self.section.remove_file(self)
+            self.__section = section
+
+
+class Metadata(object):
+    """ class containing metadata property-value pairs for a single object. """
+
+    def __repr__(self):
+        out = ''
+        for p_name, prp in self.__dict__.items():
+            property_out = cut_to_render( p_name, 20 )
+            value_out = cut_to_render( str(prp.value.data) )
+            out += '%s: %s\n' % ( property_out, value_out )
+        return out
+        
+        
 class Meta( object ):
     """ class that handles settings, auth information etc. and some helper
     functions for backends / session manager """
@@ -119,7 +156,7 @@ class Meta( object ):
             return False
 
     def is_container(self, model_name):
-        containers = ['section', 'block', 'segment', 'unit',\
+        containers = ['section', 'property', 'block', 'segment', 'unit',\
             'recordingchannelgroup', 'recordingchannel']
         return model_name in containers
 
@@ -175,7 +212,7 @@ class Meta( object ):
     @property
     def neo_classes(self):
         return [m for k, m in self.models_map.items() if k not in \
-            ['section', 'property', 'value']]
+            ['section', 'property', 'value', 'datafile']]
 
 
 class Location(list):
@@ -238,14 +275,39 @@ class Location(list):
         return "/" + "/".join(loc) + "/"
 
 
-class Metadata(object):
-    """ class containing metadata property-value pairs for a single object. """
+units_dict = {
+    'V': pq.V,
+    'mV': pq.mV,
+    'uV': pq.uV,
+    's': pq.s,
+    'ms': pq.ms,
+    'us': pq.us,
+    'MHz': pq.MHz,
+    'kHz': pq.kHz,
+    'Hz': pq.Hz,
+    '1/s': pq.Hz
+}
 
-    def __repr__(self):
-        out = ''
-        for p_name, prp in self.__dict__.items():
-            property_out = cut_to_render( p_name, 20 )
-            value_out = cut_to_render( str(prp.value.data) )
-            out += '%s: %s\n' % ( property_out, value_out )
-        return out
+models_map = {
+    'datafile': Datafile,
+    'section': BaseSection,
+    'property': BaseProperty,
+    'value': BaseValue,
+    'block': Block,
+    'segment': Segment,
+    'event': Event,
+    'eventarray': EventArray,
+    'epoch': Epoch,
+    'epocharray': EpochArray,
+    'unit': Unit,
+    'spiketrain': SpikeTrain,
+    'analogsignal': AnalogSignal,
+    'analogsignalarray': AnalogSignalArray,
+    'irregularlysampledsignal': IrregularlySampledSignal,
+    'spike': Spike,
+    'recordingchannelgroup': RecordingChannelGroup,
+    'recordingchannel': RecordingChannel
+}
+
+supported_models = models_map.values()
 

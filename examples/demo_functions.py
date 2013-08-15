@@ -128,7 +128,14 @@ pl.show()
 
 # diff
 
-# file management
+from session import GNode
+g = GNode()
+experiment = g.terminologies['Experiment'].clone()
+experiment.name = 'testing Datafiles 7'
+d = g.models['datafile']('/tmp/bla.foo')
+d.section = experiment
+g.cache.push(experiment)
+g.push(experiment, cascade=True)
 
 # quick version history
 

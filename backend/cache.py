@@ -62,42 +62,51 @@ class Cache( object ):
     # WRITING TO DISK operations
     #---------------------------------------------------------------------------
 
-    """
-    def add_object(self, obj):
-        json_obj = self._meta.get_gnode_descr(obj)
-        if json_obj: # synced object
-            if self.get_obj_by_location(json_obj['location']):
-                self.save_single_object(obj)
-                return None # object already cached
-
-        self.save_single_object(o            # 4. clean-up from gnode attributes
-            post_process(obj)
-bj)
-        self._objs.append(obj)
-    """
-      
     def save_objects(self):
         """ saves all objects in the objs list """
         def pre_process(obj):
-            """ tag objects with gnode attribute """
+            """ saves datafile references as property and tags objects with 
+            gnode attribute """
+            if isinstance(obj, self._meta.models_map['section']) and hasattr(obj, 'datafiles'):
+                p = self._meta.models_map['property']('_datafiles', '')
+                p.values = []
+
+                files = list(set(obj.datafiles)) # save distinct
+                for f in files:
+                    if isinstance(f, self._meta.models_map['datafile']):
+                        json_obj = self._meta.get_gnode_descr(f)
+                        if json_obj:
+                            p.append(json.dumps(json_obj))
+                        else:
+                            p.append(json.dumps(f.path))
+                    else:
+                        pass # raise error?
+                obj.append(p)            
+            
             json_obj = self._meta.get_gnode_descr(obj)
             if json_obj:
                 if obj.__class__ in self._meta.mtd_classes:
                     obj.definition = (obj.definition or '') + \
                         "GNODE" + json.dumps(json_obj)
-                else:
+                elif obj.__class__ in self._meta.neo_classes:
                     obj.annotations['gnode'] = json_obj
 
             for rel in self._meta.iterate_children(obj):
                 pre_process(rel)
 
         def post_process(obj):
-            """ clean objects from gnode attribute """
+            """ clean objects from datafile property and gnode attribute """
+            if isinstance(obj, self._meta.models_map['section']) and \
+                '_datafiles' in [p.name for p in obj.properties]:
+                obj.remove(obj.properties['_datafiles'])
+                
             if obj.__class__ in self._meta.mtd_classes:
-                index = obj.definition.find('GNODE')
-                if index > 0:
-                    obj.definition = obj.definition[:index]
-            else:
+                if obj.definition:
+                    index = obj.definition.find('GNODE')
+                    if index > -1:
+                        obj.definition = obj.definition[:index]
+                        
+            elif obj.__class__ in self._meta.neo_classes:
                 obj.annotations.pop('gnode', None)
 
             for rel in self._meta.iterate_children(obj):
@@ -105,21 +114,26 @@ bj)
 
         iom = neo.io.hdf5io.NeoHdf5IO(filename=self.temp_neo_path)
         document = odml.Document()
-        for obj in self._objs:
-            # 1. object type validation
-            supp_models = [m for k, m in self._meta.models_map.items() if \
-                not k in ['property', 'value']]
-            if not obj.__class__ in supp_models:
-                raise TypeError('Objects of that type are not supported.')
+        try:
+            for obj in self._objs:
+                # 1. object type validation
+                supp_models = [m for k, m in self._meta.models_map.items() if \
+                    not k in ['property', 'value']]
+                if not obj.__class__ in supp_models:
+                    raise TypeError('Objects of that type are not supported.')
 
-            # 2. tagging object with gnode attributes, if exists
-            pre_process(obj)
+                # 2. tagging object with gnode attributes, if exists
+                pre_process(obj)
 
-            # 3. serializing
-            if obj.__class__ in [self._meta.models_map['section']]: # odml object
-                document.append(obj)
-            else: # NEO object
-                iom.save(obj)
+                # 3. serializing
+                if obj.__class__ in [self._meta.models_map['section']]: # odml object
+                    document.append(obj)
+                else: # NEO object
+                    iom.save(obj)
+        #except Exception, e:
+        except ValueError, e:
+            iom.close()
+            raise Exception(e)
 
         iom.close()
         os.rename(self.temp_neo_path, self.neo_path)
@@ -157,18 +171,30 @@ bj)
     def load_cached_data(self):
         """ loads cache from disk, validates cached files """
         def pre_process(obj):
-            """ clean objects from gnode attribute """
+            """ clean objects from datafiles and gnode attribute """
+            if isinstance(obj, self._meta.models_map['section']) and \
+                '_datafiles' in [p.name for p in obj.properties]:
+                for v in obj.properties['_datafiles'].values:
+                    json_obj = json.loads(v.data)
+                    if type(json_obj) == type({}) and json_obj.has_key('id'):
+                        path = self._data_map[json_obj['id']]
+                        d = self._meta.models_map['datafile'](path, obj)
+                        self._meta.set_gnode_descr(d, json_obj)
+                        
+                    else:
+                        if os.path.exists(json_obj): # json_obj is a path
+                            d = self._meta.models_map['datafile'](json_obj, obj)
+                obj.remove(obj.properties['_datafiles'])
+                
             if obj.__class__ in self._meta.mtd_classes:
-                index = obj.definition.find('GNODE')
-                if index > 0:
-                    try:
+                if obj.definition:
+                    index = obj.definition.find('GNODE')
+                    if index > -1:
                         json_obj = json.loads(obj.definition[index+5:])
                         if type(json_obj) == type({}) and json_obj.has_key('id'):
                             self._meta.set_gnode_descr(obj, json_obj)
                             obj.definition = obj.definition[:index]
-                    except:
-                        pass
-            else:
+            elif obj.__class__ in self._meta.neo_classes:
                 json_obj = obj.annotations.pop('gnode', None)
                 if type(json_obj) == type({}) and json_obj.has_key('id'):
                     self._meta.set_gnode_descr(obj, json_obj)
@@ -268,7 +294,7 @@ bj)
     # IN MEMORY operations
     #---------------------------------------------------------------------------
 
-    def get_obj_by_location(self, location):
+    def get(self, location):
         """ traverses cached objects tree(s) and searches for an object by 
         location, if it exists """
         def check_location(obj, location):

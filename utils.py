@@ -133,6 +133,8 @@ def load_app_definitions( model_data ):
     def parse_prefix( model ):
         if model in ['section', 'property', 'value']:
             return 'metadata'
+        elif model in ['datafile']:
+            return 'datafile'
         return 'electrophysiology'
 
     app_definitions = dict( model_data )
@@ -209,7 +211,8 @@ def supports_metadata(cls):
 
 
 def get_parent_attr_name(model_name, parent_name):
-    if parent_name == 'section' and model_name == 'block':
+    if parent_name == 'section' and \
+        (model_name == 'block' or model_name == 'datafile'):
         return parent_name
     if parent_name in ['section', 'parent_section', 'parent_property']:
         return 'parent'

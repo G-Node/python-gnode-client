@@ -109,9 +109,12 @@ class Remote( BaseBackend ):
             with open( path, "w" ) as f:
                 f.write( r.content )
 
-            with tb.openFile(path, 'r') as f:
-                carray = f.listNodes( "/" )[0]
-                init_arr = np.array( carray[:] )
+            try:
+                with tb.openFile(path, 'r') as f:
+                    carray = f.listNodes( "/" )[0]
+                    init_arr = np.array( carray[:] )
+            except:
+                init_arr = None
 
             print 'done.'
             return {"id": fid, "path": path, "data": init_arr}
