@@ -134,7 +134,7 @@ def load_app_definitions( model_data ):
         if model in ['section', 'property', 'value']:
             return 'metadata'
         elif model in ['datafile']:
-            return 'datafile'
+            return 'datafiles'
         return 'electrophysiology'
 
     app_definitions = dict( model_data )

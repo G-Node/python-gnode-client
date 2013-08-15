@@ -14,7 +14,7 @@
 
     "odml_repository": "http://portal.g-node.org/odml/terminologies/v1.0/terminologies.xml",
 
-    "max_line_out": 40,
+    "max_line_out": 30,
     "verbose" : true,
 
     "definition": "./gnode/definition.json",

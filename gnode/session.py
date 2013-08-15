@@ -25,7 +25,7 @@ from models import Meta, Metadata, models_map, supported_models, units_dict
 # core Client classes
 #-------------------------------------------------------------------------------
 
-class Session( Browser ):
+class Session(object):
     """ Object to handle connection and client-server data transfer """
 
     def __init__(self, config_file='conf.json'):
@@ -150,6 +150,8 @@ class Session( Browser ):
             objects = json_objs # return pure JSON (no data) if requested
 
         else:
+            if model_name == 'datafile' and not data_load:
+                raise TypeError('Datafiles cannot be fetched if data_load=False.')
             # convert to objects in 'obj' mode
             app = self._meta.app_prefix_dict[ model_name ]
             model = models_map[ model_name ]
