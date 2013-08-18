@@ -142,7 +142,9 @@ class Session(object):
 
         if not model_name in self._meta.models_map.keys():
             raise TypeError('Objects of that type are not supported.')
-
+        if model_name == 'datafile' and not data_load and not mode == 'json':
+            raise TypeError('Datafiles cannot be fetched if data_load=False.')
+                
         filt = clean_params(params)
         json_objs = self._remote.get_list(model_name, filt)
 
@@ -150,8 +152,6 @@ class Session(object):
             objects = json_objs # return pure JSON (no data) if requested
 
         else:
-            if model_name == 'datafile' and not data_load:
-                raise TypeError('Datafiles cannot be fetched if data_load=False.')
             # convert to objects in 'obj' mode
             app = self._meta.app_prefix_dict[ model_name ]
             model = models_map[ model_name ]

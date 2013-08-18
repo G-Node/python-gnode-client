@@ -90,6 +90,10 @@ class Cache( object ):
                         "GNODE" + json.dumps(json_obj)
                 elif obj.__class__ in self._meta.neo_classes:
                     obj.annotations['gnode'] = json_obj
+                    
+            # add fake values to restore properly later
+            #if isinstance(obj, self._meta.models_map['section']) and :
+                
 
             for rel in self._meta.iterate_children(obj):
                 pre_process(rel)
@@ -126,11 +130,10 @@ class Cache( object ):
                 pre_process(obj)
 
                 # 3. serializing
-                if obj.__class__ in [self._meta.models_map['section']]: # odml object
+                if obj.__class__ in self._meta.mtd_classes: # section object
                     document.append(obj)
-                else: # NEO object
+                elif obj.__class__ in self._meta.neo_classes: # NEO object
                     iom.save(obj)
-        #except Exception, e:
         except ValueError, e:
             iom.close()
             raise Exception(e)
