@@ -18,13 +18,16 @@ try:
 except ImportError:
     import json
 
-
 # 'bidirectional dictionary to convert between the two nomenclatures used
 #	for methos using permissions
 safety_level_dict = {1: 'public', 2:'friendly', 3:'private'}
 
 # this is base32hex alphabet, used to create unique IDs
 alphabet = tuple(list( '0123456789' + string.ascii_uppercase )[:32])
+
+#-------------------------------------------------------------------------------
+# Utilities
+#-------------------------------------------------------------------------------
 
 def generate_id(length=10):
     """ generates base32 string ID """
@@ -62,24 +65,6 @@ def pathlist(permalink):
         base_url = base_url[0: -1]
 
     return [i for i in base_url.split("/") if i != ""]
-
-
-def parse_model( json_obj ):
-    """ parses incoming JSON object representation and determines model, 
-    model_name and app_name """
-    model_base = json_obj['model']
-    app_name = model_base[ : model_base.find('.') ]
-    model_name = model_base[ model_base.find('.') + 1 : ]
-
-    return app_name, model_name
-
-
-def has_data(app_definitions, model_name):
-    """ checks the given model_name has data fields as per given app_definition """
-    if app_definitions[ model_name ].has_key('data_fields') and \
-        len(app_definitions[ model_name ]['data_fields']) > 0:
-        return True
-    return False
 
 
 def is_permalink( link ):
@@ -126,49 +111,31 @@ def build_hostname( profile_data ):
 
     return url
 
-
-def load_app_definitions( model_data ):
-    """ reads app definitions from the model_data - structure of supported
-    object models, required attributes, URL prefixes etc. """
-    def parse_prefix( model ):
-        if model in ['section', 'property', 'value']:
-            return 'metadata'
-        elif model in ['datafile']:
-            return 'datafiles'
-        return 'electrophysiology'
-
-    app_definitions = dict( model_data )
-    model_names = model_data.keys()
-    app_prefix_dict = dict( (model, parse_prefix( model )) for model in model_names )
-   
-    return app_definitions, model_names, app_prefix_dict
-
-
-def build_alias_dicts( alias_map ):
-    """ builds plain app/model (name) alias dicts """
-
-    # 1. app aliases, dict like {'electrophysiology': 'mtd', ...}
-    app_aliases = dict([ (app, als['alias']) for app, als in alias_map.items() ])
-
-    # 2. model aliases, dict like {'block': 'blk', ...}
-    cls_aliases = {}
-    for als in alias_map.values():
-        cls_aliases = dict(als['models'].items() + cls_aliases.items())
-
-    return app_aliases, cls_aliases
-
+#-------------------------------------------------------------------------------
+# Pretty printing
+#-------------------------------------------------------------------------------
 
 def cut_to_render( text, count=30 ):
     if len( text ) < count:
         return text
     return text[ : count-3] + '..'
 
-
 def print_status(text):
     """ implements single line text output """
     sys.stdout.write( "\r\x1b[K" + text )
     sys.stdout.flush()
 
+def sizeof_fmt( num ):
+    """ byte size pretty print """
+    for x in ['B','KB','MB','GB']:
+        if num < 1024.0 and num > -1024.0:
+            return "%3.1f%s" % (num, x)
+        num /= 1024.0
+    return "%3.1f%s" % (num, 'TB')
+    
+#-------------------------------------------------------------------------------
+# Parsing
+#-------------------------------------------------------------------------------
 
 def get_json_from_response( resp ):
     """ some API -> Client incoming JSON pre-processing """
@@ -193,22 +160,61 @@ def get_json_from_response( resp ):
     return json.loads( jstr )
 
 
-def sizeof_fmt( num ):
-    """ byte size pretty print """
-    for x in ['B','KB','MB','GB']:
-        if num < 1024.0 and num > -1024.0:
-            return "%3.1f%s" % (num, x)
-        num /= 1024.0
-    return "%3.1f%s" % (num, 'TB')
-
-
 # TODO clean these all up
 
+#-------------------------------------------------------------------------------
+# Model helpers
+#-------------------------------------------------------------------------------
+
+def parse_model( json_obj ):
+    """ parses incoming JSON object representation and determines model, 
+    model_name and app_name """
+    model_base = json_obj['model']
+    app_name = model_base[ : model_base.find('.') ]
+    model_name = model_base[ model_base.find('.') + 1 : ]
+
+    return app_name, model_name
+
+def has_data(app_definitions, model_name):
+    """ checks the given model_name has data fields as per given app_definition """
+    if app_definitions[ model_name ].has_key('data_fields') and \
+        len(app_definitions[ model_name ]['data_fields']) > 0:
+        return True
+    return False
+
+def load_app_definitions( model_data ):
+    """ reads app definitions from the model_data - structure of supported
+    object models, required attributes, URL prefixes etc. """
+    def parse_prefix( model ):
+        if model in ['section', 'property', 'value']:
+            return 'metadata'
+        elif model in ['datafile']:
+            return 'datafiles'
+        return 'electrophysiology'
+
+    app_definitions = dict( model_data )
+    model_names = model_data.keys()
+    app_prefix_dict = dict( (model, parse_prefix( model )) for model in model_names )
+   
+    return app_definitions, model_names, app_prefix_dict
+
+def build_alias_dicts( alias_map ):
+    """ builds plain app/model (name) alias dicts """
+
+    # 1. app aliases, dict like {'electrophysiology': 'mtd', ...}
+    app_aliases = dict([ (app, als['alias']) for app, als in alias_map.items() ])
+
+    # 2. model aliases, dict like {'block': 'blk', ...}
+    cls_aliases = {}
+    for als in alias_map.values():
+        cls_aliases = dict(als['models'].items() + cls_aliases.items())
+
+    return app_aliases, cls_aliases
+    
 def supports_metadata(cls):
     if not cls in ['section', 'property', 'value']:
         return True
     return False
-
 
 def get_parent_attr_name(model_name, parent_name):
     if parent_name == 'section' and \
@@ -238,6 +244,9 @@ def extract_location( permalink ):
     """ parses permalink and returns obj location, like /metadata/section/4 """
     return urlparse.urlparse( permalink ).path
 
+#-------------------------------------------------------------------------------
+# Decorators
+#-------------------------------------------------------------------------------
 
 def activate_remote(func):
     """ decorator for functions that require remote connection. opens the 
@@ -247,7 +256,7 @@ def activate_remote(func):
             self._remote.open()
 
         if not self._remote.is_active:
-            print_status('Host %s is not reachable.\n' % self._meta.host) 
+            self._meta.logger.info('Host %s is not reachable.' % self._meta.host) 
             return None
         return func(self, *args, **kwargs)
 

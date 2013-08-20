@@ -33,18 +33,16 @@ class Remote( BaseBackend ):
         auth_url = urlparse.urljoin(self._meta.host, 'account/authenticate/')
         try:
             auth = requests.post(auth_url, {'username': username, 'password': password})
-            if auth.cookies:
-                self.cookie = auth.cookies
-                print_status( 'Authenticated at %s as %s.\n' % \
-                    (self._meta.host, username) )
-
-            else:
-                print_status( 'Not connected (%s). Going offline mode.\n' % \
-                    auth.status_code )
+            if not auth.cookies:
+                raise ConnectionError(str(auth.status_code))
+                
+            self.cookie = auth.cookies
+            self._meta.logger.info('Authenticated at %s as %s.' % \
+                (self._meta.host, username))
 
         except ConnectionError, e:
-            print_status( 'Not connected (%s). Going offline mode.\n' % \
-                cut_to_render(str(e)) )
+            self._meta.logger.info('Not connected (%s). Going offline mode.' % \
+                cut_to_render(str(e)))
 
 
     def close(self):
@@ -97,7 +95,7 @@ class Remote( BaseBackend ):
         fid = location[2]
         url = '%s%s/%s/%s/' % (self._meta.host, "datafiles", str(fid), 'data')
 
-        print_status('loading datafile %s from server...' % fid)
+        self._meta.logger.info('loading datafile %s from server...' % fid)
 
         r = requests.get(url, cookies=self.cookie)
 
@@ -115,8 +113,6 @@ class Remote( BaseBackend ):
                     init_arr = np.array( carray[:] )
             except:
                 init_arr = None
-
-            print 'done.'
             return {"id": fid, "path": path, "data": init_arr}
 
         else:
@@ -145,7 +141,7 @@ class Remote( BaseBackend ):
         if not raw_json['selected']: # if no objects exist return empty result
             return []
 
-        print_status('%s(s) fetched.' % model_name)
+        self._meta.logger.info('%s(s) fetched.' % model_name)
         return raw_json['selected']
 
 
@@ -189,7 +185,7 @@ class Remote( BaseBackend ):
         if not os.path.exists( datapath ):
             raise ValueError('No file exists under a given path.')
 
-        print_status('uploading %s...' % datapath)
+        self._meta.logger.info('uploading %s...' % datapath)
 
         files = {'raw_file': open(datapath, 'rb')}
         url = '%s%s/' % (self._meta.host, 'datafiles')

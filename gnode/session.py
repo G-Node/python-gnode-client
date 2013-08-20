@@ -5,6 +5,7 @@ import re
 import warnings
 import errors
 import hashlib
+import logging
 try: 
     import simplejson as json
 except ImportError: 
@@ -61,11 +62,11 @@ class Session(object):
         self.models = dict( models_map )
 
         warnings.simplefilter('ignore', tb.NaturalNameWarning)
-        print "Session initialized."
+        self._meta.logger.info("Session initialized.")
 
 
-    def __del__(self):
-        self.cache.save_all()
+    #def __del__(self):
+    #    self.cache.save_all()
 
 
     def clear_cache(self):
@@ -245,7 +246,7 @@ class Session(object):
 
             if json_obj == 304: # get object from cache
                 obj = cached_obj
-                print_status('%s loaded from cache.' % str(loc))
+                self._meta.logger.debug('%s loaded from cache.' % str(loc))
 
             else: # request from server
 
@@ -266,7 +267,7 @@ class Session(object):
                 # or just download attached metadata here?
                 # metadata = self._fetch_metadata_by_json(cls, json_obj)
                 
-                print_status("%s fetched from server." % loc)
+                self._meta.logger.debug("%s fetched from server." % loc)
 
             stack.remove( loc ) # not to forget to remove processed object
             processed[ str(loc) ] = obj # add it to processed
@@ -334,7 +335,7 @@ class Session(object):
         self.cache.push(obj)
         self.cache.save_data_map()
 
-        print_status( 'Object(s) loaded.\n' )
+        self._meta.logger.info('%d object(s) loaded.' % len(processed))
         return obj
 
 
@@ -381,7 +382,7 @@ class Session(object):
             if not obj.__class__ in supported_models:
                 # skip this object completely
                 stack.remove( obj )
-                print_status('Object %s is not supported.\n' % cut_to_render( obj.__repr__() ))
+                self._meta.logger.warning('Object %s is not supported.' % cut_to_render( obj.__repr__() ))
                 continue
 
             # 2. pre-push new/changed array data to the server (+put in cache)
@@ -391,7 +392,7 @@ class Session(object):
             except (errors.FileUploadError, errors.UnitsError), e:
                 # skip this object completely
                 stack.remove( obj )
-                print_status('%s skipped: %s\n' % (cut_to_render(obj.__repr__(), 15), str(e)))
+                self._meta.logger.warning('%s skipped: %s\n' % (cut_to_render(obj.__repr__(), 15), str(e)))
                 continue
 
             # 3. pre-sync related metadata if exists (+put in cache)
@@ -409,7 +410,7 @@ class Session(object):
                             if not self._meta.get_gnode_descr(prp):
                                 to_sync.insert(0, prp) # sync property if never synced
                                 if not prp.parent:
-                                    print_status('Cannot sync %s for %s: section is not defined.\n' % \
+                                    self._meta.logger.warning('Cannot sync %s for %s: section is not defined.' % \
                                         (name, cut_to_render( obj.__repr__() )))
                                     stack.remove( prp )
                                     continue # move to other property
@@ -448,11 +449,11 @@ class Session(object):
                 success = True
                 obj_descr = self._meta.get_gnode_descr(obj)
                 processed.append( obj_descr['permalink'] )
-                print_status('Object at %s synced.' % obj_descr['location'])
+                self._meta.logger.debug('Object at %s synced.' % obj_descr['location'])
 
             except (errors.UnitsError, errors.ValidationError, \
                 errors.SyncFailed, errors.BadRequestError), e:
-                print_status('%s skipped: %s\n' % (cut_to_render(obj.__repr__(), 20), str(e)))
+                self._meta.logger.warning('%s skipped: %s\n' % (cut_to_render(obj.__repr__(), 20), str(e)))
 
             stack.remove( obj ) # not to forget to remove processed object
 
@@ -492,7 +493,7 @@ class Session(object):
         to_clean = [x for x in to_clean if x[0] in removed]
 
         if to_clean:
-            print_status('Cleaning removed objects..')
+            self._meta.logger.debug('Cleaning removed objects..')
             for link, par_name in to_clean:
 
                 # TODO make in bulk? could be faster
@@ -514,13 +515,11 @@ class Session(object):
         # object update 'parent'-type objects after sync may have outdated 
         # guids, which could be solved by pulling all object at the end of the
         # sync (below) or better remove this feature on the API level.
-        print_status('updating object references..')
+        self._meta.logger.debug('updating object references..')
         for obj in to_update_refs:
             self.__update_gnode_attr(obj) # update all eTags from the remote
         self.cache.save_all() # save updated etags etc.
-
-        # final output
-        print_status('sync done, %d objects processed.\n' % len( processed ))
+        self._meta.logger.info('sync done, %d objects processed.' % len(processed))
 
 
     @activate_remote
@@ -584,9 +583,7 @@ class Session(object):
                         setattr( obj.metadata, cloned.name, cloned )
 
             counter += len(objects)
-            print_status('%s(s) annotated.' % model_name)
-
-        print_status('total %d object(s) annotated.\n' % counter)
+        self._meta.logger.info('total %d object(s) annotated.' % counter)
 
 
     def shutdown(self):
@@ -595,7 +592,6 @@ class Session(object):
             self._remote.close()
 
         self.cache.save_all()
-
 
     #---------------------------------------------------------------------------
     # helper functions that DO send HTTP requests

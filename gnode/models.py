@@ -5,6 +5,8 @@ import simplejson as json
 import numpy as np
 import quantities as pq
 import os
+import logging
+import logging.config as lconf
 
 from neo.core import *
 from odml.section import BaseSection
@@ -101,6 +103,8 @@ class Meta( object ):
             model_data = json.load(f)
         with open(profile_data['alias'], 'r') as f:
             alias_data = json.load(f)
+        with open(profile_data['logging'], 'r') as f:
+            logging_data = json.load(f)
 
         # init user / server info
         self.username = profile_data['username']
@@ -125,6 +129,13 @@ class Meta( object ):
         self.cache_dir = os.path.abspath( profile_data['cache_dir'] )
         if not os.path.exists( self.cache_dir ):
             os.mkdir( self.cache_dir )
+
+        # init logger
+        for handler in logging_data['handlers'].values():
+            if handler.has_key('filename'):
+                handler['filename'] = os.path.join(self.cache_dir, handler['filename'])
+        lconf.dictConfig(logging_data)
+        self.logger = logging.getLogger('gnode')
         self.models_map = models_map
 
     def get_array_attr_names(self, model_name):

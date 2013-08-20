@@ -18,5 +18,6 @@
     "verbose" : true,
 
     "definition": "./gnode/definition.json",
-    "alias": "./gnode/alias.json"
+    "alias": "./gnode/alias.json",
+    "logging": "./gnode/logging.json"
 }

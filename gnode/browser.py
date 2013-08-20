@@ -1,8 +1,5 @@
 from utils import *
 
-# TODO configure logger to print to the stdout
-
-
 class Browser(object):
     """ 
     use this class to browse objects at the remote with cmd-type operations

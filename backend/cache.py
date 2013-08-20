@@ -67,10 +67,10 @@ class Cache( object ):
         """ saves all objects in the objs list """
         iom = neo.io.hdf5io.NeoHdf5IO(filename=self.temp_neo_path)
         document = odml.Document()
+        supp_models = [m for k, m in self._meta.models_map.items() if \
+            not k in ['property', 'value']]
 
         for obj in self._objs:
-            supp_models = [m for k, m in self._meta.models_map.items() if \
-                not k in ['property', 'value']]
             if not obj.__class__ in supp_models:
                 raise TypeError('Objects of that type are not supported.')
 
@@ -118,12 +118,12 @@ class Cache( object ):
         """ loads cache from disk, validates cached files """
         # 1. loading data_map
         if not os.path.exists( self.data_map_path ):
-            print_status('No saved data map found, downloaded files will not be used.')
+            self._meta.logger.debug('No saved data map found, downloaded files will not be used.')
         else:
             try:
                 with open(self.data_map_path, 'r') as f:
                     data_map = json.load(f)
-                print_status( 'Data map file found. Loading...' )
+                self._meta.logger.debug('Data map file found. Loading...' )
                 
                 not_found = []
                 for lid, filepath in data_map.items():
@@ -133,19 +133,19 @@ class Cache( object ):
                         not_found.append( filepath )
                 if not_found:
                     to_render = str( not_found )[:100]
-                    print_status('Some cached files cannot be found, remove them from cache: %s\n' % to_render)
+                    self._meta.logger.warning('Some cached files cannot be found, remove them from cache: %s' % to_render)
 
-                print_status('Data map loaded (%d).\n' % len( self._data_map.keys() ))
+                self._meta.logger.info('Data map loaded (%d).\n' % len( self._data_map.keys() ))
 
             except ValueError:
-                print_status('Data map file cannot be parsed. Skip loading downloaded files.')
+                self._meta.logger.warning('Data map file cannot be parsed. Skip loading downloaded files.')
 
         # 2. loading NEO objects
         if not os.path.exists( self.neo_path ):
-            print_status('No cached NEO map found, no objects loaded.')
+            self._meta.logger.debug('No cached NEO map found, no objects loaded.')
         else:
             iom = neo.io.hdf5io.NeoHdf5IO(filename=self.neo_path)
-            print_status( 'File with cached data found. Loading...' )
+            self._meta.logger.debug('File with cached data found. Loading...' )
 
             not_found = []
             for filepath in iom._data.listNodes('/'):
@@ -159,21 +159,20 @@ class Cache( object ):
 
             if not_found:
                 to_render = str( not_found )[:100]
-                print_status('Some cached data objects were damaged, remove them from cache: %s\n' % to_render)
+                self._meta.logger.warning('Some cached data objects were damaged, remove them from cache: %s' % to_render)
 
         # 3. loading odML objects
         if not os.path.exists( self.odml_path ):
-            print_status('No cached odML map found, no objects loaded.')
+            self._meta.logger.debug('No cached odML map found, no objects loaded.')
         else:
             document = odml.tools.xmlparser.load(self.odml_path)
-            print_status( 'File with odML data found. Loading...' )
+            self._meta.logger.debug('File with odML data found. Loading...')
 
             for section in document.sections:
                 self.middleware.post_load(section, self._data_map)
                 self._objs.append(section)
 
-        # clean _gnode properties and annotations
-        print_status('Objects loaded (%d).\n' % len(self._objs))
+        self._meta.logger.info('Objects loaded (%d).' % len(self._objs))
 
     #---------------------------------------------------------------------------
     # ON DISK operations with DATAFILES
@@ -361,7 +360,7 @@ class SaveMiddleware(object):
     
     def _clean_property(self, prop):
         if len(prop.values) == 1 and prop.values[0].data == '_gnode':
-            return obj.values.pop('_gnode')
+            return prop.values.pop(0)
 
 
     def pre_save(self, obj):
