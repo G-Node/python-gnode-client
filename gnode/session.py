@@ -25,26 +25,29 @@ from models import Meta, Metadata, models_map, supported_models, units_dict
 # core Client classes
 #-------------------------------------------------------------------------------
 
+def init(config_file='conf.json'):
+    """ creates session using data specified in a JSON configuration files
+
+    config_file: name of the configuration file in which the profile to be 
+                 loaded is contained the standard profile is located at
+                 default.json
+
+    models_file: name of the configuration file defining models structure"""
+    try:
+        with open(str(config_file), 'r') as f:
+            profile_data = json.load(f)
+
+    except IOError as err:
+        raise errors.AbsentConfigurationFileError(err)
+    except ValueError as err:
+        raise errors.MisformattedConfigurationFileError(err)
+    return Session(profile_data)
+        
+
 class Session(object):
     """ Object to handle connection and client-server data transfer """
 
-    def __init__(self, config_file='conf.json'):
-        """ creates session using data specified in a JSON configuration files
-
-        config_file: name of the configuration file in which the profile to be 
-                     loaded is contained the standard profile is located at
-                     default.json
-
-        models_file: name of the configuration file defining models structure"""
-        try:
-            with open(str(config_file), 'r') as f:
-                profile_data = json.load(f)
-
-        except IOError as err:
-            raise errors.AbsentConfigurationFileError(err)
-        except ValueError as err:
-            raise errors.MisformattedConfigurationFileError(err)
-
+    def __init__(self, profile_data):
         meta = Meta( profile_data )
         self._meta = meta
 
