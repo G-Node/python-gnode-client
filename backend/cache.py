@@ -151,7 +151,7 @@ class Cache( object ):
             for filepath in iom._data.listNodes('/'):
                 try:
                     obj = iom.get(filepath)
-                    self.middleware.post_load(obj)
+                    self.middleware.post_load(obj, self._data_map)
                     self._objs.append(obj)
                 except LookupError:
                     not_found.append( filepath )
