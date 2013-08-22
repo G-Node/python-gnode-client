@@ -32,16 +32,16 @@ Quickstart
 
 Edit the conf.json, set:
 
-"host": "predata.g-node.org",
-"port": 80
+    "host": "predata.g-node.org",
+    "port": 80
 
 go to the python console:
 
-$ python
+    $ python
 
 or
 
-$ ipython
+    $ ipython
 
 initialize the session by:
 
