@@ -139,15 +139,7 @@ def sizeof_fmt( num ):
 
 def get_json_from_response( resp ):
     """ some API -> Client incoming JSON pre-processing """
-
-    # 1. requests library handles json depending on the platform, resolve
-    if type( resp.json ) == type( {} ):
-        json_obj = resp.json
-    else:
-        json_obj = resp.json()
-
-    # 2. all permalinks should have trailing slash
-    jstr = json.dumps( json_obj )
+    jstr = str(resp.content)
     si = 0
     while jstr.find('http://', si) > 0:
         lstart = jstr.find('http://', si)
