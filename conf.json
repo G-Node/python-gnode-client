@@ -19,5 +19,5 @@
 
     "definition": "./gnode/definition.json",
     "alias": "./gnode/alias.json",
-    "logging": "./gnode/logging.json"
+    "logging": "./gnode/logging.conf"
 }

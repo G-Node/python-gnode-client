@@ -103,8 +103,6 @@ class Meta( object ):
             model_data = json.load(f)
         with open(profile_data['alias'], 'r') as f:
             alias_data = json.load(f)
-        with open(profile_data['logging'], 'r') as f:
-            logging_data = json.load(f)
 
         # init user / server info
         self.username = profile_data['username']
@@ -130,11 +128,16 @@ class Meta( object ):
         if not os.path.exists( self.cache_dir ):
             os.mkdir( self.cache_dir )
 
-        # init logger
-        for handler in logging_data['handlers'].values():
-            if handler.has_key('filename'):
-                handler['filename'] = os.path.join(self.cache_dir, handler['filename'])
-        lconf.dictConfig(logging_data)
+        # init logger as dict - python 2.7+
+        #with open(profile_data['logging'], 'r') as f:
+        #    logging_data = json.load(f)
+        #for handler in logging_data['handlers'].values():
+        #    if handler.has_key('filename'):
+        #        handler['filename'] = os.path.join(self.cache_dir, handler['filename'])
+        #lconf.dictConfig(logging_data)
+        
+        # init logger as file - all python
+        lconf.fileConfig(profile_data['logging'])
         self.logger = logging.getLogger('gnode')
         self.models_map = models_map
 
