@@ -58,7 +58,7 @@ class Session(object):
 
         # TODO make odML to load terms into our cache folder, not default /tmp
         terms = odml.terminology.terminologies.load(profile_data['odml_repository'])
-        self.terminologies = terms.sections
+        self.terminologies = getattr(terms, 'sections', None)
         self.models = dict( models_map )
 
         warnings.simplefilter('ignore', tb.NaturalNameWarning)
@@ -502,7 +502,7 @@ class Session(object):
                     'location': location,
                     'permalink': link,
                     'fields': {
-                        par_name: null
+                        par_name: None
                     }
                 }
 

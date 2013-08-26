@@ -248,7 +248,7 @@ def activate_remote(func):
             self._remote.open()
 
         if not self._remote.is_active:
-            self._meta.logger.info('Host %s is not reachable.' % self._meta.host) 
+            self._meta.logger.info('Cannot authenticate at %s.' % self._meta.host) 
             return None
         return func(self, *args, **kwargs)
 
