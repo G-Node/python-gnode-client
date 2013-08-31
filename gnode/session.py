@@ -219,6 +219,11 @@ class Session(object):
                 parameters (if specified)
 
         """
+        # fetch location from _gnode if an instance of NEO/odML given
+        if location.__class__ in models_map.values() and \
+            self._meta.get_gnode_descr(location):
+            location = self._meta.get_gnode_descr(location)['location']
+
         location = self._meta.parse_location( location )
         supp_models = [k for k in models_map.keys() if \
             not k in ['property', 'value']]
