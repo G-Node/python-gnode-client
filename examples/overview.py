@@ -12,55 +12,57 @@ Use our demo user to get an overview:
 }
 
 Same data can be explored at http://predata.g-node.org/wdat/
+
+Please report any issues to support@g-node.org
 """
 
 # 1. init a session
 from gnode.session import init
 g = init()
 
-#-------------------------------------------------------------------------------
-# Explore objects on the remote
-#-------------------------------------------------------------------------------
-
-# 2. output remote objects
-from gnode.browser import Browser
-b = Browser(g)
-b.ls() # by default lists top metadata sections
-
-# 3. output objects of certain type
-b.ls('analogsignal') # no objects, just output!
-
-# 4. output contents of an object 
-b.ls('/mtd/sec/HNHB7OSSAM/')
+# get familiar with supported object models
+g.models # FIXME add Datafile?!
 
 #-------------------------------------------------------------------------------
 # Accessing data and metadata
 #-------------------------------------------------------------------------------
 
-# 4. pull some metadata
-stimulus = g.pull('/mtd/sec/TMDCSTMLK7/')
-stimulus # odml section
+# select objects of a certain type
+g.select('spiketrain', {'max_results': 10}) # returns python objects
+
+# use some filters and parameters
+g.select('spiketrain', {'name__icontains': '1104'}, mode='json')
+
+# select fetches objects without contents to make it fast 
+sections = g.select('section', {'name__icontains': 'stimulus'})
+
+# to get the full object use pull
+stimulus = g.pull(sections[0])
+stimulus # odML section
 stimulus.properties # stimulus properties
 stimulus.properties['Colors'].values
-stimulus.properties['Orientations'].values
+stimulus.properties['BehaviouralConditions'].values
 
-# 5. explore some dataset
-b.ls('/mtd/sec/HNHB7OSSAM/') # note there is a dataset inside
-b.ls('/eph/blk/4M47OCTV0M/') # note a lot of segment trials
+# select some dataset
+blocks = g.select('block', {'max_results': 10})
 
-# 6. query for only a subset
+# explore time segments inside dataset
+segments = g.select('segment', {'block': blocks[0]})
+
+# query for only a subset of all segments
 filt = {}
-filt['block'] = '4M47OCTV0M'
-filt['name__icontains'] = 'saccade' # you may filter by attributes
+filt['block'] = blocks[0]
+filt['name__icontains'] = 'saccade'
 segs = g.select('segment', filt) # only segments, no data
-len(segs)
 
-# 8. get one of the segments with array data
-s1 = g.pull('/eph/seg/R8KV2OP75L') # note it fetches files with data
+# 8. get one of the segments with all array data
+s1 = g.pull(segs[0]) # note it fetches files with data
 type(s1) # NEO segment
 s1.analogsignals
 s1.spiketrains
 #s1.metadata # FIXME in development
+
+# FIXME add some plotting here
 
 #-------------------------------------------------------------------------------
 # Caching features
@@ -158,6 +160,22 @@ pl.xlabel(sigs[0].times.units)
 pl.ylabel(sigs[0].units)
 
 pl.show()
+
+#-------------------------------------------------------------------------------
+# Explore objects on the remote
+#-------------------------------------------------------------------------------
+
+# 2. output remote objects
+from gnode.browser import Browser
+b = Browser(g)
+b.ls() # by default lists top metadata sections
+
+# 3. output objects of certain type
+b.ls('analogsignal') # no objects, just output!
+
+# 4. output contents of an object 
+b.ls('/mtd/sec/HNHB7OSSAM/')
+
 
 #-------------------------------------------------------------------------------
 # Some advanced features
