@@ -69,11 +69,6 @@ class Session(object):
     #    self.cache.save_all()
 
 
-    def clear_cache(self):
-        """ removes all objects from the cache """
-        self.cache.clear_cache()
-
-
     @activate_remote
     def select(self, model_name, params={}, data_load=False, mode='obj'):
         """ requests objects of a given type from server in bulk mode. 
