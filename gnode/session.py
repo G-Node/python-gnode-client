@@ -235,7 +235,7 @@ class Session(object):
 
             # find object in cache
             etag = None
-            cached_obj = self.cache.get( loc )
+            cached_obj = self.cache.pull( loc )
             if not type(cached_obj) == type(None):
                 obj_descr = self._meta.get_gnode_descr(cached_obj)
                 if obj_descr and obj_descr['fields'].has_key('guid'):
@@ -340,7 +340,7 @@ class Session(object):
 
 
     @activate_remote
-    def push(self, obj_to_sync, cascade=False, force_update=False):
+    def push(self, obj_to_sync, cascade=True, force_update=False):
         """ syncs a given object to the server (updates or creates a new one).
 
         cascade:    True/False
