@@ -27,8 +27,9 @@ pip-log.txt
 #Mr Developer
 .mr.developer.cfg
 
-#PyCharm IDE files
-.idea/*
-
 *~
 *.log
+
+# IDEA PyCharm files
+.idea
+*.iml
