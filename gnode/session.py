@@ -26,7 +26,7 @@ from models import Meta, Metadata, models_map, supported_models, units_dict
 # core Client classes
 #-------------------------------------------------------------------------------
 
-def init(config_file='conf.json'):
+def init(username=None, password=None, host=None, port=None, config_file='conf.json'):
     """ creates session using data specified in a JSON configuration files
 
     config_file: name of the configuration file in which the profile to be 
@@ -42,6 +42,16 @@ def init(config_file='conf.json'):
         raise errors.AbsentConfigurationFileError(err)
     except ValueError as err:
         raise errors.MisformattedConfigurationFileError(err)
+        
+    if username and password:
+        profile_data['username'] = username
+        profile_data['password'] = password
+
+    if host:
+        profile_data['host'] = host
+    if port:
+        profile_data['port'] = port
+
     return Session(profile_data)
         
 
