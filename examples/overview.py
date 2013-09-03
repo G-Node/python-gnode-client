@@ -126,19 +126,21 @@ g.push(block)
 # Upload raw file data
 #-------------------------------------------------------------------------------
 
-# create new datafile inside metadata section
-with open('/tmp/bla.foo', 'w') as f:
+with open('/tmp/bla.foo', 'w') as f: # create a test file
     f.write('some test data')
 
+# create new datafile inside metadata section
 datafile = g.models['datafile']('/tmp/bla.foo', experiment)
-g.push(experiment, cascade=True)
+g.push(experiment)
 
 #-------------------------------------------------------------------------------
 # Some useful features
 #-------------------------------------------------------------------------------
 
+project = g.select('section', {'name': 'DEMO'})[0]
+
 # get a JSON representation of an object on the server
-json_repr = getattr(s1, '_gnode', None) # or just s1._gnode
+json_repr = getattr(project, '_gnode', None) # or just project._gnode
 
 # get to know an ID of an object
 json_repr['id']
@@ -147,21 +149,22 @@ json_repr['id']
 # Caching
 #-------------------------------------------------------------------------------
 
-sid = segs[0]._gnode['id'] # you can also pass ID to the pull function
-sid # remember ID to access object if session restart
+segs = g.select('segment', {'name__icontains': 'saccade'})
+loc = segs[0]._gnode['location'] # you can pass location to the pull function
+loc # remember ID to access object if session restart
 
 # pulled objects are cached
-s1 = g.pull(sid) # note the speed!
+s1 = g.pull(loc) # note the speed!
 
 # only changed objects are pulled again
-s1 = g.pull(sid) # fetches updates if any
+s1 = g.pull(loc) # fetches updates if any
 
 # cached objects are kept after a session brake
 # --- restart session here ---
-s1 = g.pull(sid) # note the speed!
+s1 = g.pull(loc) # note the speed!
 
-# objects can be pulled from the cache in case of no connection
-s1 == g.cache.pull(sid)
+# synced objects can be also pulled from the cache
+s1 == g.cache.pull(loc)
 
 #-------------------------------------------------------------------------------
 # Track changes
@@ -170,9 +173,12 @@ s1 == g.cache.pull(sid)
 import datetime
 now = datetime.datetime.now() # save current time for later
 
+sections = g.select('section', {'name': 'My custom experiment'})
+experiment = g.pull(sections[0])
+
 # change object: note only changes pushed
 experiment.name = 'My custom experiment CHANGED'
-g.push(experiment, cascade=True) # note the speed!
+g.push(experiment) # note the speed!
 
 # you can fetch objects at previous states
 at_time = now.strftime('%Y-%m-%d %H:%M:%S')
@@ -189,7 +195,7 @@ b = Browser(g)
 b.ls() # by default lists top metadata sections
 
 # output objects of certain type
-b.ls('analogsignal') # no objects, just output!
+b.ls('section') # no objects, just output!
 
 # output contents of an object
 b.ls('/mtd/sec/HNHB7OSSAM/')
