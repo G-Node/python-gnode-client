@@ -46,13 +46,13 @@ class Local( BaseBackend ):
                     # check the model group exists
                     get_or_create( '/' + app + '/', model_name )
 
-            print_status( 'Cache file with %s data found.\n' %  \
+            self._meta.logger.debug('Cache file with %s data found.' %  \
                 sizeof_fmt( os.path.getsize( self._meta.cache_path )))
 
         except IOError, e:
-            print 'No saved cached data found, cache is empty.'
+            self._meta.logger.debug('No saved cached data found, cache is empty.')
         except ValueError:
-            print 'Cache file cannot be parsed. Skip loading cached data.'
+            self._meta.logger.warning('Cache file cannot be parsed. Skip loading cached data.')
 
     #---------------------------------------------------------------------------
     # open/close backend (authenticate etc.)

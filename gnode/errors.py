@@ -1,56 +1,26 @@
 #!/usr/bin/env python
 
-"""
-gnode-client.exceptions
-~~~~~~~~~~~~~~~~~~~~~~~
-
-This module contains the set of Gnode Client's exceptions.
-
-"""
 #TODO: offer more explanatory error messages by incorporating the object ids
 # in the error message
 
-#NOTE!!!!: using simplejson.JSONDecodeError makes simplejson a mandatory
-#	requirement since json doesn't have that error!!!
 import simplejson as json
 
-#------------------Configuration file errors------------------------
-#TODO: use attributes of the upstream error classes to print more meaningful
-#	messages
+#-------------------------------------------------------------------------------
+# Operational errors
+#-------------------------------------------------------------------------------
 
 class AbsentConfigurationFileError(IOError):
-	"""Exception raised when some of the specified config files do not exist.
-	
-	Args:
-		IOError: the IOError raised; will be printed and help user recognize e.g.
-			a typo in the filename
-	"""
-	def __init__(self, io_error=None):
-		if io_error:
-			self.upstream_error = io_error
-			self.upstream_error_str = self.upstream_error.__str__()
-		else:
-			self.upstream_error_str = ""
-
+	"""Exception raised when some of the specified config files do not exist """
 	def __str__(self):
-		return self.upstream_error_str + "\n Please check whether configuration\
-            and/or requirements file exists and is stored in the right directory"
+		return "Please check whether configuration and/or requirements file\
+		     exists and is stored in the right directory"
 
 class MisformattedConfigurationFileError(ValueError):
 	"""Exception raised when the configuration data cannot be read from the
 	JSON configuration files due to a misformatted file."""
-
-	def __init__(self, json_error=None):
-		if json_error:
-			self.upstream_error = json_error
-			self.upstream_error_str = self.upstream_error.__str__()
-		else:
-			self.upstream_error_str = ""
 	def __str__(self):
-		return self.upstream_error_str + "\n Please check whether the \
-            configuration and/or requirements file follows the standard JSON \
-            format and contains the mandatory fields"
-
+		return "Please check whether the configuration and/or requirements file\
+		    follows the standard JSON format and contains the mandatory fields"
 
 class FileUploadError( ValueError ):
     """ raised when some upload of the file fails """
@@ -68,7 +38,10 @@ class SyncFailed( ValueError ):
     """ raised when sync request sent but sync fails """
     pass
 
-#------------------Server request errors------------------------
+#-------------------------------------------------------------------------------
+# HTTP server responses
+#-------------------------------------------------------------------------------
+
 class Error(Exception):
     """Base class for Gnode Client's exceptions."""
     #def __init__(self, message=''):
@@ -101,8 +74,9 @@ class NotSupportedError(Error):
 	def _definition(self):
 		return "Request is not supported at this URL"
 
-error_codes = {400:BadRequestError, 401:UnauthorizedError, 403:ForbiddenError,
-404:NotFoundError, 405:NotSupportedError}
+#-------------------------------------------------------------------------------
+# Local object-related errors
+#-------------------------------------------------------------------------------
 
 class NotBoundToSession(Error):
 	"""Error raised when a method or property of a server session is accessed
@@ -130,3 +104,12 @@ class ObjectTypeNotYetSupported(Error):
 	def __str__(self):
 		return "The object type you have requested is not yet supported by \
 		this client. Stay tunned!"
+
+
+error_codes = {
+    400:BadRequestError, 
+    401:UnauthorizedError, 
+    403:ForbiddenError,
+    404:NotFoundError, 
+    405:NotSupportedError
+}

@@ -1,4 +1,38 @@
 {
+  "datafile": {
+    "attributes": [
+
+    ],
+    "reserved": [
+      "file_type",
+      "extracted_info",
+      "last_task_id",
+      "size",
+      "description",
+      "tags",
+      "operations_log",
+      "safety_level",
+      "owner",
+      "shared_with",
+      "date_created",
+      "guid"
+    ],
+    "data_fields": {
+
+    },
+    "init_args": [
+
+    ],
+    "required": [
+
+    ],
+    "parents": [
+      "section"
+    ],
+    "children": [
+
+    ]
+  },
   "section": {
     "attributes": [
       "name"
@@ -28,7 +62,8 @@
     ],
     "children": [
       "section",
-      "property"
+      "property",
+      "datafile"
     ]
   },
   "property": {

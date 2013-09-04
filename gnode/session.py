@@ -5,6 +5,7 @@ import re
 import warnings
 import errors
 import hashlib
+import logging
 try: 
     import simplejson as json
 except ImportError: 
@@ -25,30 +26,40 @@ from models import Meta, Metadata, models_map, supported_models, units_dict
 # core Client classes
 #-------------------------------------------------------------------------------
 
-class GNode( Browser ):
+def init(username=None, password=None, host=None, port=None, config_file='conf.json'):
+    """ creates session using data specified in a JSON configuration files
+
+    config_file: name of the configuration file in which the profile to be 
+                 loaded is contained the standard profile is located at
+                 default.json
+
+    models_file: name of the configuration file defining models structure"""
+    try:
+        with open(str(config_file), 'r') as f:
+            profile_data = json.load(f)
+
+    except IOError as err:
+        raise errors.AbsentConfigurationFileError(err)
+    except ValueError as err:
+        raise errors.MisformattedConfigurationFileError(err)
+        
+    if username and password:
+        profile_data['username'] = username
+        profile_data['password'] = password
+
+    if host:
+        profile_data['host'] = host
+    if port:
+        profile_data['port'] = port
+
+    return Session(profile_data)
+        
+
+class Session(object):
     """ Object to handle connection and client-server data transfer """
 
-    def __init__(self, config_file='default.json', models_file='requirements.json'):
-        """ creates session using data specified in a JSON configuration files
-
-        config_file: name of the configuration file in which the profile to be 
-                     loaded is contained the standard profile is located at
-                     default.json
-
-        models_file: name of the configuration file defining models structure"""
-        try:
-            with open(str(config_file), 'r') as f:
-                profile_data = json.load(f)
-
-            with open(str(models_file), 'r') as f:
-                model_data = json.load(f)
-            
-        except IOError as err:
-            raise errors.AbsentConfigurationFileError(err)
-        except ValueError as err:
-            raise errors.MisformattedConfigurationFileError(err)
-
-        meta = Meta( profile_data, model_data )
+    def __init__(self, profile_data):
+        meta = Meta( profile_data )
         self._meta = meta
 
         self.cache = Cache( meta )
@@ -57,20 +68,15 @@ class GNode( Browser ):
 
         # TODO make odML to load terms into our cache folder, not default /tmp
         terms = odml.terminology.terminologies.load(profile_data['odml_repository'])
-        self.terminologies = terms.sections
+        self.terminologies = getattr(terms, 'sections', None)
         self.models = dict( models_map )
 
         warnings.simplefilter('ignore', tb.NaturalNameWarning)
-        print "Session initialized."
+        self._meta.logger.info("Session initialized.")
 
 
-    def __del__(self):
-        self.cache.save_all()
-
-
-    def clear_cache(self):
-        """ removes all objects from the cache """
-        self.cache.clear_cache()
+    #def __del__(self):
+    #    self.cache.save_all()
 
 
     @activate_remote
@@ -145,7 +151,9 @@ class GNode( Browser ):
 
         if not model_name in self._meta.models_map.keys():
             raise TypeError('Objects of that type are not supported.')
-
+        if model_name == 'datafile' and not data_load and not mode == 'json':
+            raise TypeError('Datafiles cannot be fetched if data_load=False.')
+                
         filt = clean_params(params)
         json_objs = self._remote.get_list(model_name, filt)
 
@@ -216,6 +224,11 @@ class GNode( Browser ):
                 parameters (if specified)
 
         """
+        # fetch location from _gnode if an instance of NEO/odML given
+        if location.__class__ in models_map.values() and \
+            self._meta.get_gnode_descr(location):
+            location = self._meta.get_gnode_descr(location)['location']
+
         location = self._meta.parse_location( location )
         supp_models = [k for k in models_map.keys() if \
             not k in ['property', 'value']]
@@ -232,7 +245,7 @@ class GNode( Browser ):
 
             # find object in cache
             etag = None
-            cached_obj = self.cache.get_obj_by_location( loc )
+            cached_obj = self.cache.pull( loc )
             if not type(cached_obj) == type(None):
                 obj_descr = self._meta.get_gnode_descr(cached_obj)
                 if obj_descr and obj_descr['fields'].has_key('guid'):
@@ -243,7 +256,7 @@ class GNode( Browser ):
 
             if json_obj == 304: # get object from cache
                 obj = cached_obj
-                print_status('%s loaded from cache.' % str(loc))
+                self._meta.logger.debug('%s loaded from cache.' % str(loc))
 
             else: # request from server
 
@@ -264,7 +277,7 @@ class GNode( Browser ):
                 # or just download attached metadata here?
                 # metadata = self._fetch_metadata_by_json(cls, json_obj)
                 
-                print_status("%s fetched from server." % loc)
+                self._meta.logger.debug("%s fetched from server." % loc)
 
             stack.remove( loc ) # not to forget to remove processed object
             processed[ str(loc) ] = obj # add it to processed
@@ -332,12 +345,12 @@ class GNode( Browser ):
         self.cache.push(obj)
         self.cache.save_data_map()
 
-        print_status( 'Object(s) loaded.\n' )
+        self._meta.logger.info('%d object(s) loaded.' % len(processed))
         return obj
 
 
     @activate_remote
-    def push(self, obj_to_sync, cascade=False, force_update=False):
+    def push(self, obj_to_sync, cascade=True, force_update=False):
         """ syncs a given object to the server (updates or creates a new one).
 
         cascade:    True/False
@@ -379,7 +392,7 @@ class GNode( Browser ):
             if not obj.__class__ in supported_models:
                 # skip this object completely
                 stack.remove( obj )
-                print_status('Object %s is not supported.\n' % cut_to_render( obj.__repr__() ))
+                self._meta.logger.warning('Object %s is not supported.' % cut_to_render( obj.__repr__() ))
                 continue
 
             # 2. pre-push new/changed array data to the server (+put in cache)
@@ -389,7 +402,7 @@ class GNode( Browser ):
             except (errors.FileUploadError, errors.UnitsError), e:
                 # skip this object completely
                 stack.remove( obj )
-                print_status('%s skipped: %s\n' % (cut_to_render(obj.__repr__(), 15), str(e)))
+                self._meta.logger.warning('%s skipped: %s\n' % (cut_to_render(obj.__repr__(), 15), str(e)))
                 continue
 
             # 3. pre-sync related metadata if exists (+put in cache)
@@ -407,7 +420,7 @@ class GNode( Browser ):
                             if not self._meta.get_gnode_descr(prp):
                                 to_sync.insert(0, prp) # sync property if never synced
                                 if not prp.parent:
-                                    print_status('Cannot sync %s for %s: section is not defined.\n' % \
+                                    self._meta.logger.warning('Cannot sync %s for %s: section is not defined.' % \
                                         (name, cut_to_render( obj.__repr__() )))
                                     stack.remove( prp )
                                     continue # move to other property
@@ -446,11 +459,11 @@ class GNode( Browser ):
                 success = True
                 obj_descr = self._meta.get_gnode_descr(obj)
                 processed.append( obj_descr['permalink'] )
-                print_status('Object at %s synced.' % obj_descr['location'])
+                self._meta.logger.debug('Object at %s synced.' % obj_descr['location'])
 
             except (errors.UnitsError, errors.ValidationError, \
                 errors.SyncFailed, errors.BadRequestError), e:
-                print_status('%s skipped: %s\n' % (cut_to_render(obj.__repr__(), 20), str(e)))
+                self._meta.logger.warning('%s skipped: %s\n' % (cut_to_render(obj.__repr__(), 20), str(e)))
 
             stack.remove( obj ) # not to forget to remove processed object
 
@@ -490,7 +503,7 @@ class GNode( Browser ):
         to_clean = [x for x in to_clean if x[0] in removed]
 
         if to_clean:
-            print_status('Cleaning removed objects..')
+            self._meta.logger.debug('Cleaning removed objects..')
             for link, par_name in to_clean:
 
                 # TODO make in bulk? could be faster
@@ -499,7 +512,7 @@ class GNode( Browser ):
                     'location': location,
                     'permalink': link,
                     'fields': {
-                        par_name: null
+                        par_name: None
                     }
                 }
 
@@ -512,21 +525,11 @@ class GNode( Browser ):
         # object update 'parent'-type objects after sync may have outdated 
         # guids, which could be solved by pulling all object at the end of the
         # sync (below) or better remove this feature on the API level.
-        print_status('updating object references..')
-        #def update_reference(obj):
-        #    try:
-        #        self.__update_gnode_attr(obj)
-        #    except AttributeError:
-        #        pass # object wasn't properly synced
-        #    for rel in self._meta.iterate_children(obj):
-        #        update_reference(rel)
-
+        self._meta.logger.debug('updating object references..')
         for obj in to_update_refs:
             self.__update_gnode_attr(obj) # update all eTags from the remote
         self.cache.save_all() # save updated etags etc.
-
-        # final output
-        print_status('sync done, %d objects processed.\n' % len( processed ))
+        self._meta.logger.info('sync done, %d objects processed.' % len(processed))
 
 
     @activate_remote
@@ -590,9 +593,7 @@ class GNode( Browser ):
                         setattr( obj.metadata, cloned.name, cloned )
 
             counter += len(objects)
-            print_status('%s(s) annotated.' % model_name)
-
-        print_status('total %d object(s) annotated.\n' % counter)
+        self._meta.logger.info('total %d object(s) annotated.' % counter)
 
 
     def shutdown(self):
@@ -601,7 +602,6 @@ class GNode( Browser ):
             self._remote.close()
 
         self.cache.save_all()
-
 
     #---------------------------------------------------------------------------
     # helper functions that DO send HTTP requests
@@ -613,6 +613,18 @@ class GNode( Browser ):
         to cache """
         data_refs = {} # collects all references to the related data - output
         model_name = self._meta.get_type_by_obj( obj )
+
+        if model_name == 'datafile':
+            if not self._meta.get_gnode_descr(obj): # otherwise already uploaded
+                json_obj = self._remote.save_data(obj.path)
+                
+                # update cache data map
+                datalink = json_obj['permalink']
+                fid = str(get_id_from_permalink( datalink ))
+                self.cache.update_data_map(fid, obj.path)
+                self._meta.set_gnode_descr(obj, json_obj)
+                
+            return data_refs
 
         data_attrs = self._meta.get_array_attr_names( model_name )
         attrs_to_sync = self.cache.detect_changed_data_fields( obj )
@@ -654,26 +666,33 @@ class GNode( Browser ):
     def __parse_data_from_json(self, json_obj):
         """ parses incoming json object representation and fetches related 
         object data, either from cache or from the server. """
-        app_name, model_name = parse_model( json_obj )
-
-        data_refs = {} # is a dict like {'signal': <array...>, ...}
-        for array_attr in self._meta.get_array_attr_names( model_name ):
-            arr_loc = json_obj['fields'][ array_attr ]['data']
-            if arr_loc == None:
-                continue # no data for this attribute
-
-            arr_loc = self._meta.parse_location(arr_loc)
-            data_info = self.cache.get_data(arr_loc)
+        def fetch_data(location):
+            location = self._meta.parse_location(location)
+            data_info = self.cache.get_data(location)
             
             if data_info == None: # no local data, fetch from remote
                 cache_dir = self.cache._meta.cache_dir
-                data_info = self._remote.get_data(arr_loc, cache_dir)
+                data_info = self._remote.get_data(location, cache_dir)
 
                 if not data_info == None: # raise error otherwise?
                     # update cache with new file
                     self.cache.update_data_map(data_info['id'], data_info['path'])
+            return data_info
 
-            data_refs[ array_attr ] = data_info['data']
+        app_name, model_name = parse_model( json_obj )
+        data_refs = {} # is a dict like {'signal': <array...>, ...}
+
+        if model_name == 'datafile':
+            location = json_obj['permalink']
+            data_info = fetch_data(location)
+            data_refs['path'] = data_info['path']
+        else:
+            for data_attr in self._meta.get_array_attr_names( model_name ):
+                location = json_obj['fields'][ data_attr ]['data']
+                if location == None:
+                    continue # no data for this attribute
+                data_info = fetch_data(location)
+                data_refs[ data_attr ] = data_info['data']
 
         return data_refs
 
@@ -689,6 +708,10 @@ class GNode( Browser ):
             for rel in related:
                 if not rel in getattr(obj, attr_name): # avoid duplicates
                     obj.append( rel )
+                    
+        elif child in ['datafile']:
+            for rel in related:
+                obj.add_file(rel)
 
         else: # here is basically the NEO case
 
