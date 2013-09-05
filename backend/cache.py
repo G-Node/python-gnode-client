@@ -207,7 +207,7 @@ class Cache( object ):
     # IN MEMORY operations
     #---------------------------------------------------------------------------
 
-    def get(self, location):
+    def pull(self, location):
         """ traverses cached objects tree(s) and searches for an object by 
         location, if it exists """
         def check_location(obj, location):
