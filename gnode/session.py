@@ -80,7 +80,7 @@ class Session(object):
 
 
     @activate_remote
-    def select(self, model_name, params={}, data_load=False, mode='obj'):
+    def select(self, model_name, params={}, data_load=False, mode='json'):
         """ requests objects of a given type from server in bulk mode. 
 
         caching:    caches files only
@@ -160,7 +160,15 @@ class Session(object):
         if mode == 'json':
             objects = json_objs # return pure JSON (no data) if requested
 
-        else:
+        else: # return RestResult instances
+            raise NotImplementedError
+
+        """
+        # results can be converted to objects using this option. however this
+        # has bad implications that related objects are not fetched which may
+        # cause confusion and even some data loss. This option can be switched 
+        # back on again when the lazy-loaded relationships are implemented.
+        else: 
             # convert to objects in 'obj' mode
             app = self._meta.app_prefix_dict[ model_name ]
             model = models_map[ model_name ]
@@ -173,6 +181,7 @@ class Session(object):
 
                 obj = Serializer.deserialize( json_obj, self._meta, data_refs )
                 objects.append( obj )
+        """
 
         self.cache.save_data_map() # updates on-disk cache with new datafiles
 
