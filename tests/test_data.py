@@ -90,7 +90,7 @@ class TestDataCollection(object):
 
         loc = "/electrophysiology/event/"
         miss = generate_id()
-        data = Event(time=random() * 100, label=r_str("label"), name=r_str("event"), description=r_str("description"))
+        data = Event(time=random() * 100 * pq.s, label=r_str("label"), name=r_str("event"), description=r_str("description"))
         self[Models.EVENT] = TestData(loc, miss, data)
 
         loc = "/electrophysiology/epocharray/"
@@ -102,8 +102,8 @@ class TestDataCollection(object):
 
         loc = "/electrophysiology/epoch/"
         miss = generate_id()
-        data = Epoch(time=random() * 100, duration=random() * 100, label=r_str("label"), name=r_str("epoch"),
-                     description=r_str("description"))
+        data = Epoch(time=random() * 100 * pq.s, duration=random() * 100 * pq.s, label=r_str("label"),
+                     name=r_str("epoch"), description=r_str("description"))
         self[Models.EPOCH] = TestData(loc, miss, data)
 
         loc = "/electrophysiology/recordingchannelgroup/"
@@ -115,8 +115,8 @@ class TestDataCollection(object):
 
         loc = "/electrophysiology/recordingchannel/"
         miss = generate_id()
-        data = RecordingChannel(index=randint(1, 100), coordinate=pq.Quantity(np.random.rand(1)[0]),
-                                name=r_str("recordingchannel"), description="description")
+        data = RecordingChannel(index=randint(1, 100), name=r_str("recordingchannel"), description="description")
+        data.recordingchannelgroups = []
         self[Models.RECORDINGCHANNEL] = TestData(loc, miss, data)
 
         loc = "/electrophysiology/unit/"

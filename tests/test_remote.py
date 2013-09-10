@@ -61,6 +61,14 @@ class TestRemote(unittest.TestCase):
             msg = "The query select(%s, param={'id': %s}) should be empty!" % (name, elem_id)
             self.assertEquals(len(results), 0, msg)
 
+    def test_04_push(self):
+        for name in self.data:
+            data = self.data[name]
+            self.session.push(data.test_data)
+
+            msg = "Unable to push object %s" % str(data.test_data)
+            self.assertTrue(hasattr(data.test_data, '_gnode'), msg)
+
 
 if __name__ == "__main__":
     suite = unittest.TestSuite()
