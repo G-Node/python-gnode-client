@@ -14,12 +14,9 @@ class TestRemote(unittest.TestCase):
     # Test setup
     #
 
-    @classmethod
-    def setUpClass(cls):
-        cls.data = TestDataCollection()
-
     def setUp(self):
         self.session = session.init()
+        self.data = TestDataCollection()
 
     def tearDown(self):
         self.session.shutdown()
@@ -28,9 +25,10 @@ class TestRemote(unittest.TestCase):
     # Tests
     #
 
-    def test_01_list_all(self):
-        for name in TestRemote.data:
-            results = self.session.select(name)
+    def test_01_select(self):
+        for name in self.data:
+            data = self.data[name]
+            results = self.session.select(name, {'max_results': 10})
 
             msg = "No results for select('%s')!" % name
             self.assertTrue(len(results) > 0, msg)
@@ -38,23 +36,26 @@ class TestRemote(unittest.TestCase):
             elem = results[randint(0, len(results) - 1)]
 
             msg = "Result has wrong type (%s)!" % type(elem)
-            self.assertTrue(isinstance(elem, type(TestRemote.data[name].test_data)), msg)
+            self.assertTrue(isinstance(elem, type(data.test_data)), msg)
 
-            TestRemote.data[name].existing_data = elem
+            data.existing_data = elem
 
-    def test_02_get_existing_by_id(self):
-        for name in TestRemote.data:
-            elem_id = TestRemote.data[name].existing_data._gnode['id']
+    def test_02_select_by_id(self):
+        for name in self.data:
+            data = self.data[name]
+            elem_id = data.existing_data._gnode['id']
             results = self.session.select(name, params={'id': elem_id})
 
             msg = "The query select(%s, param={'id': %s}) should have one result!" % (name, elem_id)
             self.assertEquals(len(results), 1, msg)
-            # FIXME why are they not equal
-            # self.assertEquals(results[0], TestRemote.data[name].existing_data)
 
-    def test_03_get_missing_by_id(self):
-        for name in TestRemote.data:
-            elem_id = TestRemote.data[name].missing_id
+            # FIXME why are they not equal
+            # self.assertEquals(results[0], data.existing_data)
+
+    def test_03_select_missing_by_id(self):
+        for name in self.data:
+            data = self.data[name]
+            elem_id = data.missing_id
             results = self.session.select(name, params={'id': elem_id})
 
             msg = "The query select(%s, param={'id': %s}) should be empty!" % (name, elem_id)
