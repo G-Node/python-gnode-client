@@ -202,9 +202,12 @@ class Serializer(object):
                     json_obj['fields'][ par_name ] = obj._gnode['fields'][ par_name ]
 
                 elif not parents:
-                    # reset parent as no actual parent and obj has no parent in 
-                    # memory
-                    json_obj['fields'][ par_name ] = None
+                    # reset parent as no actual parent and obj has no parent on
+                    # the remote
+                    if is_m2m:
+                        json_obj['fields'][ par_name ] = []
+                    else:
+                        json_obj['fields'][ par_name ] = None
 
                 else:
                     # totally skip parent as both obj and parent are not synced
