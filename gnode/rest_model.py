@@ -33,7 +33,7 @@ class Models:
     SPIKE = "spike"
     ANALOGSIGNALARRAY = "analogsignalarray"
     ANALOGSIGNAL = "analogsignal"
-    IRREGULARLYSAMPLESSIGNAL = "irregularlysamplessignal"
+    IRREGULARLYSAMPLEDSIGNAL = "irregularlysampledsignal"
 
     _MODELMAP = {}
 
