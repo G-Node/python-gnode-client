@@ -7,6 +7,14 @@ from gnode import session
 
 
 class TestRemote(unittest.TestCase):
+    """
+    Unit tests for the session object that focus on the remote functionality
+    of the api.
+
+    Tested methods:
+    Session.select()
+    Session.push()
+    """
 
     data = None
 
@@ -68,6 +76,8 @@ class TestRemote(unittest.TestCase):
 
             msg = "Unable to push object %s" % str(data.test_data)
             self.assertTrue(hasattr(data.test_data, '_gnode'), msg)
+
+            self.session.cache.clear_cache()
 
 
 if __name__ == "__main__":
