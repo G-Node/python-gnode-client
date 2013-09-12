@@ -1,0 +1,9 @@
+# python files
+*.pyc
+
+# temp files
+*~
+
+# idea files
+.idea
+*.iml
