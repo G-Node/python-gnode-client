@@ -12,5 +12,7 @@ setup(
     description='Client for the G-Node REST API.',
     long_description=open('README.txt').read(),
     install_requires=[
+        "requests >= 0.12.0",
+        "simplejson >= 2.6.0"
     ],
 )
