@@ -4,6 +4,7 @@ import convert
 
 from requests.exceptions import ConnectionError
 
+
 class AbstractStore(object):
 
     def __init__(self, location, user=None, passwd=None):
