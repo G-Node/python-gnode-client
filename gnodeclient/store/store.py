@@ -4,8 +4,22 @@ import convert
 
 
 class GnodeStore(object):
+    """
+    Abstract definition of a class that can be used to query, read and write data (see: rest_model)
+    that is managed by the G-Node REST API.
+    """
 
     def __init__(self, location, user=None, passwd=None):
+        """
+        Constructor.
+
+        :param location: The location from where the data should be accessed.
+        :type location: str
+        :param user: The user name (might be ignored by some kinds of store)
+        :type user: str
+        :param passwd: The password (might be ignored by some kinds of store)
+        :type passwd: str
+        """
         self.__location = location
         self.__user = user
         self.__passwd = passwd
@@ -16,14 +30,24 @@ class GnodeStore(object):
 
     @property
     def location(self):
+        """
+        The location from where the data should be accessed. Depending on the implementation
+        this can be an URL or a local file or directory.
+        """
         return self.__location
 
     @property
     def user(self):
+        """
+        The user name (might be ignored by some kinds of store)
+        """
         return self.__user
 
     @property
     def passwd(self):
+        """
+        The password (might be ignored by some kinds of store)
+        """
         return self.__passwd
 
     #
@@ -31,21 +55,52 @@ class GnodeStore(object):
     #
 
     def connect(self):
+        """
+        Connect the store to the data source defined by the given location.
+        """
         raise NotImplementedError()
 
     def is_connected(self):
+        """
+        Test if the store is connected to the data source.
+
+        :returns: True if the store is connected, False otherwise.
+        :rtype: bool
+        """
         raise NotImplementedError()
 
     def disconnect(self):
+        """
+        Disconnect the store from the data source.
+        """
         raise NotImplementedError()
 
     def get(self, location):
+        """
+        Get an entity from the store.
+
+        :param location: The location of the entity as path or URL.
+        :type location: str
+
+        :returns: The entity or None.
+        """
         raise NotImplementedError()
 
     def set(self, entity):
+        """
+        Save an entity in the store. The type of this entity depends on the implementation of the store
+        but in most cases this will be either a structure of dicts and lists or an instance of Model.
+
+        :param entity: The entity to store.
+        """
         raise NotImplementedError()
 
     def delete(self, entity):
+        """
+        Remove an entity from the store.
+
+        :param entity: The entity to delete.
+        """
         raise NotImplementedError()
 
 
