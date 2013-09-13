@@ -2,8 +2,6 @@ import requests
 import urlparse
 import convert
 
-from requests.exceptions import ConnectionError
-
 
 class AbstractStore(object):
 
@@ -41,7 +39,7 @@ class AbstractStore(object):
     def disconnect(self):
         raise NotImplementedError()
 
-    def get(self, location=None):
+    def get(self, location):
         raise NotImplementedError()
 
     def set(self, entity):
@@ -52,6 +50,10 @@ class AbstractStore(object):
 
 
 class RestStore(AbstractStore):
+    """
+    Implementation of Abstract store, that uses the gnode REST API as
+    data source.
+    """
 
     URL_LOGIN = 'account/authenticate/'
     URL_LOGOUT = 'account/logout/'
@@ -66,14 +68,6 @@ class RestStore(AbstractStore):
             self.__converter = converter
 
     #
-    # Properties
-    #
-
-    @property
-    def converter(self):
-        return self.__converter
-
-    #
     # Methods
     #
 
@@ -84,8 +78,8 @@ class RestStore(AbstractStore):
         response.raise_for_status()
 
         if not response.cookies:
-            raise ConnectionError("Unable to authenticate for user '%s' (status: %d)!"
-                                  % (self.user, response.status_code))
+            raise RuntimeError("Unable to authenticate for user '%s' (status: %d)!"
+                               % (self.user, response.status_code))
 
         self.__cookies = response.cookies
 
@@ -97,7 +91,7 @@ class RestStore(AbstractStore):
         requests.get(url, cookies=self.__cookies)
         self.__cookies = None
 
-    def get(self, location=None, etag=None):
+    def get(self, location, etag=None):
         """
         Exceptions: HTTPError, ConnectionError
         """
@@ -120,10 +114,55 @@ class RestStore(AbstractStore):
 
         return result
 
-    def set(self, model):
+    def set(self, entity):
         # TODO implement set()
         raise NotImplementedError()
 
-    def delete(self, model):
+    def delete(self, entity):
         # TODO implement delete()
         raise NotImplementedError()
+
+
+#TODO now the cache is just in memory, but it should work on disk
+class CacheStore(AbstractStore):
+    """
+    A cache store.
+    """
+
+    def __init__(self, location=None, user=None, passwd=None, converter=convert.collections_to_model):
+        super(CacheStore, self).__init__(location, user, passwd)
+
+        self.__cache = None
+
+        if converter is None:
+            self.__converter = lambda x: x
+        else:
+            self.__converter = converter
+
+    #
+    # Methods
+    #
+
+    def connect(self):
+        self.__cache = {}
+
+    def is_connected(self):
+        return self.__cache is not None
+
+    def disconnect(self):
+        del self.__cache
+        self.__cache = None
+
+    def get(self, location):
+        return self.__converter(self.__cache[location])
+
+    def set(self, entity):
+        self.__cache[entity['location']] = entity
+
+    def delete(self, entity):
+        if entity['location'] in self.__cache:
+            del self.__cache[entity['location']]
+
+
+class CachingRestStore(AbstractStore):
+    pass

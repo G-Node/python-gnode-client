@@ -76,6 +76,7 @@ class ValueModel(Model):
 class RestResult(Model):
     """Basic model for all kinds of results from the rest API"""
     id = TypedField(optional=False, type=str)
+    guid = TypedField(optional=False, type=str)
     permalink = TypedField(optional=False, type=str)
     location = TypedField(optional=False, type=str)
     model = TypedField(optional=False, type=str)
