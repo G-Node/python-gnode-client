@@ -3,7 +3,7 @@ from distutils.core import setup
 setup(
     name='GnodeClient',
     version='0.1',
-    author='',
+    author='A. Stoewer, A. Sobolev',
     author_email='',
     packages=['gnodeclient', 'gnodeclient.test'],
     scripts=[],

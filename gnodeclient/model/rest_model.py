@@ -2,7 +2,6 @@
 Model definitions for the G-Node REST api.
 """
 
-from numbers import Number
 from model import Model, Field
 
 
@@ -35,15 +34,15 @@ class Models:
     ANALOGSIGNAL = "analogsignal"
     IRREGULARLYSAMPLEDSIGNAL = "irregularlysampledsignal"
 
-    _MODELMAP = {}
+    _MODEL_MAP = {}
 
     @classmethod
     def create(cls, type_name):
-        return cls._MODELMAP[type_name]()
+        return cls._MODEL_MAP[type_name]()
 
     @classmethod
     def exists(cls, type_name):
-        return type_name in cls._MODELMAP
+        return type_name in cls._MODEL_MAP
 
     @classmethod
     def location(cls, type_name):
@@ -89,14 +88,34 @@ class RestResult(Model):
         return template % (self.model, self.location, name_str)
 
 
+class SegmentModel(RestResult):
+    """Model for segment"""
+    model = TypedField(optional=False, type=str, default=Models.SEGMENT)
+    name = TypedField(type=str, default="")
+    index = TypedField(default=0)
+
+    block = TypedField(is_parent=True, type=str, type_info=Models.BLOCK)
+
+    analogsignals = TypedField(is_child=True, type=list, type_info=Models.ANALOGSIGNAL)
+    #irregularlysampledsignals = TypedField(is_child=True, type=list, type_info=Models.IRREGULARLYSAMPLEDSIGNAL)
+    #analogsignalarrays = TypedField(is_child=True, type=list, type_info=Models.ANALOGSIGNALARRAY)
+    #spiketrains = TypedField(is_child=True, type=list, type_info=Models.SPIKETRAIN)
+    #spikes = TypedField(is_child=True, type=list, type_info=Models.SPIKE)
+    #events = TypedField(is_child=True, type=list, type_info=Models.EVENT)
+    #epochs = TypedField(is_child=True, type=list, type_info=Models.EPOCH)
+
+Models._MODEL_MAP[Models.SEGMENT] = SegmentModel
+
+
 class AnalogsignalModel(RestResult):
-    """An example model for analogsignal"""
-    model = TypedField(optional=False, type=str, default="analogsignal")
+    """Model for analogsignal"""
+    model = TypedField(optional=False, type=str, default=Models.ANALOGSIGNAL)
     name = TypedField(type=str, default="")
     sampling_rate = TypedField(optional=False, type=ValueModel, type_info="data")
     t_start = TypedField(optional=False, type=ValueModel, type_info="data")
     signal = TypedField(type=ValueModel, type_info="datafile")
-    segment = TypedField(is_parent=True, type=str, type_info="segment")
-    recordingchannel = TypedField(is_parent=True, type=str, type_info="recordingchannel")
 
-Models._MODELMAP[Models.ANALOGSIGNAL] = AnalogsignalModel
+    segment = TypedField(is_parent=True, type=str, type_info=Models.SEGMENT)
+    recordingchannel = TypedField(is_parent=True, type=str, type_info=Models.RECORDINGCHANNEL)
+
+Models._MODEL_MAP[Models.ANALOGSIGNAL] = AnalogsignalModel

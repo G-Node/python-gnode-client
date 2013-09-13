@@ -56,7 +56,7 @@ class RestStore(AbstractStore):
     URL_LOGIN = 'account/authenticate/'
     URL_LOGOUT = 'account/logout/'
 
-    def __init__(self, location, user, passwd, converter=convert.json_to_model):
+    def __init__(self, location, user, passwd, converter=convert.collections_to_model):
         super(RestStore, self).__init__(location, user, passwd)
         self.__cookies = None
 
@@ -101,9 +101,12 @@ class RestStore(AbstractStore):
         """
         Exceptions: HTTPError, ConnectionError
         """
-        url = urlparse.urljoin(self.location, location)
-        headers = {}
+        if location.startswith("http://"):
+            url = location
+        else:
+            url = urlparse.urljoin(self.location, location)
 
+        headers = {}
         if etag is not None:
             headers['If-none-match'] = etag
 
@@ -113,7 +116,7 @@ class RestStore(AbstractStore):
         if response.status_code == 304:
             result = None
         else:
-            result = self.__converter(convert.str_to_json(response.content))
+            result = self.__converter(convert.json_to_collections(response.content))
 
         return result
 
