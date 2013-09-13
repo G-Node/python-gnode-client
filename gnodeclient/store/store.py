@@ -3,7 +3,7 @@ import urlparse
 import convert
 
 
-class AbstractStore(object):
+class GnodeStore(object):
 
     def __init__(self, location, user=None, passwd=None):
         self.__location = location
@@ -49,7 +49,7 @@ class AbstractStore(object):
         raise NotImplementedError()
 
 
-class RestStore(AbstractStore):
+class RestStore(GnodeStore):
     """
     Implementation of Abstract store, that uses the gnode REST API as
     data source.
@@ -92,9 +92,6 @@ class RestStore(AbstractStore):
         self.__cookies = None
 
     def get(self, location, etag=None):
-        """
-        Exceptions: HTTPError, ConnectionError
-        """
         if location.startswith("http://"):
             url = location
         else:
@@ -124,7 +121,7 @@ class RestStore(AbstractStore):
 
 
 #TODO now the cache is just in memory, but it should work on disk
-class CacheStore(AbstractStore):
+class CacheStore(GnodeStore):
     """
     A cache store.
     """
@@ -154,15 +151,89 @@ class CacheStore(AbstractStore):
         self.__cache = None
 
     def get(self, location):
-        return self.__converter(self.__cache[location])
+        location = urlparse.urlparse(location).path.strip("/")
+        if location in self.__cache:
+            return self.__converter(self.__cache[location])
+        else:
+            return None
 
     def set(self, entity):
-        self.__cache[entity['location']] = entity
+        if entity is not None:
+            location = urlparse.urlparse(entity['location']).path.strip("/")
+            self.__cache[location] = entity
 
     def delete(self, entity):
-        if entity['location'] in self.__cache:
-            del self.__cache[entity['location']]
+        location = urlparse.urlparse(entity['location']).path.strip("/")
+        if location in self.__cache:
+            del self.__cache[location]
 
 
-class CachingRestStore(AbstractStore):
-    pass
+class CachingRestStore(GnodeStore):
+
+    def __init__(self, location, user, passwd, cache_location=None, converter=convert.collections_to_model):
+        super(CachingRestStore, self).__init__(location, user, passwd)
+
+        self.__cache_location = cache_location
+
+        if converter is None:
+            self.__converter = lambda x: x
+        else:
+            self.__converter = converter
+
+        self.__rest_store = RestStore(location, user, passwd, converter=None)
+        self.__cache_store = CacheStore(cache_location, converter=converter)
+
+    #
+    # Properties
+    #
+
+    @property
+    def cache_location(self):
+        return self.__cache_location
+
+    @property
+    def rest_store(self):
+        return self.__rest_store
+
+    @property
+    def cache_store(self):
+        return self.__cache_store
+
+    #
+    # Methods
+    #
+
+    def connect(self):
+        self.rest_store.connect()
+        self.cache_store.connect()
+
+    def is_connected(self):
+        return self.rest_store.is_connected() and self.cache_store.is_connected()
+
+    def disconnect(self):
+        self.rest_store.disconnect()
+        self.cache_store.disconnect()
+
+    def get(self, location, refresh=True):
+
+        obj = self.cache_store.get(location)
+
+        if obj is None:
+            obj = self.rest_store.get(location)
+            self.cache_store.set(obj)
+            obj = self.__converter(obj)
+        elif refresh:
+            obj_refreshed = self.rest_store.get(location, obj.guid)
+            if obj_refreshed is not None:
+                self.cache_store.set(obj_refreshed)
+                obj = self.__converter(obj_refreshed)
+
+        return obj
+
+    def set(self, entity):
+        # TODO implement ()
+        raise NotImplementedError()
+
+    def delete(self, entity):
+        # TODO implement delte()
+        raise NotImplementedError()
