@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='GnodeClient',
-    version='0.1',
+    version='0.1.0',
     author='A. Stoewer, A. Sobolev',
     author_email='',
     packages=['gnodeclient', 'gnodeclient.test'],
@@ -13,6 +13,8 @@ setup(
     long_description=open('README.txt').read(),
     install_requires=[
         "requests >= 0.12.0",
-        "simplejson >= 2.6.0"
+        "simplejson >= 2.6.0",
+        "appdirs >= 1.2.0",
+        "fcache >= 0.3.0"
     ],
 )
