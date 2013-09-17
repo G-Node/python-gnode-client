@@ -4,8 +4,8 @@
 # > PYTHONPATH="./" python tests/test_all.py
 
 import unittest
-from test_remote import TestRemote
-from test_cache import TestCache
+from gnodeclient.test.test_remote import TestRemote
+from gnodeclient.test.test_cache import TestCache
 
 
 class TestAll(unittest.TestSuite):

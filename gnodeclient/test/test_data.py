@@ -12,7 +12,7 @@ from neo import Block, Segment, EventArray, Event, EpochArray, Epoch, RecordingC
                 IrregularlySampledSignal
 
 from gnode.utils import generate_id
-from gnode.rest_model import Models
+from gnodeclient.model.rest_model import Models
 
 
 def singleton(cls):

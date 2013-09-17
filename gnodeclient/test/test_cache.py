@@ -4,8 +4,8 @@ import numpy as np
 import quantities as pq
 
 from neo import Block, Segment, RecordingChannelGroup, RecordingChannel, AnalogSignal
-from gnode import session
-from test_data import TestDataCollection
+from gnodeclient import session
+from gnodeclient.test.test_data import TestDataCollection
 
 
 class TestCache(unittest.TestCase):

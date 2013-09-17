@@ -1,9 +1,9 @@
 import unittest
 from random import randint
 
-from test_data import TestDataCollection
+from gnodeclient.test.test_data import TestDataCollection
 
-from gnode import session
+from gnodeclient import session
 
 
 class TestRemote(unittest.TestCase):
