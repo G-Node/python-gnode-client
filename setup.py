@@ -15,6 +15,7 @@ setup(
         "requests >= 0.12.0",
         "simplejson >= 2.6.0",
         "appdirs >= 1.2.0",
-        "fcache >= 0.3.0"
+        "fcache >= 0.3.0",
+        "ProxyTypes >= 0.9"
     ],
 )

@@ -1,5 +1,6 @@
 from gnodeclient.conf import Configuration
-from gnodeclient.store import CachingRestStore
+from gnodeclient.store.store import CachingRestStore
+from gnodeclient.store.result_driver import NativeDriver
 
 __MAIN_SESSION = None
 
@@ -11,6 +12,7 @@ class Session(object):
         self.__store = CachingRestStore(location=self.__options["location"], user=self.__options["username"],
                                         passwd=self.__options["password"])
         self.__store.connect()
+        self.__driver = NativeDriver(self.__store)
 
     #
     # Properties
@@ -25,7 +27,9 @@ class Session(object):
     #
 
     def get(self, location, refresh=False):
-        return self.__store.get(location, refresh)
+        obj = self.__store.get(location, refresh)
+        res = self.__driver.to_result(obj)
+        return res
 
     def close(self):
         self.__store.disconnect()

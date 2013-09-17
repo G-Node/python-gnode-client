@@ -75,12 +75,14 @@ class GnodeStore(object):
         """
         raise NotImplementedError()
 
-    def get(self, location):
+    def get(self, location, cascade=True):
         """
         Get an entity from the store.
 
         :param location: The location of the entity as path or URL.
         :type location: str
+        :param cascade: Also get all associated objects.
+        :type cascade: bool
 
         :returns: The entity or None.
         """

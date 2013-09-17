@@ -55,31 +55,20 @@ class Models:
             return 'electrophysiology/' + type_name
 
 
-class TypedField(Field):
-    """
-    A field that checks the type for compatibility.
-    """
-
-    def check(self, value):
-        if isinstance(value, self.desc.type):
-            return True
-        else:
-            return False
-
 
 class ValueModel(Model):
     """Represents a value with a unit"""
-    data = Field(optional=False)
-    units = TypedField(optional=False, type=str)
+    data = Field()
+    units = Field(type=str)
 
 
 class RestResult(Model):
     """Basic model for all kinds of results from the rest API"""
-    id = TypedField(optional=False, type=str)
-    guid = TypedField(optional=False, type=str)
-    permalink = TypedField(optional=False, type=str)
-    location = TypedField(optional=False, type=str)
-    model = TypedField(optional=False, type=str)
+    id = Field(type=str)
+    guid = Field(type=str)
+    permalink = Field(type=str)
+    location = Field(type=str)
+    model = Field(type=str)
 
     def __str__(self):
         template = "<RestResult: model=%s, location=%s%s>"
@@ -91,32 +80,32 @@ class RestResult(Model):
 
 class SegmentModel(RestResult):
     """Model for segment"""
-    model = TypedField(optional=False, type=str, default=Models.SEGMENT)
-    name = TypedField(type=str, default="")
-    index = TypedField(default=0)
+    model = Field(type=str, default=Models.SEGMENT)
+    name = Field(type=str, default="")
+    index = Field(default=0)
 
-    block = TypedField(is_parent=True, type=str, type_info=Models.BLOCK)
+    block = Field(is_parent=True, type=str, type_info=Models.BLOCK)
 
-    analogsignals = TypedField(is_child=True, type=list, type_info=Models.ANALOGSIGNAL)
-    #irregularlysampledsignals = TypedField(is_child=True, type=list, type_info=Models.IRREGULARLYSAMPLEDSIGNAL)
-    #analogsignalarrays = TypedField(is_child=True, type=list, type_info=Models.ANALOGSIGNALARRAY)
-    #spiketrains = TypedField(is_child=True, type=list, type_info=Models.SPIKETRAIN)
-    #spikes = TypedField(is_child=True, type=list, type_info=Models.SPIKE)
-    #events = TypedField(is_child=True, type=list, type_info=Models.EVENT)
-    #epochs = TypedField(is_child=True, type=list, type_info=Models.EPOCH)
+    analogsignals = Field(is_child=True, type=list, type_info=Models.ANALOGSIGNAL)
+    #irregularlysampledsignals = Field(is_child=True, type=list, type_info=Models.IRREGULARLYSAMPLEDSIGNAL)
+    #analogsignalarrays = Field(is_child=True, type=list, type_info=Models.ANALOGSIGNALARRAY)
+    #spiketrains = Field(is_child=True, type=list, type_info=Models.SPIKETRAIN)
+    #spikes = Field(is_child=True, type=list, type_info=Models.SPIKE)
+    #events = Field(is_child=True, type=list, type_info=Models.EVENT)
+    #epochs = Field(is_child=True, type=list, type_info=Models.EPOCH)
 
 Models._MODEL_MAP[Models.SEGMENT] = SegmentModel
 
 
 class AnalogsignalModel(RestResult):
     """Model for analogsignal"""
-    model = TypedField(optional=False, type=str, default=Models.ANALOGSIGNAL)
-    name = TypedField(type=str, default="")
-    sampling_rate = TypedField(optional=False, type=ValueModel, type_info="data")
-    t_start = TypedField(optional=False, type=ValueModel, type_info="data")
-    signal = TypedField(type=ValueModel, type_info="datafile")
+    model = Field(type=str, default=Models.ANALOGSIGNAL)
+    name = Field(type=str, default="")
+    t_start = Field(type=ValueModel, type_info="data")
+    sampling_rate = Field(optional=False, type=ValueModel, type_info="data")
+    signal = Field(optional=False, type=ValueModel, type_info="datafile")
 
-    segment = TypedField(is_parent=True, type=str, type_info=Models.SEGMENT)
-    recordingchannel = TypedField(is_parent=True, type=str, type_info=Models.RECORDINGCHANNEL)
+    segment = Field(is_parent=True, type=str, type_info=Models.SEGMENT)
+    #recordingchannel = Field(is_parent=True, type=str, type_info=Models.RECORDINGCHANNEL)
 
 Models._MODEL_MAP[Models.ANALOGSIGNAL] = AnalogsignalModel

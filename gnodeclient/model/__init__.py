@@ -4,7 +4,4 @@ models. This is used in order to define a set of models that represent
 all types of data that can be obtained by the REST API.
 """
 
-from model import Model, Field, FieldDescriptor
-from rest_model import Models, RestResult, AnalogsignalModel
-
-__all__ = ("model", "rest_model")
+#__all__ = ("model", "rest_model")
