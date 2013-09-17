@@ -3,13 +3,9 @@ import unittest
 import numpy as np
 import quantities as pq
 
-from neo import Block, Segment, EventArray, Event, EpochArray, Epoch, RecordingChannelGroup, \
-    RecordingChannel, Unit, SpikeTrain, Spike, AnalogSignalArray, AnalogSignal, \
-    IrregularlySampledSignal
+from neo import Block, Segment, RecordingChannelGroup, RecordingChannel, AnalogSignal
 from gnode import session
-from gnode.rest_model import Models
-
-from test_data import TestDataCollection, r_times
+from test_data import TestDataCollection
 
 
 class TestCache(unittest.TestCase):
