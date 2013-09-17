@@ -4,4 +4,4 @@ that work as a lazy load mechanism for the storage backend.
 """
 
 
-#__all__ = ("convert", "proxies", "store", "result_driver")
+__all__ = ("convert", "proxies", "store", "result_driver")

@@ -1,8 +1,10 @@
+import gnodeclient
+
 from distutils.core import setup
 
 setup(
-    name='GnodeClient',
-    version='0.1.0',
+    name='gnodeclient',
+    version=gnodeclient.__version__,
     author='A. Stoewer, A. Sobolev',
     author_email='',
     packages=['gnodeclient', 'gnodeclient.test'],
@@ -16,6 +18,8 @@ setup(
         "simplejson >= 2.6.0",
         "appdirs >= 1.2.0",
         "fcache >= 0.3.0",
+        "quantities >= 0.10.0",
+        "neo >= 0.3.0",
         "ProxyTypes >= 0.9"
     ],
 )
