@@ -26,10 +26,19 @@ class Session(object):
     # Methods
     #
 
-    def get(self, location, refresh=False):
+    def select(self, filters, refresh=False, recoursive=False):
+        raise NotImplementedError()
+
+    def get(self, location, refresh=False, recoursive=False):
         obj = self.__store.get(location, refresh)
         res = self.__driver.to_result(obj)
         return res
+
+    def set(self, entity, avoid_collisions=False):
+        raise NotImplementedError()
+
+    def delete(self, entity, avoid_collisions=False):
+        raise NotImplementedError()
 
     def close(self):
         self.__store.disconnect()
