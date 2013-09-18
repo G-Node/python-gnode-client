@@ -4,7 +4,11 @@ in order to generate ready to use result objects from objects returned by a
 store.
 """
 import quantities as pq
-from neo import Segment, AnalogSignal
+
+from odml import Section, Property, Value
+from neo import Block, Segment, EventArray, Event, EpochArray, Epoch, RecordingChannelGroup, RecordingChannel, \
+    Unit, SpikeTrain, Spike, AnalogSignalArray, AnalogSignal, IrregularlySampledSignal
+
 from peak.util.proxies import LazyProxy
 
 from gnodeclient.model.rest_model import Models, RestResult
@@ -35,8 +39,24 @@ class ResultDriver(object):
 class NativeDriver(ResultDriver):
 
     MODEL_MAP = {
+        #Models.DATAFILE: "datafile",
+        Models.SECTION: Section,
+        Models.PROPERTY: Property,
+        Models.VALUE: Value,
+        Models.BLOCK: Block,
+        Models.SEGMENT: Segment,
+        Models.EVENTARRAY: EventArray,
+        Models.EVENT: Event,
+        Models.EPOCHARRAY: EpochArray,
+        Models.EPOCH: Epoch,
+        Models.RECORDINGCHANNELGROUP: RecordingChannelGroup,
+        Models.RECORDINGCHANNEL: RecordingChannel,
+        Models.UNIT: Unit,
+        Models.SPIKETRAIN: SpikeTrain,
+        Models.SPIKE: Spike,
+        Models.ANALOGSIGNALARRAY: AnalogSignalArray,
         Models.ANALOGSIGNAL: AnalogSignal,
-        Models.SEGMENT: Segment
+        Models.IRREGULARLYSAMPLEDSIGNAL: IrregularlySampledSignal,
     }
 
     def to_result(self, obj):
@@ -50,6 +70,7 @@ class NativeDriver(ResultDriver):
         :rtype: object
         """
         if obj.model in NativeDriver.MODEL_MAP:
+            # collect kwargs for object construction
             kw = {}
 
             for field_name in obj.obligatory_fields:
@@ -65,8 +86,10 @@ class NativeDriver(ResultDriver):
                 else:
                     kw[field_name] = field_val
 
+            # construct object
             native = NativeDriver.MODEL_MAP[obj.model](**kw)
 
+            # set remaining properties
             for field_name in obj.optional_fields:
                 field = obj.get_field(field_name)
                 if field.is_parent:
@@ -74,7 +97,6 @@ class NativeDriver(ResultDriver):
 
                     if field_val is not None:
                         proxy = LazyProxy(lazy_value_loader(field_val, self.store, self))
-                        #proxy = ProxyPropValue(field_name, str(field_val), self.store, self)
                         setattr(native, field_name, proxy)
 
                 elif field.is_child:
@@ -82,7 +104,6 @@ class NativeDriver(ResultDriver):
 
                     if field_val is not None and len(field_val) > 0:
                         proxy = LazyProxy(lazy_list_loader(field_val, self.store, self))
-                        #proxy = ProxyPropValueList(field_name, field_val, self.store, self)
                         setattr(native, field_name, proxy)
 
                 elif field.type_info == "data":
@@ -92,6 +113,7 @@ class NativeDriver(ResultDriver):
 
                 elif field.type_info == "datafile":
                     field_val = getattr(obj, field_name)
+                    # TODO handle data files
                     q = pq.Quantity([], field_val.units)
                     setattr(native, field_name, q)
 
