@@ -6,7 +6,13 @@ Proxy object are used as a mechanism for lazy loading.
 def lazy_value_loader(location, store, result_driver):
 
     def do_lazy_load():
-        obj = store.get(location, False)
+
+        if isinstance(location, list) and len(location) == 1:
+            loc = location[0]
+        else:
+            loc = location
+
+        obj = store.get(loc, False)
         res = result_driver.to_result(obj)
         return res
 

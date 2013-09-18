@@ -1,4 +1,4 @@
-from gnodeclient.model.rest_model import Models, ValueModel
+from gnodeclient.model.rest_model import Models, QuantityModel
 
 try:
     import simplejson as json
@@ -45,9 +45,9 @@ def collections_to_model(collection):
 
             if field_val is not None:
                 if field.type_info == 'datafile':
-                    field_val = ValueModel(units=field_val['units'], data=field_val['data'])
+                    field_val = QuantityModel(units=field_val['units'], data=field_val['data'])
                 elif field.type_info == 'data':
-                    field_val = ValueModel(units=field_val['units'], data=float(field_val['data']))
+                    field_val = QuantityModel(units=field_val['units'], data=float(field_val['data']))
                 elif field_name == 'model':
                     field_val = model
 

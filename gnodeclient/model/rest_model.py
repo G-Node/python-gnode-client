@@ -1,8 +1,6 @@
 """
 Model definitions for the G-Node REST api.
 """
-from neo.core import analogsignalarray
-
 from model import Model, Field
 
 
@@ -56,9 +54,9 @@ class Models:
             return 'electrophysiology/' + type_name
 
 
-class ValueModel(Model):
+class QuantityModel(Model):
     """Represents a value with a unit"""
-    data = Field()
+    data = Field(default=0)
     units = Field(type=str)
 
 
@@ -143,7 +141,7 @@ class EventArrayModel(RestResult):
     name = Field(type=str, default="")
     description = Field(type=str)
 
-    times = Field(optional=False, type=ValueModel, type_info="datafile")
+    times = Field(optional=False, type=QuantityModel, type_info="datafile")
 
     segment = Field(is_parent=True, type_info=Models.SEGMENT)
 
@@ -155,7 +153,7 @@ class EventModel(RestResult):
     name = Field(type=str, default="")
     description = Field(type=str)
 
-    time = Field(optional=False, type=ValueModel, type_info="data")
+    time = Field(optional=False, type=QuantityModel, type_info="data")
 
     segment = Field(is_parent=True, type_info=Models.SEGMENT)
 
@@ -167,8 +165,8 @@ class EpochArrayModel(RestResult):
     name = Field(type=str, default="")
     description = Field(type=str)
 
-    times = Field(optional=False, type=ValueModel, type_info="datafile")
-    durations = Field(optional=False, type=ValueModel, type_info="datafile")
+    times = Field(optional=False, type=QuantityModel, type_info="datafile")
+    durations = Field(optional=False, type=QuantityModel, type_info="datafile")
 
     segment = Field(is_parent=True, type_info=Models.SEGMENT)
 
@@ -181,8 +179,8 @@ class EpochModel(RestResult):
     description = Field(type=str)
     label = Field(optional=False, type=str, default="")
 
-    time = Field(optional=False, type=ValueModel, type_info="data")
-    duration = Field(optional=False, type=ValueModel, type_info="data")
+    time = Field(optional=False, type=QuantityModel, type_info="data")
+    duration = Field(optional=False, type=QuantityModel, type_info="data")
 
     segment = Field(is_parent=True, type_info=Models.SEGMENT)
 
@@ -207,7 +205,7 @@ class RecordingChannelModel(RestResult):
     name = Field(type=str, default="")
     description = Field(type=str)
 
-    recordingchannelgroup = Field(is_parent=True, type_info=Models.RECORDINGCHANNELGROUP)
+    recordingchannelgroups = Field(is_child=True, type_info=Models.RECORDINGCHANNELGROUP)
     analogsignals = Field(is_child=True, type=list, type_info=Models.ANALOGSIGNAL)
     irregularlysampledsignals = Field(is_child=True, type=list, type_info=Models.IRREGULARLYSAMPLEDSIGNAL)
 
@@ -231,10 +229,10 @@ class SpikeTrainModel(RestResult):
     name = Field(type=str, default="")
     description = Field(type=str)
 
-    t_start = Field(type=ValueModel, type_info="data")
-    t_stop = Field(optional=False, type=ValueModel, type_info="data")
-    times = Field(optional=False, type=ValueModel, type_info="datafile")
-    waveforms = Field(type=ValueModel, type_info="datafile")
+    t_start = Field(type=QuantityModel, type_info="data")
+    t_stop = Field(optional=False, type=QuantityModel, type_info="data")
+    times = Field(optional=False, type=QuantityModel, type_info="datafile")
+    waveforms = Field(type=QuantityModel, type_info="datafile")
 
     unit = Field(is_parent=True, type_info=Models.UNIT)
     segment = Field(is_parent=True, type_info=Models.SEGMENT)
@@ -248,10 +246,10 @@ class SpikeModel(RestResult):
     name = Field(type=str, default="")
     description = Field(type=str)
 
-    time = Field(optional=False, type=ValueModel, type_info="data")
-    left_sweep = Field(type=ValueModel, type_info="data")
-    sampling_rate = Field(type=ValueModel, type_info="data")
-    waveform = Field(type=ValueModel, type_info="datafile")
+    time = Field(optional=False, type=QuantityModel, type_info="data")
+    left_sweep = Field(type=QuantityModel, type_info="data")
+    sampling_rate = Field(type=QuantityModel, type_info="data")
+    waveform = Field(type=QuantityModel, type_info="datafile")
 
     unit = Field(is_parent=True, type_info=Models.UNIT)
     segment = Field(is_parent=True, type_info=Models.SEGMENT)
@@ -264,9 +262,9 @@ class AnalogsignalArrayModel(RestResult):
     name = Field(type=str, default="")
     description = Field(type=str)
 
-    t_start = Field(type=ValueModel, type_info="data")
-    sampling_rate = Field(optional=False, type=ValueModel, type_info="data")
-    signal = Field(optional=False, type=ValueModel, type_info="datafile")
+    t_start = Field(type=QuantityModel, type_info="data")
+    sampling_rate = Field(optional=False, type=QuantityModel, type_info="data")
+    signal = Field(optional=False, type=QuantityModel, type_info="datafile")
 
     segment = Field(is_parent=True, type_info=Models.SEGMENT)
     recordingchannelgroup = Field(is_parent=True, type_info=Models.RECORDINGCHANNELGROUP)
@@ -279,9 +277,9 @@ class AnalogsignalModel(RestResult):
     name = Field(type=str, default="")
     description = Field(type=str)
 
-    t_start = Field(type=ValueModel, type_info="data")
-    sampling_rate = Field(optional=False, type=ValueModel, type_info="data")
-    signal = Field(optional=False, type=ValueModel, type_info="datafile")
+    t_start = Field(type=QuantityModel, type_info="data")
+    sampling_rate = Field(optional=False, type=QuantityModel, type_info="data")
+    signal = Field(optional=False, type=QuantityModel, type_info="datafile")
 
     segment = Field(is_parent=True, type_info=Models.SEGMENT)
     recordingchannel = Field(is_parent=True, type_info=Models.RECORDINGCHANNEL)
@@ -294,9 +292,9 @@ class IrregularlySampledSignalModel(RestResult):
     name = Field(type=str, default="")
     description = Field(type=str)
     
-    t_start = Field(type=ValueModel, type_info="data")
-    signal = Field(optional=False, type=ValueModel, type_info="datafile")
-    times = Field(optional=False, type=ValueModel, type_info="datafile")
+    t_start = Field(type=QuantityModel, type_info="data")
+    signal = Field(optional=False, type=QuantityModel, type_info="datafile")
+    times = Field(optional=False, type=QuantityModel, type_info="datafile")
 
     segment = Field(is_parent=True, type_info=Models.SEGMENT)
     recordingchannel = Field(is_parent=True, type_info=Models.RECORDINGCHANNEL)

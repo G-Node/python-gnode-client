@@ -88,6 +88,7 @@ class NativeDriver(ResultDriver):
 
             # construct object
             native = NativeDriver.MODEL_MAP[obj.model](**kw)
+            setattr(native, "location", obj.location)
 
             # set remaining properties
             for field_name in obj.optional_fields:
@@ -114,8 +115,9 @@ class NativeDriver(ResultDriver):
                 elif field.type_info == "datafile":
                     field_val = getattr(obj, field_name)
                     # TODO handle data files
-                    q = pq.Quantity([], field_val.units)
-                    setattr(native, field_name, q)
+                    #print "%s: val = %s / unit = %s" % (field_name, str(field_val.data), str(field_val.units))
+                    #q = pq.Quantity([], field_val.units)
+                    #setattr(native, field_name, q)
 
             return native
 

@@ -3,6 +3,14 @@
 from gnodeclient import session
 
 s = session.create(password="pass", username="bob")
-c = s.get("/neo/analogsignal/FFRM68IOR8")
-seg = c.segment
-print type(c.segment)
+sig = s.get("/neo/analogsignal/FFRM68IOR8")
+seg = sig.segment
+bl = seg.block
+
+rc = sig.recordingchannel
+rcg = rc.recordingchannelgroup
+
+repr(rcg)
+str(rcg)
+
+print type(sig.segment)
