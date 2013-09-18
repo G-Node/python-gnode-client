@@ -1,6 +1,7 @@
 """
 Model definitions for the G-Node REST api.
 """
+from neo.core import analogsignalarray
 
 from model import Model, Field
 
@@ -53,7 +54,6 @@ class Models:
             return 'metadata/' + type_name
         else:
             return 'electrophysiology/' + type_name
-
 
 
 class ValueModel(Model):
@@ -121,7 +121,6 @@ Models._MODEL_MAP[Models.BLOCK] = BlockModel
 
 
 class SegmentModel(RestResult):
-    """Model for segment"""
     model = Field(type=str, default=Models.SEGMENT)
     name = Field(type=str, default="")
     index = Field(default=0)
@@ -129,25 +128,177 @@ class SegmentModel(RestResult):
     block = Field(is_parent=True, type_info=Models.BLOCK)
 
     analogsignals = Field(is_child=True, type=list, type_info=Models.ANALOGSIGNAL)
-    #irregularlysampledsignals = Field(is_child=True, type=list, type_info=Models.IRREGULARLYSAMPLEDSIGNAL)
-    #analogsignalarrays = Field(is_child=True, type=list, type_info=Models.ANALOGSIGNALARRAY)
-    #spiketrains = Field(is_child=True, type=list, type_info=Models.SPIKETRAIN)
-    #spikes = Field(is_child=True, type=list, type_info=Models.SPIKE)
-    #events = Field(is_child=True, type=list, type_info=Models.EVENT)
-    #epochs = Field(is_child=True, type=list, type_info=Models.EPOCH)
+    irregularlysampledsignals = Field(is_child=True, type=list, type_info=Models.IRREGULARLYSAMPLEDSIGNAL)
+    analogsignalarrays = Field(is_child=True, type=list, type_info=Models.ANALOGSIGNALARRAY)
+    spiketrains = Field(is_child=True, type=list, type_info=Models.SPIKETRAIN)
+    spikes = Field(is_child=True, type=list, type_info=Models.SPIKE)
+    events = Field(is_child=True, type=list, type_info=Models.EVENT)
+    epochs = Field(is_child=True, type=list, type_info=Models.EPOCH)
 
 Models._MODEL_MAP[Models.SEGMENT] = SegmentModel
 
 
-class AnalogsignalModel(RestResult):
-    """Model for analogsignal"""
-    model = Field(type=str, default=Models.ANALOGSIGNAL)
+class EventArrayModel(RestResult):
+    model = Field(type=str, default=Models.EVENTARRAY)
     name = Field(type=str, default="")
+    description = Field(type=str)
+
+    times = Field(optional=False, type=ValueModel, type_info="datafile")
+
+    segment = Field(is_parent=True, type_info=Models.SEGMENT)
+
+Models._MODEL_MAP[Models.EVENTARRAY] = EventArrayModel
+
+
+class EventModel(RestResult):
+    model = Field(type=str, default=Models.EVENT)
+    name = Field(type=str, default="")
+    description = Field(type=str)
+
+    time = Field(optional=False, type=ValueModel, type_info="data")
+
+    segment = Field(is_parent=True, type_info=Models.SEGMENT)
+
+Models._MODEL_MAP[Models.EVENT] = EventModel
+
+
+class EpochArrayModel(RestResult):
+    model = Field(type=str, default=Models.EPOCHARRAY)
+    name = Field(type=str, default="")
+    description = Field(type=str)
+
+    times = Field(optional=False, type=ValueModel, type_info="datafile")
+    durations = Field(optional=False, type=ValueModel, type_info="datafile")
+
+    segment = Field(is_parent=True, type_info=Models.SEGMENT)
+
+Models._MODEL_MAP[Models.EPOCHARRAY] = EpochArrayModel
+
+
+class EpochModel(RestResult):
+    model = Field(type=str, default=Models.EPOCH)
+    name = Field(type=str, default="")
+    description = Field(type=str)
+    label = Field(optional=False, type=str, default="")
+
+    time = Field(optional=False, type=ValueModel, type_info="data")
+    duration = Field(optional=False, type=ValueModel, type_info="data")
+
+    segment = Field(is_parent=True, type_info=Models.SEGMENT)
+
+Models._MODEL_MAP[Models.EPOCH] = EpochModel
+
+
+class RecordingChannelGroupModel(RestResult):
+    model = Field(type=str, default=Models.RECORDINGCHANNELGROUP)
+    name = Field(type=str, default="")
+    description = Field(type=str)
+
+    block = Field(is_parent=True, type_info=Models.BLOCK)
+    units = Field(is_child=True, type=list, type_info=Models.UNIT)
+    recordingchannels = Field(is_child=True, type=list, type_info=Models.RECORDINGCHANNEL)
+    analogsignalarrays = Field(is_child=True, type=list, type_info=Models.ANALOGSIGNALARRAY)
+
+Models._MODEL_MAP[Models.RECORDINGCHANNELGROUP] = RecordingChannelGroupModel
+
+
+class RecordingChannelModel(RestResult):
+    model = Field(type=str, default=Models.RECORDINGCHANNEL)
+    name = Field(type=str, default="")
+    description = Field(type=str)
+
+    recordingchannelgroup = Field(is_parent=True, type_info=Models.RECORDINGCHANNELGROUP)
+    analogsignals = Field(is_child=True, type=list, type_info=Models.ANALOGSIGNAL)
+    irregularlysampledsignals = Field(is_child=True, type=list, type_info=Models.IRREGULARLYSAMPLEDSIGNAL)
+
+Models._MODEL_MAP[Models.RECORDINGCHANNEL] = RecordingChannelModel
+
+
+class UnitModel(RestResult):
+    model = Field(type=str, default=Models.UNIT)
+    name = Field(type=str, default="")
+    description = Field(type=str)
+
+    recordingchannelgroup = Field(is_parent=True, type_info=Models.RECORDINGCHANNELGROUP)
+    spikes = Field(is_child=True, type=list, type_info=Models.SPIKE)
+    spiketrains = Field(is_child=True, type=list, type_info=Models.SPIKETRAIN)
+
+Models._MODEL_MAP[Models.UNIT] = UnitModel
+
+
+class SpikeTrainModel(RestResult):
+    model = Field(type=str, default=Models.SPIKETRAIN)
+    name = Field(type=str, default="")
+    description = Field(type=str)
+
+    t_start = Field(type=ValueModel, type_info="data")
+    t_stop = Field(optional=False, type=ValueModel, type_info="data")
+    times = Field(optional=False, type=ValueModel, type_info="datafile")
+    waveforms = Field(type=ValueModel, type_info="datafile")
+
+    unit = Field(is_parent=True, type_info=Models.UNIT)
+    segment = Field(is_parent=True, type_info=Models.SEGMENT)
+
+
+Models._MODEL_MAP[Models.SPIKETRAIN] = SpikeTrainModel
+
+
+class SpikeModel(RestResult):
+    model = Field(type=str, default=Models.SPIKE)
+    name = Field(type=str, default="")
+    description = Field(type=str)
+
+    time = Field(optional=False, type=ValueModel, type_info="data")
+    left_sweep = Field(type=ValueModel, type_info="data")
+    sampling_rate = Field(type=ValueModel, type_info="data")
+    waveform = Field(type=ValueModel, type_info="datafile")
+
+    unit = Field(is_parent=True, type_info=Models.UNIT)
+    segment = Field(is_parent=True, type_info=Models.SEGMENT)
+
+Models._MODEL_MAP[Models.SPIKE] = SpikeModel
+
+
+class AnalogsignalArrayModel(RestResult):
+    model = Field(type=str, default=Models.ANALOGSIGNALARRAY)
+    name = Field(type=str, default="")
+    description = Field(type=str)
+
     t_start = Field(type=ValueModel, type_info="data")
     sampling_rate = Field(optional=False, type=ValueModel, type_info="data")
     signal = Field(optional=False, type=ValueModel, type_info="datafile")
 
-    segment = Field(is_parent=True, type=str, type_info=Models.SEGMENT)
-    #recordingchannel = Field(is_parent=True, type=str, type_info=Models.RECORDINGCHANNEL)
+    segment = Field(is_parent=True, type_info=Models.SEGMENT)
+    recordingchannelgroup = Field(is_parent=True, type_info=Models.RECORDINGCHANNELGROUP)
+
+Models._MODEL_MAP[Models.ANALOGSIGNALARRAY] = AnalogsignalArrayModel
+
+
+class AnalogsignalModel(RestResult):
+    model = Field(type=str, default=Models.ANALOGSIGNAL)
+    name = Field(type=str, default="")
+    description = Field(type=str)
+
+    t_start = Field(type=ValueModel, type_info="data")
+    sampling_rate = Field(optional=False, type=ValueModel, type_info="data")
+    signal = Field(optional=False, type=ValueModel, type_info="datafile")
+
+    segment = Field(is_parent=True, type_info=Models.SEGMENT)
+    recordingchannel = Field(is_parent=True, type_info=Models.RECORDINGCHANNEL)
 
 Models._MODEL_MAP[Models.ANALOGSIGNAL] = AnalogsignalModel
+
+
+class IrregularlySampledSignalModel(RestResult):
+    model = Field(type=str, default=Models.IRREGULARLYSAMPLEDSIGNAL)
+    name = Field(type=str, default="")
+    description = Field(type=str)
+    
+    t_start = Field(type=ValueModel, type_info="data")
+    signal = Field(optional=False, type=ValueModel, type_info="datafile")
+    times = Field(optional=False, type=ValueModel, type_info="datafile")
+
+    segment = Field(is_parent=True, type_info=Models.SEGMENT)
+    recordingchannel = Field(is_parent=True, type_info=Models.RECORDINGCHANNEL)
+
+Models._MODEL_MAP[Models.IRREGULARLYSAMPLEDSIGNAL] = IrregularlySampledSignalModel
