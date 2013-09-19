@@ -63,10 +63,10 @@ def model_to_collections(model):
     return model
 
 
-def json_to_collections(string):
+def json_to_collections(string, as_list=False):
     collection = json.loads(string, encoding='UTF-8')
 
     if 'selected' in collection:
         collection = collection['selected']
 
-    return collection if len(collection) > 1 else collection[0]
+    return collection[0] if len(collection) == 1 and not as_list else collection

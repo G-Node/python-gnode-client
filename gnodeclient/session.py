@@ -26,8 +26,9 @@ class Session(object):
     # Methods
     #
 
-    def select(self, filters, refresh=False, recursive=False):
-        raise NotImplementedError()
+    def select(self, model_name, raw_filters=None):
+        objects = self.__store.select(model_name, raw_filters)
+        return [self.__driver.to_result(obj) for obj in objects]
 
     def get(self, location, refresh=False, recursive=False):
         obj = self.__store.get(location, refresh, recursive)

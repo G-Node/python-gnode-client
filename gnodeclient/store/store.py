@@ -3,6 +3,7 @@ import convert
 import copy
 
 from requests_futures.sessions import FuturesSession
+from gnodeclient.model.rest_model import Models
 
 
 class GnodeStore(object):
@@ -77,6 +78,20 @@ class GnodeStore(object):
         """
         raise NotImplementedError()
 
+    def select(self, model_name, raw_filters=None):
+        """
+        Select data according to certain criteria.
+
+        :param model_name: The name of the model/result type e.g. 'analogsignal', 'block' etc.
+        :type model_name: str
+        :param raw_filters: A raw definition of filters as supported by the G-Node REST API.
+        :type raw_filters: dict
+
+        :returns: A list of all results that match the given criteria.
+        :rtype: list
+        """
+        raise NotImplementedError()
+
     def get(self, location):
         """
         Get an entity from the store.
@@ -85,17 +100,7 @@ class GnodeStore(object):
         :type location: str
 
         :returns: The entity or None.
-        """
-        raise NotImplementedError()
-
-    def get_all(self, locations):
-        """
-        Get an entity from the store.
-
-        :param locations: The locations of all entities as path or URL.
-        :type locations: list
-
-        :returns: All entities or an empty list.
+        :rtype: object
         """
         raise NotImplementedError()
 
@@ -106,7 +111,8 @@ class GnodeStore(object):
         :param locations: The locations of all entities as path or URL.
         :type locations: list
 
-        :returns: A list of all entities or none.
+        :returns: All entities or an empty list.
+        :rtype: list
         """
         raise NotImplementedError()
 
@@ -116,6 +122,8 @@ class GnodeStore(object):
         but in most cases this will be either a structure of dicts and lists or an instance of Model.
 
         :param entity: The entity to store.
+
+        :returns: The updated entity.
         """
         raise NotImplementedError()
 
@@ -177,6 +185,25 @@ class RestStore(GnodeStore):
 
         self.__session = None
 
+    def select(self, model_name, raw_filters=None):
+        results = []
+
+        raw_filters = {} if raw_filters is None else raw_filters
+
+        location = Models.location(model_name)
+        url = urlparse.urljoin(self.location, location)
+
+        headers = {}
+        future = self.__session.get(url, headers=headers, params=raw_filters)
+        response = future.result()
+        response.raise_for_status()
+
+        raw_results = convert.json_to_collections(response.content, as_list=True)
+        for obj in raw_results:
+            results.append(self.__converter(obj))
+
+        return results
+
     def get(self, location, etag=None):
         if location.startswith("http://"):
             url = location
@@ -186,7 +213,6 @@ class RestStore(GnodeStore):
         headers = {}
         if etag is not None:
             headers['If-none-match'] = etag
-
         future = self.__session.get(url, headers=headers)
         response = future.result()
         response.raise_for_status()
@@ -198,7 +224,7 @@ class RestStore(GnodeStore):
 
         return result
 
-    def get_all(self, locations):
+    def get_list(self, locations):
         futures = []
         results = []
 
@@ -326,6 +352,16 @@ class CachingRestStore(GnodeStore):
         self.rest_store.disconnect()
         self.cache_store.disconnect()
 
+    def select(self, model_name, raw_filters=None):
+        results = []
+        objects = self.rest_store.select(model_name, raw_filters=raw_filters)
+
+        for obj in objects:
+            self.cache_store.set(obj)
+            results.append(self.__converter(obj))
+
+        return results
+
     def get(self, location, refresh=True, recursive=False):
         obj = self.cache_store.get(location)
 
@@ -344,7 +380,7 @@ class CachingRestStore(GnodeStore):
 
         return obj
 
-    def get_all(self, locations, refresh=True):
+    def get_list(self, locations, refresh=True):
         results = []
         locations_todo = []
 
@@ -359,7 +395,7 @@ class CachingRestStore(GnodeStore):
                 else:
                     results.append(self.__converter(obj))
 
-        objects = self.__rest_store.get_all(locations_todo)
+        objects = self.__rest_store.get_list(locations_todo)
 
         for obj in objects:
             self.cache_store.set(obj)
@@ -385,7 +421,7 @@ class CachingRestStore(GnodeStore):
 
         while len(locations_todo) > 0:
             more_locations = []
-            objects = self.get_all(locations_todo, refresh)
+            objects = self.get_list(locations_todo, refresh)
             locations_done = locations_done + locations_todo
 
             for obj in objects:
