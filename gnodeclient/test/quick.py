@@ -2,15 +2,15 @@
 
 from gnodeclient import session
 
-s = session.create(password="pass", username="bob")
+s = session.create(location="http://localhost:8000", password="pass", username="bob")
 sig = s.get("/neo/analogsignal/FFRM68IOR8")
 seg = sig.segment
 bl = seg.block
 
 rc = sig.recordingchannel
-rcg = rc.recordingchannelgroup
+rcg = rc.recordingchannelgroups
 
 repr(rcg)
 str(rcg)
 
-print type(sig.segment)
+print str(sig.segment)

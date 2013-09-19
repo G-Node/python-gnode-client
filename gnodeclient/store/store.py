@@ -1,11 +1,7 @@
-import requests
 import urlparse
 import convert
 
-from Queue import Queue
-from threading import Thread
-
-from gnodeclient.model.rest_model import Models
+from requests_futures.sessions import FuturesSession
 
 
 class GnodeStore(object):
@@ -91,6 +87,17 @@ class GnodeStore(object):
         """
         raise NotImplementedError()
 
+    def get_all(self, locations):
+        """
+        Get an entity from the store.
+
+        :param locations: The locations of all entities as path or URL.
+        :type locations: list
+
+        :returns: All entities or an empty list.
+        """
+        raise NotImplementedError()
+
     def get_list(self, locations):
         """
         Get an entity from the store.
@@ -131,7 +138,7 @@ class RestStore(GnodeStore):
 
     def __init__(self, location, user, passwd, converter=convert.collections_to_model):
         super(RestStore, self).__init__(location, user, passwd)
-        self.__cookies = None
+        self.__session = None
 
         if converter is None:
             self.__converter = lambda x: x
@@ -145,22 +152,29 @@ class RestStore(GnodeStore):
     def connect(self):
         url = urlparse.urljoin(self.location, RestStore.URL_LOGIN)
 
-        response = requests.post(url, {'username': self.user, 'password': self.passwd})
+        session = FuturesSession(max_workers=20)
+
+        future = session.post(url, {'username': self.user, 'password': self.passwd})
+        response = future.result()
         response.raise_for_status()
 
-        if not response.cookies:
+        if not session.cookies:
             raise RuntimeError("Unable to authenticate for user '%s' (status: %d)!"
                                % (self.user, response.status_code))
 
-        self.__cookies = response.cookies
+        self.__session = session
 
     def is_connected(self):
-        return False if self.__cookies is None else True
+        return False if self.__session is None else True
 
     def disconnect(self):
         url = urlparse.urljoin(self.location, RestStore.URL_LOGOUT)
-        requests.get(url, cookies=self.__cookies)
-        self.__cookies = None
+
+        future = self.__session.get(url)
+        response = future.result()
+        response.raise_for_status()
+
+        self.__session = None
 
     def get(self, location, etag=None):
         if location.startswith("http://"):
@@ -172,7 +186,8 @@ class RestStore(GnodeStore):
         if etag is not None:
             headers['If-none-match'] = etag
 
-        response = requests.get(url, headers=headers, cookies=self.__cookies)
+        future = self.__session.get(url, headers=headers)
+        response = future.result()
         response.raise_for_status()
 
         if response.status_code == 304:
@@ -181,6 +196,30 @@ class RestStore(GnodeStore):
             result = self.__converter(convert.json_to_collections(response.content))
 
         return result
+
+    def get_all(self, locations):
+        futures = []
+        results = []
+
+        for location in locations:
+            if location.startswith("http://"):
+                url = location
+            else:
+                url = urlparse.urljoin(self.location, location)
+
+            headers = {}
+
+            future = self.__session.get(url, headers=headers)
+            futures.append(future)
+
+        for future in futures:
+            response = future.result()
+            response.raise_for_status()
+
+            result = self.__converter(convert.json_to_collections(response.content))
+            results.append(result)
+
+        return results
 
     def set(self, entity):
         # TODO implement set()
@@ -241,9 +280,6 @@ class CacheStore(GnodeStore):
 
 class CachingRestStore(GnodeStore):
 
-    MAX_QUEUE_SIZE = 10000
-    MAX_WORKER = 100
-
     def __init__(self, location, user, passwd, cache_location=None, converter=convert.collections_to_model):
         super(CachingRestStore, self).__init__(location, user, passwd)
 
@@ -302,9 +338,32 @@ class CachingRestStore(GnodeStore):
                 obj = self.__converter(obj_refreshed)
 
         if recursive:
-            obj = self.__get_recursive(location, refresh)
+            self.__get_recursive(location, refresh)
 
         return obj
+
+    def get_all(self, locations, refresh=True):
+        results = []
+        locations_todo = []
+
+        if refresh:
+            locations_todo = locations
+        else:
+            for location in locations:
+                obj = self.cache_store.get(location)
+
+                if obj is None:
+                    locations_todo.append(location)
+                else:
+                    results.append(self.__converter(obj))
+
+        objects = self.__rest_store.get_all(locations_todo)
+
+        for obj in objects:
+            self.cache_store.set(obj)
+            results.append(self.__converter(obj))
+
+        return results
 
     def set(self, entity):
         # TODO implement ()
@@ -319,43 +378,22 @@ class CachingRestStore(GnodeStore):
     #
 
     def __get_recursive(self, location, refresh):
-        result = None
-
         locations_done = []
-        locations_todo = Queue(CachingRestStore.MAX_QUEUE_SIZE)
-        locations_todo.put(location)
+        locations_todo = [urlparse.urlparse(location).path.strip("/")]
 
-        def worker():
-            while not locations_todo.empty():
-                loc = locations_todo.get()
-                obj = self.cache_store.get(loc)
+        while len(locations_todo) > 0:
+            more_locations = []
+            objects = self.get_all(locations_todo, refresh)
+            locations_done = locations_done + locations_todo
 
-                if obj is None:
-                    obj = self.rest_store.get(loc)
-                    self.cache_store.set(obj)
-                    obj = self.__converter(obj)
-                elif refresh:
-                    obj_refreshed = self.rest_store.get(loc, obj.guid)
-                    if obj_refreshed is not None:
-                        self.cache_store.set(obj_refreshed)
-                        obj = self.__converter(obj_refreshed)
-
+            for obj in objects:
                 for field_name in obj.child_fields:
                     field_val = obj[field_name]
+
                     if field_val is not None and len(field_val) > 0:
                         for val in field_val:
+                            val = urlparse.urlparse(val).path.strip("/")
                             if val not in locations_done:
-                                locations_todo.put(val)
+                                more_locations.append(val)
 
-                locations_done.append(loc)
-                locations_todo.task_done()
-
-        for _ in range(CachingRestStore.MAX_WORKER):
-            t = Thread(target=worker)
-            t.daemon = True
-            t.start()
-
-        locations_todo.join()
-
-        return result
-
+            locations_todo = more_locations

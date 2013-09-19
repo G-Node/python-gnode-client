@@ -20,6 +20,7 @@ setup(
         "fcache >= 0.3.0",
         "quantities >= 0.10.0",
         "neo >= 0.3.0",
+        "requests-futures >= 0.9.0"
         "ProxyTypes >= 0.9"
     ],
 )
