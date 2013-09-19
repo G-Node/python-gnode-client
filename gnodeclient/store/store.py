@@ -1,5 +1,6 @@
 import urlparse
 import convert
+import copy
 
 from requests_futures.sessions import FuturesSession
 
@@ -263,14 +264,15 @@ class CacheStore(GnodeStore):
     def get(self, location):
         location = urlparse.urlparse(location).path.strip("/")
         if location in self.__cache:
-            return self.__converter(self.__cache[location])
+            obj = copy.deepcopy(self.__cache[location])
+            return self.__converter(obj)
         else:
             return None
 
     def set(self, entity):
         if entity is not None:
             location = urlparse.urlparse(entity['location']).path.strip("/")
-            self.__cache[location] = entity
+            self.__cache[location] = copy.deepcopy(entity)
 
     def delete(self, entity):
         location = urlparse.urlparse(entity['location']).path.strip("/")
