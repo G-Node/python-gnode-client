@@ -1,16 +1,24 @@
 #!/usr/bin/env python
 
+from gnodeclient.model.rest_model import Models
 from gnodeclient import session
 
-s = session.create(location="http://localhost:8000", password="pass", username="bob")
-sig = s.get("/neo/analogsignal/FFRM68IOR8")
+s = session.create()
+
+blocks = s.select(Models.BLOCK)
+
+print str(blocks[0])
+print blocks[0].name
+
+for b in blocks:
+    print repr(b)
+    print str(b)
+
+signals = s.select(Models.ANALOGSIGNAL)
+sig = s.get(signals[20].location, refresh=True)
 seg = sig.segment
 bl = seg.block
 
-rc = sig.recordingchannel
-rcg = rc.recordingchannelgroups
-
-repr(rcg)
-str(rcg)
 
 print str(sig.segment)
+print sig.segment.name

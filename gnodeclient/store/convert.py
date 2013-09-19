@@ -47,7 +47,8 @@ def collections_to_model(collection):
                 if field.type_info == 'datafile':
                     field_val = QuantityModel(units=field_val['units'], data=field_val['data'])
                 elif field.type_info == 'data':
-                    field_val = QuantityModel(units=field_val['units'], data=float(field_val['data']))
+                    data = None if field_val['data'] is None else float(field_val['data'])
+                    field_val = QuantityModel(units=field_val['units'], data=data)
                 elif field_name == 'model':
                     field_val = model
 

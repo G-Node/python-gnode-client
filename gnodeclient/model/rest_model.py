@@ -152,6 +152,7 @@ class EventModel(RestResult):
     model = Field(type=str, default=Models.EVENT)
     name = Field(type=str, default="")
     description = Field(type=str)
+    label = Field(optional=False, type=str, default="")
 
     time = Field(optional=False, type=QuantityModel, type_info="data")
 
@@ -164,6 +165,7 @@ class EpochArrayModel(RestResult):
     model = Field(type=str, default=Models.EPOCHARRAY)
     name = Field(type=str, default="")
     description = Field(type=str)
+    labels = Field(optional=False, type=list)
 
     times = Field(optional=False, type=QuantityModel, type_info="datafile")
     durations = Field(optional=False, type=QuantityModel, type_info="datafile")
@@ -292,7 +294,7 @@ class IrregularlySampledSignalModel(RestResult):
     name = Field(type=str, default="")
     description = Field(type=str)
     
-    t_start = Field(type=QuantityModel, type_info="data")
+    #t_start = Field(type=QuantityModel, type_info="data")
     signal = Field(optional=False, type=QuantityModel, type_info="datafile")
     times = Field(optional=False, type=QuantityModel, type_info="datafile")
 

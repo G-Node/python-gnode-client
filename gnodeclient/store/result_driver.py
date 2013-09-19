@@ -92,32 +92,33 @@ class NativeDriver(ResultDriver):
 
             # set remaining properties
             for field_name in obj.optional_fields:
+                field_val = getattr(obj, field_name)
                 field = obj.get_field(field_name)
                 if field.is_parent:
-                    field_val = getattr(obj, field_name)
-
                     if field_val is not None:
                         proxy = LazyProxy(lazy_value_loader(field_val, self.store, self))
                         setattr(native, field_name, proxy)
 
                 elif field.is_child:
-                    field_val = getattr(obj, field_name)
-
                     if field_val is not None and len(field_val) > 0:
                         proxy = LazyProxy(lazy_list_loader(field_val, self.store, self))
                         setattr(native, field_name, proxy)
 
                 elif field.type_info == "data":
-                    field_val = getattr(obj, field_name)
-                    q = pq.Quantity(field_val.data, field_val.units)
-                    setattr(native, field_name, q)
+                    print "model = %s // field_name = %s // field_val = %s" % (obj.model, field_name, field_val)
+                    if field_val.data is not None and field_val.units is not None:
+                        q = pq.Quantity(field_val.data, field_val.units)
+                        setattr(native, field_name, q)
 
                 elif field.type_info == "datafile":
-                    field_val = getattr(obj, field_name)
                     # TODO handle data files
                     #print "%s: val = %s / unit = %s" % (field_name, str(field_val.data), str(field_val.units))
                     #q = pq.Quantity([], field_val.units)
                     #setattr(native, field_name, q)
+                    pass
+
+                elif hasattr(native, field_name):
+                    setattr(native, field_name, field_val)
 
             return native
 
