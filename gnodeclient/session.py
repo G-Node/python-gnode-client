@@ -7,8 +7,8 @@ __MAIN_SESSION = None
 
 class Session(object):
 
-    def __init__(self, options, file_name):
-        self.__options = Configuration(options, file_name)
+    def __init__(self, options, file_name,  persist_options=False):
+        self.__options = Configuration(options, file_name, persist_options)
         self.__store = CachingRestStore(location=self.__options["location"], user=self.__options["username"],
                                         passwd=self.__options["password"])
         self.__store.connect()
@@ -44,7 +44,7 @@ class Session(object):
         self.__store.disconnect()
 
 
-def create(username=None, password=None, location=None, file_name=None):
+def create(username=None, password=None, location=None, file_name=None, persist_options=False):
     """
     Creates and returns a main session object. Multiple calls will return always
     the same object unless close() was not called.
@@ -59,7 +59,7 @@ def create(username=None, password=None, location=None, file_name=None):
         if location is not None:
             options["location"] = location
 
-        __MAIN_SESSION = Session(options, file_name)
+        __MAIN_SESSION = Session(options, file_name, persist_options)
 
     return __MAIN_SESSION
 
