@@ -2,6 +2,11 @@ import requests
 import urlparse
 import convert
 
+from Queue import Queue
+from threading import Thread
+
+from gnodeclient.model.rest_model import Models
+
 
 class GnodeStore(object):
     """
@@ -75,16 +80,25 @@ class GnodeStore(object):
         """
         raise NotImplementedError()
 
-    def get(self, location, cascade=True):
+    def get(self, location):
         """
         Get an entity from the store.
 
         :param location: The location of the entity as path or URL.
         :type location: str
-        :param cascade: Also get all associated objects.
-        :type cascade: bool
 
         :returns: The entity or None.
+        """
+        raise NotImplementedError()
+
+    def get_list(self, locations):
+        """
+        Get an entity from the store.
+
+        :param locations: The locations of all entities as path or URL.
+        :type locations: list
+
+        :returns: A list of all entities or none.
         """
         raise NotImplementedError()
 
@@ -227,6 +241,9 @@ class CacheStore(GnodeStore):
 
 class CachingRestStore(GnodeStore):
 
+    MAX_QUEUE_SIZE = 10000
+    MAX_WORKER = 100
+
     def __init__(self, location, user, passwd, cache_location=None, converter=convert.collections_to_model):
         super(CachingRestStore, self).__init__(location, user, passwd)
 
@@ -271,8 +288,7 @@ class CachingRestStore(GnodeStore):
         self.rest_store.disconnect()
         self.cache_store.disconnect()
 
-    def get(self, location, refresh=True):
-
+    def get(self, location, refresh=True, recursive=False):
         obj = self.cache_store.get(location)
 
         if obj is None:
@@ -285,6 +301,9 @@ class CachingRestStore(GnodeStore):
                 self.cache_store.set(obj_refreshed)
                 obj = self.__converter(obj_refreshed)
 
+        if recursive:
+            obj = self.__get_recursive(location, refresh)
+
         return obj
 
     def set(self, entity):
@@ -294,3 +313,49 @@ class CachingRestStore(GnodeStore):
     def delete(self, entity):
         # TODO implement delte()
         raise NotImplementedError()
+
+    #
+    # Private functions
+    #
+
+    def __get_recursive(self, location, refresh):
+        result = None
+
+        locations_done = []
+        locations_todo = Queue(CachingRestStore.MAX_QUEUE_SIZE)
+        locations_todo.put(location)
+
+        def worker():
+            while not locations_todo.empty():
+                loc = locations_todo.get()
+                obj = self.cache_store.get(loc)
+
+                if obj is None:
+                    obj = self.rest_store.get(loc)
+                    self.cache_store.set(obj)
+                    obj = self.__converter(obj)
+                elif refresh:
+                    obj_refreshed = self.rest_store.get(loc, obj.guid)
+                    if obj_refreshed is not None:
+                        self.cache_store.set(obj_refreshed)
+                        obj = self.__converter(obj_refreshed)
+
+                for field_name in obj.child_fields:
+                    field_val = obj[field_name]
+                    if field_val is not None and len(field_val) > 0:
+                        for val in field_val:
+                            if val not in locations_done:
+                                locations_todo.put(val)
+
+                locations_done.append(loc)
+                locations_todo.task_done()
+
+        for _ in range(CachingRestStore.MAX_WORKER):
+            t = Thread(target=worker)
+            t.daemon = True
+            t.start()
+
+        locations_todo.join()
+
+        return result
+
