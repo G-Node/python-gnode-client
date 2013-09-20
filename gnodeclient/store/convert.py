@@ -6,7 +6,7 @@ except ImportError:
     import json
 
 
-def collections_to_model(collection):
+def collections_to_model(collection, as_list=False):
     """
     Exceptions: ValueError
     """
@@ -56,7 +56,13 @@ def collections_to_model(collection):
 
         models.append(model_obj)
 
-    return models if len(models) > 1 else models[0]
+    if not as_list:
+        if len(models) > 0:
+            models = models[0]
+        else:
+            models = None
+
+    return models
 
 
 def model_to_collections(model):
@@ -70,4 +76,17 @@ def json_to_collections(string, as_list=False):
     if 'selected' in collection:
         collection = collection['selected']
 
-    return collection[0] if len(collection) == 1 and not as_list else collection
+    if as_list:
+        if not isinstance(collection, list):
+            if collection is None:
+                collection = []
+            else:
+                collection = [collection]
+    else:
+        if isinstance(collection, list):
+            if  len(collection) > 0:
+                collection = collection[0]
+            else:
+                collection = None
+
+    return collection

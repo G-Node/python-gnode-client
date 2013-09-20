@@ -3,6 +3,7 @@ This module defines so called result driver classes. A result driver is used
 in order to generate ready to use result objects from objects returned by a
 store.
 """
+
 import quantities as pq
 
 from odml import Section, Property, Value
@@ -33,6 +34,9 @@ class ResultDriver(object):
     #
 
     def to_result(self, obj):
+        raise NotImplementedError()
+
+    def to_model(self, native):
         raise NotImplementedError()
 
 
@@ -105,7 +109,6 @@ class NativeDriver(ResultDriver):
                         setattr(native, field_name, proxy)
 
                 elif field.type_info == "data":
-                    print "model = %s // field_name = %s // field_val = %s" % (obj.model, field_name, field_val)
                     if field_val.data is not None and field_val.units is not None:
                         q = pq.Quantity(field_val.data, field_val.units)
                         setattr(native, field_name, q)
