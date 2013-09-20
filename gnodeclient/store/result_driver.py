@@ -12,7 +12,7 @@ from neo import Block, Segment, EventArray, Event, EpochArray, Epoch, RecordingC
 
 from peak.util.proxies import LazyProxy
 
-from gnodeclient.model.rest_model import Models, RestResult
+from gnodeclient.model.rest_model import Models, RestResult, QuantityModel
 from gnodeclient.store.proxies import lazy_list_loader, lazy_value_loader
 
 
@@ -42,7 +42,7 @@ class ResultDriver(object):
 
 class NativeDriver(ResultDriver):
 
-    MODEL_MAP = {
+    FW_MAP = {
         #Models.DATAFILE: "datafile",
         Models.SECTION: Section,
         Models.PROPERTY: Property,
@@ -63,6 +63,12 @@ class NativeDriver(ResultDriver):
         Models.IRREGULARLYSAMPLEDSIGNAL: IrregularlySampledSignal,
     }
 
+    RW_MAP = {
+        Models.SECTION: type(Section("", "")),
+        Models.PROPERTY: type(Property("", "")),
+        Models.VALUE: type(Value("")),
+    }
+
     def to_result(self, obj):
         """
         Converts a model into a usable result.
@@ -73,7 +79,7 @@ class NativeDriver(ResultDriver):
         :returns: A native neo or odml object.
         :rtype: object
         """
-        if obj.model in NativeDriver.MODEL_MAP:
+        if obj.model in NativeDriver.FW_MAP:
             # collect kwargs for object construction
             kw = {}
 
@@ -91,7 +97,7 @@ class NativeDriver(ResultDriver):
                     kw[field_name] = field_val
 
             # construct object
-            native = NativeDriver.MODEL_MAP[obj.model](**kw)
+            native = NativeDriver.FW_MAP[obj.model](**kw)
             setattr(native, "location", obj.location)
 
             # set remaining properties
@@ -127,3 +133,75 @@ class NativeDriver(ResultDriver):
 
         else:
             return obj
+
+    def to_model(self, native):
+        """
+        Converts a native neo or odml object into model object.
+
+        :param native: The object to convert.
+        :type native: object
+
+        :returns: A new model object.
+        :rtype: RestResult
+        """
+        # get type name and create a model
+        map = NativeDriver.FW_MAP.copy()
+        map.update(NativeDriver.RW_MAP)
+
+        model_obj = None
+        for model_name in NativeDriver.FW_MAP:
+            if model_name in NativeDriver.RW_MAP:
+                cls = NativeDriver.RW_MAP[model_name]
+            else:
+                cls = NativeDriver.FW_MAP[model_name]
+
+            if isinstance(native, cls):
+                model_obj = Models.create(model_name)
+                break
+
+        if model_obj is None:
+            raise TypeError("The type of the native object (%s) is not a compatible type!" % type(native))
+
+        print str(model_obj)
+        print type(model_obj)
+
+        # iterate over fields and set them on the model
+        for field_name in model_obj:
+            if hasattr(native, field_name):
+                field = model_obj.get_field(field_name)
+                field_val = getattr(native, field_name, field.default)
+
+                # special treatment for the location field
+                if field_name == "location":
+                    model_obj.location = field_val
+                    model_obj.id = field_val.split("/")[-1]
+                # process all child relationships
+                elif field.is_child:
+                    if field_val is not None:
+                        locations = []
+                        for val in field_val:
+                            if hasattr(val, 'location'):
+                                locations.append(val.location)
+
+                        model_obj[field_name] = locations
+                # process all parent relationships
+                elif field.is_parent:
+                    if field_val is not None and hasattr(field_val, 'location'):
+                        model_obj[field_name] = field_val.location
+                # data fields
+                elif field.type_info == "data":
+                    if field_val is not None:
+                        data = float(field_val)
+                        units = str(field_val).split(" ")[1]  # TODO is there a nicer way?
+                        model_obj[field_name] = QuantityModel(data=data, units=units)
+                # TODO datafiles are ignored for now
+                elif field.type_info == "datafile":
+                    pass
+                # default
+                else:
+                    model_obj[field_name] = field_val
+
+        return model_obj
+
+
+
