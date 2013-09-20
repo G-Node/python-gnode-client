@@ -12,7 +12,7 @@ class GnodeStore(object):
     that is managed by the G-Node REST API.
     """
 
-    def __init__(self, location, user=None, passwd=None):
+    def __init__(self, location, user=None, password=None):
         """
         Constructor.
 
@@ -20,12 +20,12 @@ class GnodeStore(object):
         :type location: str
         :param user: The user name (might be ignored by some kinds of store)
         :type user: str
-        :param passwd: The password (might be ignored by some kinds of store)
-        :type passwd: str
+        :param password: The password (might be ignored by some kinds of store)
+        :type password: str
         """
         self.__location = location
         self.__user = user
-        self.__passwd = passwd
+        self.__password = password
 
     #
     # Properties
@@ -47,11 +47,11 @@ class GnodeStore(object):
         return self.__user
 
     @property
-    def passwd(self):
+    def password(self):
         """
         The password (might be ignored by some kinds of store)
         """
-        return self.__passwd
+        return self.__password
 
     #
     # Methods
@@ -145,8 +145,8 @@ class RestStore(GnodeStore):
     URL_LOGIN = 'account/authenticate/'
     URL_LOGOUT = 'account/logout/'
 
-    def __init__(self, location, user, passwd, converter=convert.collections_to_model):
-        super(RestStore, self).__init__(location, user, passwd)
+    def __init__(self, location, user, password, converter=convert.collections_to_model):
+        super(RestStore, self).__init__(location, user, password)
         self.__session = None
 
         if converter is None:
@@ -163,7 +163,7 @@ class RestStore(GnodeStore):
 
         session = FuturesSession(max_workers=20)
 
-        future = session.post(url, {'username': self.user, 'password': self.passwd})
+        future = session.post(url, {'username': self.user, 'password': self.password})
         response = future.result()
         response.raise_for_status()
 
@@ -263,8 +263,8 @@ class CacheStore(GnodeStore):
     A cache store.
     """
 
-    def __init__(self, location=None, user=None, passwd=None, converter=convert.collections_to_model):
-        super(CacheStore, self).__init__(location, user, passwd)
+    def __init__(self, location=None, user=None, password=None, converter=convert.collections_to_model):
+        super(CacheStore, self).__init__(location, user, password)
 
         self.__cache = None
 
@@ -308,8 +308,8 @@ class CacheStore(GnodeStore):
 
 class CachingRestStore(GnodeStore):
 
-    def __init__(self, location, user, passwd, cache_location=None, converter=convert.collections_to_model):
-        super(CachingRestStore, self).__init__(location, user, passwd)
+    def __init__(self, location, user, password, cache_location=None, converter=convert.collections_to_model):
+        super(CachingRestStore, self).__init__(location, user, password)
 
         self.__cache_location = cache_location
 
@@ -318,7 +318,7 @@ class CachingRestStore(GnodeStore):
         else:
             self.__converter = converter
 
-        self.__rest_store = RestStore(location, user, passwd, converter=None)
+        self.__rest_store = RestStore(location, user, password, converter=None)
         self.__cache_store = CacheStore(cache_location, converter=converter)
 
     #

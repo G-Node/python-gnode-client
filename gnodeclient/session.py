@@ -10,7 +10,7 @@ class Session(object):
     def __init__(self, options, file_name,  persist_options=False):
         self.__options = Configuration(options, file_name, persist_options)
         self.__store = CachingRestStore(location=self.__options["location"], user=self.__options["username"],
-                                        passwd=self.__options["password"])
+                                        password=self.__options["password"])
         self.__store.connect()
         self.__driver = NativeDriver(self.__store)
 
