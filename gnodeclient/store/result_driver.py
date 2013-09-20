@@ -14,11 +14,24 @@ from peak.util.proxies import LazyProxy
 
 from gnodeclient.model.rest_model import Models, RestResult, QuantityModel
 from gnodeclient.store.proxies import lazy_list_loader, lazy_value_loader
+from gnodeclient.store.store import GnodeStore
 
 
 class ResultDriver(object):
+    """
+    A result driver is used to convert internally used model objects into
+    objects that are returned and handled by the Session class of the client
+    API. The result driver is further more responsible for the creation of
+    proxy objects from permalink or location stings.
+    """
 
     def __init__(self, store):
+        """
+        Constructor
+
+        :param store: A data source that is used for the creation of proxy objects.
+        :type store: GnodeStore
+        """
         self.__store = store
 
     #
@@ -27,6 +40,12 @@ class ResultDriver(object):
 
     @property
     def store(self):
+        """
+        Readonly property for the used sore object.
+
+        :returns: The store object, that is used by the driver.
+        :rtype: GnodeStore
+        """
         return self.__store
 
     #
@@ -34,13 +53,39 @@ class ResultDriver(object):
     #
 
     def to_result(self, obj):
+        """
+        Converts a model into some kind of usable result (with proxies for lazy loading).
+
+        :param obj: The object to convert.
+        :type obj: RestResult
+
+        :returns: The converted object.
+        :rtype: object
+        """
         raise NotImplementedError()
 
-    def to_model(self, native):
+    def to_model(self, obj):
+        """
+        Converts an object into a internally used model object.
+
+        :param obj: The object to convert.
+        :type obj: object
+
+        :returns: A new model object.
+        :rtype: RestResult
+        """
         raise NotImplementedError()
 
 
 class NativeDriver(ResultDriver):
+    """
+    A driver class that allows the conversion from model objects to native neo
+    or odml objects.
+    """
+
+    #
+    # Maps used for object conversion
+    #
 
     FW_MAP = {
         #Models.DATAFILE: "datafile",
@@ -68,6 +113,10 @@ class NativeDriver(ResultDriver):
         Models.PROPERTY: type(Property("", "")),
         Models.VALUE: type(Value("")),
     }
+
+    #
+    # Methods
+    #
 
     def to_result(self, obj):
         """
@@ -134,20 +183,18 @@ class NativeDriver(ResultDriver):
         else:
             return obj
 
-    def to_model(self, native):
+    def to_model(self, obj):
         """
         Converts a native neo or odml object into model object.
 
-        :param native: The object to convert.
-        :type native: object
+        :param obj: The object to convert.
+        :type obj: object
 
         :returns: A new model object.
         :rtype: RestResult
         """
-        # get type name and create a model
-        map = NativeDriver.FW_MAP.copy()
-        map.update(NativeDriver.RW_MAP)
 
+        # get type name and create a model
         model_obj = None
         for model_name in NativeDriver.FW_MAP:
             if model_name in NativeDriver.RW_MAP:
@@ -155,21 +202,21 @@ class NativeDriver(ResultDriver):
             else:
                 cls = NativeDriver.FW_MAP[model_name]
 
-            if isinstance(native, cls):
+            if isinstance(obj, cls):
                 model_obj = Models.create(model_name)
                 break
 
         if model_obj is None:
-            raise TypeError("The type of the native object (%s) is not a compatible type!" % type(native))
+            raise TypeError("The type of the native object (%s) is not a compatible type!" % type(obj))
 
         print str(model_obj)
         print type(model_obj)
 
         # iterate over fields and set them on the model
         for field_name in model_obj:
-            if hasattr(native, field_name):
+            if hasattr(obj, field_name):
                 field = model_obj.get_field(field_name)
-                field_val = getattr(native, field_name, field.default)
+                field_val = getattr(obj, field_name, field.default)
 
                 # special treatment for the location field
                 if field_name == "location":
