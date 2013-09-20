@@ -36,7 +36,8 @@ class Session(object):
         return res
 
     def set(self, entity, avoid_collisions=False):
-        raise NotImplementedError()
+        obj = self.__driver.to_model(entity)
+        return obj
 
     def delete(self, entity, avoid_collisions=False):
         raise NotImplementedError()

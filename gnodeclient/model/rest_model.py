@@ -37,6 +37,15 @@ class Models:
 
     @classmethod
     def create(cls, type_name):
+        """
+        Creates an instance of the model class matching the type name.
+
+        :param type_name: The name of the model class.
+        :type type_name: str
+
+        :returns: An instance of the respective model class.
+        :rtype: RestResult
+        """
         return cls._MODEL_MAP[type_name]()
 
     @classmethod
