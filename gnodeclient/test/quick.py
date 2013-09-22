@@ -3,7 +3,7 @@
 from gnodeclient.model.rest_model import Models
 from gnodeclient import session
 
-s = session.create()
+s = session.create(password="pass")
 
 blocks = s.select(Models.BLOCK)
 

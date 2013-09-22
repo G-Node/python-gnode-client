@@ -288,11 +288,13 @@ class Model(object):
         return iter(self.get_fields())
 
     def __str__(self):
-        template = "<%s %s>"
+        template = "<%s: %s>"
         kv_str = ""
         fields = self.fields
         for name in fields:
-            kv_str += ", %s: '%s'" % (name, getattr(self, name))
+            kv_str += "%s=%s, " % (name, getattr(self, name))
+        if len(fields) > 0:
+            kv_str = kv_str[:len(kv_str) - 2]
         return template % (self.__class__.__name__, kv_str)
 
     def __repr__(self):
