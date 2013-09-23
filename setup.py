@@ -1,10 +1,8 @@
-import gnodeclient
-
 from distutils.core import setup
 
 setup(
     name='gnodeclient',
-    version=gnodeclient.__version__,
+    version='0.1.0',
     author='A. Stoewer, A. Sobolev',
     author_email='',
     packages=['gnodeclient', 'gnodeclient.test'],

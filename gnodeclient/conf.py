@@ -1,3 +1,7 @@
+"""
+Very simple configuration file handling.
+"""
+
 import os
 import appdirs
 
@@ -8,11 +12,26 @@ except ImportError:
 
 
 class Configuration(dict):
+    """
+    A configuration class that extends dictionary
+    """
 
-    VERSION = '0.1.0'
     NAME = 'gnodeclient'
 
     def __init__(self, options=None, file_name=None, persist_options=False):
+        """
+        The init function is the only feature that is overridden by this class. The init function
+        loads options from a file ('file_name') and updates them with the options ('options') that
+        are passed directly as a parameter. I some important options are still missing it will set
+        useful defaults for them.
+
+        :param options: A dict of key value pairs, that will complement or override options from the file.
+        :type options: dict
+        :param file_name: The name of the JSON configuration file.
+        :type file_name: str
+        :param persist_options: If True, update the configuration file.
+        :type persist_options: bool
+        """
         super(Configuration, self).__init__()
 
         # set options to empty dict if None
@@ -43,7 +62,7 @@ class Configuration(dict):
         options = tmp
 
         # set defaults
-        self['version'] = '0.1.0'
+        self['version'] = "0.1.0"
         self['username'] = options.get('username', None)
         self['password'] = options.get('password', None)
         self['location'] = options.get('location', 'http://localhost:8000')

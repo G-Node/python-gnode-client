@@ -1,13 +1,62 @@
+"""
+The session module defines the main programming interface of the G-Node Client. It
+provides Session class which defines all methods, that are necessary to access the
+G-Node REST API. Further the module defines the functions crate() and close(): both
+functions operate on a global, application wide session object.
+
+Example usage:
+>>> from gnodeclient import session
+>>> from gnodeclient.model.rest_model import Models
+
+Create a session and store the connection information in a config file.
+>>> s = session.create(location="http://predata.g-node.org", username="bob", password="pass", persist_options=True)
+
+Get a list of all blocks, get all segments from the first block and print the name of
+its first segment.
+>>> blocks = s.select(Models.BLOCK)
+>>> segments = blocks[0].segments
+>>> seg = segments[0]
+>>> print seg.name
+
+Fetch the whole segment and all its child objects to the cache.
+>>> seg = s.get(seg.location, refresh=True, recursive=True)
+
+Since all child objects are now in the cache, the next operations should perform
+quite well.
+>>> for sig in seg.analogsignals:
+>>>     print repr(sig)
+"""
+
 from gnodeclient.conf import Configuration
 from gnodeclient.store.store import CachingRestStore
 from gnodeclient.store.result_driver import NativeDriver
 
+
+# The version of the client
+VERSION = "0.1.0"
+
+# A global session object.
 __MAIN_SESSION = None
 
 
 class Session(object):
+    """
+    The session class defines all basic methods, that are necessary to access the the
+    G-Node REST API.
+    """
 
     def __init__(self, options, file_name,  persist_options=False):
+        """
+        Constructor.
+
+        :param options: A dict with configuration options such as 'username', 'password' or 'location'.
+        :type options: dict
+        :param file_name: A path to a file that contains further configuration options.
+        :type file_name: str
+        :param persist_options: If set to True, all options will be saved in the configuration
+                                file (except for the password).
+
+        """
         self.__options = Configuration(options, file_name, persist_options)
         self.__store = CachingRestStore(location=self.__options["location"], user=self.__options["username"],
                                         password=self.__options["password"])
@@ -20,6 +69,12 @@ class Session(object):
 
     @property
     def options(self):
+        """
+        Read only property for accessing all used options.
+
+        :returns: All currently used options.
+        :rtype: Configuration
+        """
         return self.__options
 
     #
@@ -27,22 +82,67 @@ class Session(object):
     #
 
     def select(self, model_name, raw_filters=None):
+        """
+        Obtain a list of objects from a certain kind from the G-Node service. In addition
+        a set of filters can be applied in order to reduce the returned results.
+
+        :param model_name: The name of the model e.g. 'block' or 'spike'.
+        :type model_name: str
+        :param raw_filters: A set of filters as used by the G-Node REST API e.g. {'name_icontains': 'foo'}
+        :type raw_filters: dict
+
+        :returns: A list of objects.
+        :rtype: list
+        """
         objects = self.__store.select(model_name, raw_filters)
         return [self.__driver.to_result(obj) for obj in objects]
 
     def get(self, location, refresh=False, recursive=False):
+        """
+        Get a specific object from the G-Node service. The object to obtain is specified by its location.
+
+        :param location: The location of the object.
+        :type location: str
+        :param refresh: If True and if the object was previously cached, check if it has changed.
+        :type refresh: bool
+        :param recursive: If True, load all child objects recursively to the cache.
+        :type recursive: bool
+
+        :returns: The requested object (Neo or odML).
+        """
         obj = self.__store.get(location, refresh, recursive)
         res = self.__driver.to_result(obj)
         return res
 
     def set(self, entity, avoid_collisions=False):
-        obj = self.__driver.to_model(entity)
-        return obj
+        """
+        Save a modified or created object on the G-Node service.
 
-    def delete(self, entity, avoid_collisions=False):
+        :param entity: The object to store (Neo or odML).
+        :type entity: object
+        :param avoid_collisions: If true, check if the modified object collide with changes on the server.
+        :type avoid_collisions: bool
+
+        :returns: The saved entity.
+        :rtype: object
+        """
+        #obj = self.__driver.to_model(entity)
+        #return obj
+        raise NotImplementedError()
+
+    def delete(self, entity):
+        """
+        Delete an object from the G-Node service.
+
+        :param entity: The entity to delete.
+        :type entity: object
+        """
         raise NotImplementedError()
 
     def close(self):
+        """
+        Close all connections and opened files used by the session.
+        """
         self.__store.disconnect()
 
 
