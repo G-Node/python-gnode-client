@@ -193,6 +193,7 @@ class NativeDriver(ResultDriver):
         :returns: A new model object.
         :rtype: RestResult
         """
+        # TODO detect unbound related objects and throw an error
 
         # get type name and create a model
         model_obj = None
@@ -208,9 +209,6 @@ class NativeDriver(ResultDriver):
 
         if model_obj is None:
             raise TypeError("The type of the native object (%s) is not a compatible type!" % type(obj))
-
-        print str(model_obj)
-        print type(model_obj)
 
         # iterate over fields and set them on the model
         for field_name in model_obj:

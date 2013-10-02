@@ -1,4 +1,4 @@
-from gnodeclient.model.rest_model import Models, QuantityModel
+from gnodeclient.model.rest_model import Models, Model, RestResult, QuantityModel
 
 try:
     import simplejson as json
@@ -8,7 +8,18 @@ except ImportError:
 
 def collections_to_model(collection, as_list=False):
     """
-    Exceptions: ValueError
+    Converts objects of nested collections (list, dict) as produced by the json module
+    into a model object.
+
+    :param collection: The object or list of objects to convert.
+    :type collection: dict|list
+    :param as_list: If True the result is always a list.
+    :type as_list: bool
+
+    :returns: The converted object or a list of converted objects.
+    :rtype: RestResult|list
+
+    :raises: ValueError
     """
     models = []
 
@@ -65,12 +76,44 @@ def collections_to_model(collection, as_list=False):
     return models
 
 
-def model_to_collections(model):
-    # TODO implement
-    return model
+def model_to_collections(model, exclude=('model', 'location')):
+    """
+    Converts a single model into a dict representation of this model.
+
+    :param model: The model to convert.
+    :type model: Model
+
+    :returns: A dictionary that represents this model.
+    :rtype: dict
+    """
+    # TODO the implementation of model_to_collections() may need to be improved
+    result = {}
+    for name in model:
+        if exclude is None or name not in exclude:
+            value = model[name]
+            if isinstance(value, Model):
+                value = model_to_collections(value)
+            result[name] = value
+    return result
+
+
+def model_to_json_response(model):
+    raise NotImplementedError()
 
 
 def json_to_collections(string, as_list=False):
+    """
+    Converts a json string from the REST API into a collection (list, dict) that
+    represents the content of the json string.
+
+    :param string: The json encoded string from the REST API.
+    :type string: str
+    :param as_list: If True the result is always a list, otherwise it depends on the content of string.
+    :type as_list: bool
+
+    :returns: A list or dict that represents the parsed string.
+    :rtype: dict|list
+    """
     collection = json.loads(string, encoding='UTF-8')
 
     if 'selected' in collection:
@@ -84,7 +127,7 @@ def json_to_collections(string, as_list=False):
                 collection = [collection]
     else:
         if isinstance(collection, list):
-            if  len(collection) > 0:
+            if len(collection) > 0:
                 collection = collection[0]
             else:
                 collection = None

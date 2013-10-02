@@ -126,9 +126,9 @@ class Session(object):
         :returns: The saved entity.
         :rtype: object
         """
-        #obj = self.__driver.to_model(entity)
-        #return obj
-        raise NotImplementedError()
+        obj = self.__driver.to_model(entity)
+        res = self.__store.set(obj, avoid_collisions)
+        return res
 
     def delete(self, entity):
         """
@@ -137,7 +137,8 @@ class Session(object):
         :param entity: The entity to delete.
         :type entity: object
         """
-        raise NotImplementedError()
+        obj = self.__driver.to_model(entity)
+        self.__store.delete(obj)
 
     def close(self):
         """
