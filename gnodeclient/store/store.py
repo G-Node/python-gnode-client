@@ -384,8 +384,9 @@ class CacheStore(GnodeStore):
     def set(self, entity):
         if entity is not None:
             location = urlparse.urlparse(entity.location).path.strip("/")
-            entity_data = convert.model_to_collections(entity, None)
+            entity_data = convert.model_to_collections(entity)
             self.__cache[location] = copy.deepcopy(entity_data)
+        return entity
 
     def delete(self, entity):
         location = urlparse.urlparse(entity['location']).path.strip("/")

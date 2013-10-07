@@ -127,7 +127,8 @@ class Session(object):
         :rtype: object
         """
         obj = self.__driver.to_model(entity)
-        res = self.__store.set(obj, avoid_collisions)
+        mod = self.__store.set(obj, avoid_collisions)
+        res = self.__driver.to_result(mod)
         return res
 
     def delete(self, entity):

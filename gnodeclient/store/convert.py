@@ -76,7 +76,7 @@ def collections_to_model(collection, as_list=False):
     return models
 
 
-def model_to_collections(model, exclude=('model', 'location')):
+def model_to_collections(model):
     """
     Converts a single model into a dict representation of this model.
 
@@ -86,19 +86,51 @@ def model_to_collections(model, exclude=('model', 'location')):
     :returns: A dictionary that represents this model.
     :rtype: dict
     """
-    # TODO the implementation of model_to_collections() may need to be improved
     result = {}
     for name in model:
-        if exclude is None or name not in exclude:
-            value = model[name]
-            if isinstance(value, Model):
-                value = model_to_collections(value)
-            result[name] = value
+        value = model[name]
+        if isinstance(value, Model):
+            value = model_to_collections(value)
+        result[name] = value
     return result
 
 
-def model_to_json_response(model):
-    raise NotImplementedError()
+def model_to_json_response(model, exclude=("location", "model", "guid", "permalink", "id")):
+    """
+    Converts a single model into a json encodes string that can be used as a
+    response body for the G-Node REST API.
+
+    :param model: The model to convert
+    :type model: RestResult
+    :param exclude: Excluded field names
+    :type exclude: tuple
+
+    :returns: A json encoded string representing the model.
+    :rtype: str
+    """
+    result = {}
+    for name in model:
+        if exclude is not None and name not in exclude:
+            field = model.get_field(name)
+            value = model[name]
+            if field.type_info == "data":
+                result[name] = {"units": value["units"], "data": value["data"]}
+            elif field.type_info == "datafile":
+                # TODO add support for data files
+                pass
+            elif field.is_child:
+                if name in ("recordingchannelgroups", "recordingchannels"):
+                    new_name = "%s_set" % field.type_info
+                    new_value = []
+                    for i in value:
+                        new_value.append(i.split("/")[-1])
+                    result[new_name] = value
+            elif field.is_parent:
+                result[name] = value.split("/")[-1]
+            else:
+                result[name] = value
+    json_response = json.dumps(result)
+    return json_response
 
 
 def json_to_collections(string, as_list=False):
