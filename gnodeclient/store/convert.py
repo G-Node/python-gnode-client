@@ -36,7 +36,7 @@ def collections_to_model(collection, as_list=False):
         if 'id' not in obj or 'location' not in obj or 'model' not in obj:
             raise ValueError("Unable to convert json into a model!")
 
-        category, model, id = obj['location'].strip('/').split('/')
+        category, model, obj_id = obj['location'].strip('/').split('/')
         model_obj = Models.create(model)
 
         for field_name in model_obj:
@@ -119,14 +119,19 @@ def model_to_json_response(model, exclude=("location", "model", "guid", "permali
                 # TODO add support for data files
                 pass
             elif field.is_child:
-                if name in ("recordingchannelgroups", "recordingchannels"):
+                check = ((model.model == Models.RECORDINGCHANNELGROUP and name == "recordingchannels") or
+                        (model.model == Models.RECORDINGCHANNEL and name == "recordingchannelgroups"))
+                if check:
                     new_name = "%s_set" % field.type_info
                     new_value = []
                     for i in value:
                         new_value.append(i.split("/")[-1])
                     result[new_name] = value
             elif field.is_parent:
-                result[name] = value.split("/")[-1]
+                if value is not None:
+                    result[name] = value.split("/")[-1]
+                else:
+                    result[name] = value
             else:
                 result[name] = value
     json_response = json.dumps(result)

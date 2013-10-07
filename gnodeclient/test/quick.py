@@ -2,6 +2,8 @@
 
 import random
 import string
+import neo
+import requests
 
 from gnodeclient.model.rest_model import Models
 from gnodeclient import session
@@ -34,3 +36,16 @@ print "Segment name: " + seg.name
 seg.name = rand_name
 new_seg = s.set(seg)
 print "Segment new name: " + new_seg.name
+
+bl = neo.Block(name="foo_block")
+bl = s.set(bl)
+print "Block created: " + str(bl)
+print "Block location: " + bl.location
+
+s.delete(bl)
+
+try:
+    bl = s.get(bl.location)
+except requests.exceptions.HTTPError:
+    print "Block deleted: OK"
+
