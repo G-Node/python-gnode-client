@@ -8,6 +8,16 @@ import requests
 from gnodeclient.model.rest_model import Models
 from gnodeclient import session
 
+from gnodeclient.util.proxy import LazyProxy
+
+
+def loader(n):
+    def l():
+        return "foooo"
+    return l
+
+px = LazyProxy(loader)
+
 s = session.create(password="pass")
 
 blocks = s.select(Models.BLOCK)

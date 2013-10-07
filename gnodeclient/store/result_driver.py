@@ -10,7 +10,7 @@ from odml import Section, Property, Value
 from neo import Block, Segment, EventArray, Event, EpochArray, Epoch, RecordingChannelGroup, RecordingChannel, \
     Unit, SpikeTrain, Spike, AnalogSignalArray, AnalogSignal, IrregularlySampledSignal
 
-from peak.util.proxies import LazyProxy
+from gnodeclient.util.proxy import LazyProxy
 
 from gnodeclient.model.rest_model import Models, RestResult, QuantityModel
 from gnodeclient.store.proxies import lazy_list_loader, lazy_value_loader
