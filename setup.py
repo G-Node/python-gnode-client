@@ -10,7 +10,7 @@ setup(
     url='http://pypi.python.org/pypi/GnodeClient/',
     license='LICENSE.txt',
     description='Client for the G-Node REST API.',
-    long_description=open('README.txt').read(),
+    long_description=open('README.rst').read(),
     install_requires=[
         "requests >= 0.12.0",
         "simplejson >= 2.6.0",
