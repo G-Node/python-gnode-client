@@ -1,7 +1,3 @@
-"""
-A file based cache that uses pickle to store dict objects
-"""
-
 import os
 import shutil
 import random
@@ -17,8 +13,19 @@ OBJ_DIR = 'objects'
 
 
 class Cache(object):
+    """
+    A file system based cache that uses pickle to store python objects and file data.
+    """
 
     def __init__(self, location=None, base_dir=DEFAUTL_BASE_DIR):
+        """
+        Cache initialisation
+
+        :param location:
+        :type location:
+        :param base_dir:
+        :type base_dir:
+        """
         if location is None:
             self.__base_dir = appdirs.user_cache_dir(base_dir)
         else:
@@ -30,7 +37,7 @@ class Cache(object):
         dirs = (self.base_dir, self.file_dir, self.obj_dir)
         for d in dirs:
             if not path.isdir(d):
-                os.mkdir(d, 0750)
+                os.makedirs(d, 0750)
             else:
                 os.chmod(d, 0750)
 
@@ -116,7 +123,7 @@ class Cache(object):
         for d in dirs:
             if path.exists(d):
                 shutil.rmtree(d)
-            os.mkdir(d, 0750)
+            os.makedirs(d, 0750)
 
     #
     # Helper methods
