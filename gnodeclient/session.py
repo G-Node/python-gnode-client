@@ -147,6 +147,9 @@ class Session(object):
         """
         self.__store.disconnect()
 
+    def clear_cache(self):
+        self.__store.cache_store.clear_cache()
+
 
 def create(username=None, password=None, location=None, file_name=None, persist_options=False):
     """

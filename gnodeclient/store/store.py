@@ -3,6 +3,7 @@ import convert
 import copy
 
 from requests_futures.sessions import FuturesSession
+from gnodeclient.util.cache import Cache
 from gnodeclient.model.rest_model import Models, RestResult
 
 
@@ -357,14 +358,13 @@ class CacheStore(GnodeStore):
     """
     A simple cache store.
     """
-    #TODO now the cache is just in memory, replace this with an implementation that works on disk
 
     def __init__(self, location=None):
         super(CacheStore, self).__init__(location)
         self.__cache = None
 
     def connect(self):
-        self.__cache = {}
+        self.__cache = Cache(self.location)
 
     def is_connected(self):
         return self.__cache is not None
@@ -374,24 +374,25 @@ class CacheStore(GnodeStore):
         self.__cache = None
 
     def get(self, location):
-        location = urlparse.urlparse(location).path.strip("/")
-        if location in self.__cache:
-            obj = copy.deepcopy(self.__cache[location])
-            return convert.collections_to_model(obj)
+        obj = self.__cache.get(location)
+        if obj is not None:
+            entity = convert.collections_to_model(obj)
+            return entity
         else:
             return None
 
     def set(self, entity):
         if entity is not None:
-            location = urlparse.urlparse(entity.location).path.strip("/")
-            entity_data = convert.model_to_collections(entity)
-            self.__cache[location] = copy.deepcopy(entity_data)
+            obj = convert.model_to_collections(entity)
+            self.__cache.set(entity.location, obj)
         return entity
 
     def delete(self, entity):
-        location = urlparse.urlparse(entity['location']).path.strip("/")
-        if location in self.__cache:
-            del self.__cache[location]
+        if entity is not None:
+            self.__cache.delete(entity.location)
+
+    def clear_cache(self):
+        self.__cache.clear()
 
 
 class CachingRestStore(GnodeStore):
@@ -538,11 +539,11 @@ class CachingRestStore(GnodeStore):
         if refresh:
             locations_todo = locations
         else:
-            for location in locations:
-                obj = self.cache_store.get(location)
+            for loc in locations:
+                obj = self.cache_store.get(loc)
 
                 if obj is None:
-                    locations_todo.append(location)
+                    locations_todo.append(loc)
                 else:
                     results.append(obj)
 

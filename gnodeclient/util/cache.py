@@ -85,7 +85,7 @@ class Cache(object):
         :param data: Some object that can be serialized by pickle.
         :type data: object
         """
-        ident = urlparse.urlparse(location).path.split("/")[-1].lower()
+        ident = urlparse.urlparse(location).path.strip("/").split("/")[-1].lower()
         f_name = self._obj_cache_path(ident)
 
         all_data = self._secure_read(f_name, {})
@@ -102,15 +102,18 @@ class Cache(object):
         :returns: The cached object or None if not found.
         :rtype: object
         """
-        ident = urlparse.urlparse(location).path.split("/")[-1].lower()
-        f_name = self._obj_cache_path(ident)
+        result = None
+        ident = urlparse.urlparse(location).path.strip("/").split("/")[-1].lower()
 
-        all_data = self._secure_read(f_name, {})
+        if len(ident) > 0:
+            f_name = self._obj_cache_path(ident)
 
-        if ident in all_data:
-            return all_data[ident]
-        else:
-            return None
+            all_data = self._secure_read(f_name, {})
+
+            if ident in all_data:
+                result = all_data[ident]
+
+        return result
 
     def delete(self, location):
         """
@@ -122,7 +125,7 @@ class Cache(object):
         :returns: True if the object was deleted, False if not found.
         :rtype: bool
         """
-        ident = urlparse.urlparse(location).path.split("/")[-1].lower()
+        ident = urlparse.urlparse(location).path.strip("/").split("/")[-1].lower()
         f_name = self._obj_cache_path(ident)
 
         all_data = self._secure_read(f_name, {})
@@ -142,7 +145,7 @@ class Cache(object):
         :param data: A byte-string that will be stored in a file.
         :type data: str
         """
-        ident = urlparse.urlparse(location).path.split("/")[-1].lower()
+        ident = urlparse.urlparse(location).path.strip("/").split("/")[-1].lower()
         f_name = self._file_cache_path(ident)
 
         self._secure_write(f_name, data, False)
@@ -157,7 +160,7 @@ class Cache(object):
         :returns: The cached file data or None if not found.
         :rtype: str
         """
-        ident = urlparse.urlparse(location).path.split("/")[-1].lower()
+        ident = urlparse.urlparse(location).path.strip("/").split("/")[-1].lower()
         f_name = self._file_cache_path(ident)
 
         if path.isfile(f_name):
@@ -176,7 +179,7 @@ class Cache(object):
         :returns: True if the file was deleted, False if not found.
         :rtype: bool
         """
-        ident = urlparse.urlparse(location).path.split("/")[-1].lower()
+        ident = urlparse.urlparse(location).path.strip("/").split("/")[-1].lower()
         f_name = self._file_cache_path(ident)
 
         if path.isfile(f_name):

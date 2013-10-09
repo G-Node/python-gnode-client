@@ -42,8 +42,12 @@ def collections_to_model(collection, as_list=False):
         for field_name in model_obj:
             field = model_obj.get_field(field_name)
 
+            # FIXME ugly workaround that is necessary because of inconsistent naming schema
             if field.is_child:
-                obj_field_name = field.type_info + '_set'
+                if model_obj.model == Models.RECORDINGCHANNEL and field_name == "recordingchannelgroups":
+                    obj_field_name = "recordingchannelgroup"
+                else:
+                    obj_field_name = field.type_info + '_set'
             else:
                 obj_field_name = field_name
 
@@ -89,8 +93,19 @@ def model_to_collections(model):
     result = {}
     for name in model:
         value = model[name]
+        field = model.get_field(name)
+
         if isinstance(value, Model):
             value = model_to_collections(value)
+
+        # FIXME ugly workaround that is necessary because of inconsistent naming schema
+        if field.is_child:
+            if (hasattr(model, "model") and model["model"] == Models.RECORDINGCHANNEL and
+                    name == "recordingchannelgroups"):
+                name = "recordingchannelgroup"
+            else:
+                name = field.type_info + "_set"
+
         result[name] = value
     return result
 
@@ -119,10 +134,13 @@ def model_to_json_response(model, exclude=("location", "model", "guid", "permali
                 # TODO add support for data files
                 pass
             elif field.is_child:
-                check = ((model.model == Models.RECORDINGCHANNELGROUP and name == "recordingchannels") or
-                        (model.model == Models.RECORDINGCHANNEL and name == "recordingchannelgroups"))
-                if check:
-                    new_name = "%s_set" % field.type_info
+                # FIXME ugly workaround that is necessary because of inconsistent naming schema
+                new_name = False
+                if model.model == Models.RECORDINGCHANNELGROUP and name == "recordingchannels":
+                    new_name = field.type_info + "_set"
+                elif model.model == Models.RECORDINGCHANNEL and name == "recordingchannelgroups":
+                    new_name = "recordingchannelgroup"
+                if new_name:
                     new_value = []
                     for i in value:
                         new_value.append(i.split("/")[-1])
