@@ -55,8 +55,7 @@ class Models:
     @classmethod
     def location(cls, type_name):
         if type_name == cls.DATAFILE:
-            # TODO check if this is right
-            return 'files'
+            return 'datafiles/datafile'
         elif type_name in (cls.SECTION, cls.PROPERTY, cls.VALUE):
             return 'metadata/' + type_name
         else:
