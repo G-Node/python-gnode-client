@@ -55,6 +55,30 @@ class Field(object):
 
     def __init__(self, is_parent=False, is_child=False, ignore=False, field_type=object, type_info=None,
                  default=None, obligatory=False):
+        """
+        Constructor for Field.
+
+        :param is_parent: Defines a field as a parent relationship (one/many to one).
+        :type is_parent: bool
+
+        :param is_child: Defines a field as a child relationship (one to many)
+        :type is_child: bool
+
+        :param ignore: If True the field is ignored for serialisation.
+        :type ignore: bool
+
+        :param default: The default value of a field.
+        :type default: object
+
+        :param field_type: The type of the value of the field.
+        :type field_type: class
+
+        :param type_info: Some additional information about the type of the value e.g. a string.
+        :type type_info: object
+
+        :param obligatory: Specifies if a field is optional or obligatory.
+        :type obligatory: bool
+        """
         self.__is_parent = is_parent
         self.__is_child = is_child
         self.__ignore = ignore
@@ -102,7 +126,7 @@ class Field(object):
     def check(self, val):
         return True
 
-    def generate_property(self, dct, cls_name, field_name, doc=""):
+    def _generate_property(self, dct, cls_name, field_name, doc=""):
         mangled_name = _mangle_field_name(cls_name, field_name)
 
         def getter(myself):
@@ -155,7 +179,7 @@ class ModelMeta(type):
         for f in dct.keys():
             f_desc = dct[f]
             if isinstance(f_desc, Field):
-                f_desc.generate_property(dct, name, f, "Property accessor for %s" % f)
+                f_desc._generate_property(dct, name, f, "Property accessor for %s" % f)
                 fields[f] = f_desc
 
         _generate_field_property(dct, fields)
@@ -163,10 +187,19 @@ class ModelMeta(type):
 
 
 class Model(object):
+    """
+    A model that can serve as a base class for objects that make use of the Field class
+    in order to define their properties. It provides methods that makes it easier to inspect
+    the field descriptors at runtime. All fields can be accessed as a property or like an
+    item of a map.
+    """
 
     __metaclass__ = ModelMeta  # This is key feature of the model class
 
     def __init__(self, *args, **kwargs):
+        """
+        Generic init method that initiates all fields
+        """
         fields = getattr(self, _REGISTERED_FIELDS_GETTER)
 
         if len(args) > 0:
@@ -185,36 +218,43 @@ class Model(object):
     @property
     # TODO refactor to: inspect
     def fields(self):
+        """Descriptors for all fields of the model"""
         return self.__inspect_filtered()
 
     @property
     # TODO refactor to: inspect_parents
     def parent_fields(self):
+        """Descriptors for all fields of the model, that are parent relationships"""
         return self.__inspect_filtered(lambda x: x.is_parent)
 
     @property
     # TODO refactor to: inspect_children
     def child_fields(self):
+        """Descriptors for all fields of the model, that are child relationships"""
         return self.__inspect_filtered(lambda x: x.is_child)
 
     @property
     # TODO refactor to: inspect_relationship
     def reference_fields(self):
+        """Descriptors for all fields of the model, that are some kind of relationship"""
         return self.__inspect_filtered(lambda x: x.is_child or x.is_parent)
 
     @property
     # TODO refactor to: inspect_non_relationship
     def none_reference_fields(self):
+        """Descriptors for all fields of the model, that are not a kind of relationship"""
         return self.__inspect_filtered(lambda x: not x.is_child and not x.is_parent)
 
     @property
     # TODO refactor to: inspect_optional
     def optional_fields(self):
+        """Descriptors for all fields of the model, that are optional"""
         return self.__inspect_filtered(lambda x: not x.obligatory)
 
     @property
     # TODO refactor to:
     def inspect_obligatory(self):
+        """Descriptors for all fields of the model, that are obligatory"""
         return self.__inspect_filtered(lambda x: x.obligatory)
 
     #
@@ -223,6 +263,15 @@ class Model(object):
 
     # TODO refactor to: inspect_field
     def get_field(self, name):
+        """
+        Get a field descriptor by the name of the field.
+
+        :param name: The name of the field.
+        :type name: str
+
+        :return: The field descriptor or None if the field does not exits.
+        :rtype: Field
+        """
         fields = getattr(self, _REGISTERED_FIELDS_GETTER)
         if name in fields:
             return fields[name]
