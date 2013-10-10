@@ -16,14 +16,12 @@ Create object and set/get values:
 >>> del foo.name            # del sets default if provided
 
 Inspection of fields
->>> field = foo.inspect_field('name')
+>>> field = foo.get_field('name')
 >>> if field.obligatory
->>>     print "name is not optional"
+>>>     print("name is not optional")
 """
-from numbers import Number
 
-# import * guard
-__all__ = ("Field", "Model", "FTyped", "FNumber")
+from __future__ import print_function, absolute_import, division
 
 # some constants
 _REGISTERED_FIELDS = "__registered_fields"      # the field where field descriptors are stored
@@ -139,56 +137,6 @@ class Field(object):
                            self.obligatory)
 
 
-class FTyped(Field):
-    """
-    A field class that performs type checks.
-    """
-
-    def check(self, val):
-        if self.field_type is not None:
-            return isinstance(val, self.field_type)
-        else:
-            return True
-
-
-class FNumber(Field):
-    """
-    A special field class for number values.
-    """
-
-    def __init__(self, ignore=False, field_type=Number, type_info="number", default=None, obligatory=False,
-                 min=None, max=None):
-        super(FNumber, self).__init__(False, False, ignore, field_type, type_info, default, obligatory)
-        self.__min = min
-        self.__max = max
-
-    #
-    # Properties
-    #
-
-    @property
-    def min(self):
-        return self.__min
-
-    @property
-    def max(self):
-        return self.__max
-
-    #
-    # Methods
-    #
-
-    def check(self, val):
-        passed = True
-        if self.field_type is not None:
-            passed = isinstance(val, self.field_type)
-        if self.min is not None and val < self.min:
-            passed = False
-        if self.max is not None and val > self.max:
-            passed = False
-        return passed
-
-
 class ModelMeta(type):
     """
     A meta class for the creation of model classes.
@@ -220,39 +168,52 @@ class Model(object):
 
     def __init__(self, *args, **kwargs):
         fields = getattr(self, _REGISTERED_FIELDS_GETTER)
-        for f_name in fields:
-            if f_name in kwargs:
+
+        if len(args) > 0:
+            raise KeyError("%s: Unable to apply non keyword arguments" % (type(self)))
+
+        for f_name in kwargs:
+            if f_name in fields:
                 setattr(self, f_name, kwargs[f_name])
+            else:
+                raise KeyError("%s has no such field: %s" % (type(self), f_name))
 
     #
     # Properties
     #
 
     @property
-    def inspect_parents(self):
+    # TODO refactor to: inspect
+    def fields(self):
+        return self.__inspect_filtered()
+
+    @property
+    # TODO refactor to: inspect_parents
+    def parent_fields(self):
         return self.__inspect_filtered(lambda x: x.is_parent)
 
     @property
-    def inspect_children(self):
+    # TODO refactor to: inspect_children
+    def child_fields(self):
         return self.__inspect_filtered(lambda x: x.is_child)
 
     @property
-    def inspect_relationship(self):
+    # TODO refactor to: inspect_relationship
+    def reference_fields(self):
         return self.__inspect_filtered(lambda x: x.is_child or x.is_parent)
 
     @property
-    def inspect_non_relationship(self):
+    # TODO refactor to: inspect_non_relationship
+    def none_reference_fields(self):
         return self.__inspect_filtered(lambda x: not x.is_child and not x.is_parent)
 
     @property
-    def inspect_optional(self):
+    # TODO refactor to: inspect_optional
+    def optional_fields(self):
         return self.__inspect_filtered(lambda x: not x.obligatory)
 
     @property
-    def inspect_obligatory(self):
-        return self.__inspect_filtered(lambda x: x.obligatory)
-
-    @property
+    # TODO refactor to:
     def inspect_obligatory(self):
         return self.__inspect_filtered(lambda x: x.obligatory)
 
@@ -260,20 +221,21 @@ class Model(object):
     # Methods
     #
 
-    def inspect_field(self, name):
+    # TODO refactor to: inspect_field
+    def get_field(self, name):
         fields = getattr(self, _REGISTERED_FIELDS_GETTER)
         if name in fields:
             return fields[name]
         else:
             return None
 
-    def __inspect_filtered(self, filter=lambda x: True):
+    def __inspect_filtered(self, selector=lambda x: True):
         fields = getattr(self, _REGISTERED_FIELDS_GETTER)
         filtered_fields = {}
 
         for f_name in fields:
             f_desc = fields[f_name]
-            if filter(f_desc):
+            if selector(f_desc):
                 filtered_fields[f_name] = f_desc
 
         return filtered_fields
@@ -283,14 +245,14 @@ class Model(object):
     #
 
     def __getitem__(self, name):
-        field = self.inspect_field(name)
+        field = self.get_field(name)
         if field is not None:
             return getattr(self, name)
         else:
             raise KeyError("Model has no such field: %s" % name)
 
     def __setitem__(self, name, value):
-        field = self.inspect_field(name)
+        field = self.get_field(name)
         if field is not None:
             setattr(self, name, value)
         else:
@@ -314,16 +276,3 @@ class Model(object):
 
     def __repr__(self):
         return str(self)
-
-
-class Test(Model):
-    foo = Field(is_parent=True, type_info="foo")
-    bar = Field(is_child=True, type_info="bar")
-
-
-class Test2(Test):
-    fasel = Field(is_parent=True, type_info="fasel", default="default fasel")
-
-
-class Test3(Test2):
-    count = FNumber(min=0, max=3, default=0)
