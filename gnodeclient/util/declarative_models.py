@@ -252,8 +252,8 @@ class Model(object):
         return self.__inspect_filtered(lambda x: not x.obligatory)
 
     @property
-    # TODO refactor to:
-    def inspect_obligatory(self):
+    # TODO refactor to: inspect_obligatory
+    def obligatory_fields(self):
         """Descriptors for all fields of the model, that are obligatory"""
         return self.__inspect_filtered(lambda x: x.obligatory)
 
