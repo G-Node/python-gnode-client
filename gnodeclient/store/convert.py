@@ -1,4 +1,6 @@
-from gnodeclient.model.rest_model import Models, Model, RestResult, QuantityModel
+from __future__ import print_function, absolute_import, division
+
+from gnodeclient.model.models import Model, Models, RestResult
 
 try:
     import simplejson as json
@@ -36,8 +38,8 @@ def collections_to_model(collection, as_list=False):
         if 'id' not in obj or 'location' not in obj or 'model' not in obj:
             raise ValueError("Unable to convert json into a model!")
 
-        category, model, obj_id = obj['location'].strip('/').split('/')
-        model_obj = Models.create(model)
+        category, model_name, obj_id = obj['location'].strip('/').split('/')
+        model_obj = Models.create(model_name)
 
         for field_name in model_obj:
             field = model_obj.get_field(field_name)
@@ -60,12 +62,13 @@ def collections_to_model(collection, as_list=False):
 
             if field_val is not None:
                 if field.type_info == 'datafile':
-                    field_val = QuantityModel(units=field_val['units'], data=field_val['data'])
+                    # TODO handle datafiles here
+                    pass
                 elif field.type_info == 'data':
-                    data = None if field_val['data'] is None else float(field_val['data'])
-                    field_val = QuantityModel(units=field_val['units'], data=data)
+                    if field_val['data'] is not None:
+                        field_val['data'] = float(field_val['data'])
                 elif field_name == 'model':
-                    field_val = model
+                    field_val = model_name
 
                 model_obj[field_name] = field_val
 

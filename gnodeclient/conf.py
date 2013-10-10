@@ -83,7 +83,7 @@ class Configuration(dict):
                 if not 'password' in f_options or f_options.get('password') is None:
                     del options['password']
                 fhandle.write(json.dumps(options, sort_keys=True, indent=4 * ' '))
-            except IOError, e:
+            except IOError as e:
                 raise e
             finally:
                 if fhandle is not None:

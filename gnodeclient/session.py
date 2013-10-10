@@ -6,7 +6,7 @@ functions operate on a global, application wide session object.
 
 Example usage:
 >>> from gnodeclient import session
->>> from gnodeclient.model.rest_model import Models
+>>> from gnodeclient.model.models import Models
 
 Create a session and store the connection information in a config file.
 >>> s = session.create(location="http://predata.g-node.org", username="bob", password="pass", persist_options=True)
@@ -16,7 +16,7 @@ its first segment.
 >>> blocks = s.select(Models.BLOCK)
 >>> segments = blocks[0].segments
 >>> seg = segments[0]
->>> print seg.name
+>>> print(seg.name)
 
 Fetch the whole segment and all its child objects to the cache.
 >>> seg = s.get(seg.location, refresh=True, recursive=True)
@@ -24,8 +24,10 @@ Fetch the whole segment and all its child objects to the cache.
 Since all child objects are now in the cache, the next operations should perform
 quite well.
 >>> for sig in seg.analogsignals:
->>>     print repr(sig)
+>>>     print(repr(sig))
 """
+
+from __future__ import print_function, absolute_import, division
 
 from gnodeclient.conf import Configuration
 from gnodeclient.store.store import CachingRestStore
@@ -45,7 +47,7 @@ class Session(object):
     G-Node REST API.
     """
 
-    def __init__(self, options, file_name,  persist_options=False):
+    def __init__(self, options, file_name, persist_options=False):
         """
         Constructor.
 

@@ -1,11 +1,22 @@
+from __future__ import print_function, absolute_import, division
+
 import os
 import shutil
 import random
 import string
-import urlparse
-from os import path
-import cPickle as pickle
 import appdirs
+
+try:
+    # python > 3.1 has not module cPickle
+    import cPickle as pickle
+except ImportError:
+    import pickle
+
+try:
+    import urlparse
+except ImportError:
+    # python > 3.1 has not module urlparse
+    import urllib.parse as urlparse
 
 DEFAUTL_BASE_DIR = 'gnodeclient'
 FILE_DIR = 'files'
@@ -29,17 +40,17 @@ class Cache(object):
         if location is None:
             self.__base_dir = appdirs.user_cache_dir(base_dir)
         else:
-            self.__base_dir = path.join(location, base_dir)
+            self.__base_dir = os.path.join(location, base_dir)
 
-        self.__file_dir = path.join(self.base_dir, FILE_DIR)
-        self.__obj_dir = path.join(self.base_dir, OBJ_DIR)
+        self.__file_dir = os.path.join(self.base_dir, FILE_DIR)
+        self.__obj_dir = os.path.join(self.base_dir, OBJ_DIR)
 
         dirs = (self.base_dir, self.file_dir, self.obj_dir)
         for d in dirs:
-            if not path.isdir(d):
-                os.makedirs(d, 0750)
+            if not os.path.isdir(d):
+                os.makedirs(d, 0o0750)
             else:
-                os.chmod(d, 0750)
+                os.chmod(d, 0o0750)
 
     #
     # Properties
@@ -163,7 +174,7 @@ class Cache(object):
         ident = urlparse.urlparse(location).path.strip("/").split("/")[-1].lower()
         f_name = self._file_cache_path(ident)
 
-        if path.isfile(f_name):
+        if os.path.isfile(f_name):
             data = self._secure_read(f_name, serialize=False)
             return data
         else:
@@ -182,7 +193,7 @@ class Cache(object):
         ident = urlparse.urlparse(location).path.strip("/").split("/")[-1].lower()
         f_name = self._file_cache_path(ident)
 
-        if path.isfile(f_name):
+        if os.path.isfile(f_name):
             os.remove(f_name)
             return True
         else:
@@ -194,9 +205,9 @@ class Cache(object):
         """
         dirs = (self.base_dir, self.file_dir, self.obj_dir)
         for d in dirs:
-            if path.exists(d):
+            if os.path.exists(d):
                 shutil.rmtree(d)
-            os.makedirs(d, 0750)
+            os.makedirs(d, 0o0750)
 
     #
     # Helper methods
@@ -204,17 +215,17 @@ class Cache(object):
 
     def _obj_cache_path(self, ident):
         prefix = ident[0:2]
-        return path.join(self.obj_dir, prefix)
+        return os.path.join(self.obj_dir, prefix)
 
     def _file_cache_path(self, ident):
-        return path.join(self.file_dir, ident)
+        return os.path.join(self.file_dir, ident)
 
     def _secure_read(self, f_name, default=None, serialize=True):
         f_handle = None
-        f_name_tmp = path.join(self.base_dir, "temp_" + "".join(random.choice(string.lowercase) for _ in range(20)))
+        f_name_tmp = os.path.join(self.base_dir, "temp_" + "".join(random.choice(string.lowercase) for _ in range(20)))
 
         try:
-            if path.exists(f_name):
+            if os.path.exists(f_name):
                 shutil.copy2(f_name, f_name_tmp)
                 f_handle = open(f_name, "rb")
 
@@ -229,11 +240,11 @@ class Cache(object):
             else:
                 data = default
 
-        except Exception, e:
+        except Exception as e:
             if f_handle is not None and not f_handle.closed:
                 f_handle.close()
-            if path.exists(f_name_tmp):
-                if path.exists(f_name):
+            if os.path.exists(f_name_tmp):
+                if os.path.exists(f_name):
                     os.remove(f_name)
                 os.rename(f_name_tmp, f_name)
             raise e
@@ -241,17 +252,17 @@ class Cache(object):
         else:
             if f_handle is not None and not f_handle.closed:
                 f_handle.close()
-            if path.exists(f_name_tmp):
+            if os.path.exists(f_name_tmp):
                 os.remove(f_name_tmp)
 
         return data
 
     def _secure_write(self, f_name, data, serialize=True):
         f_handle = None
-        f_name_tmp = path.join(self.base_dir, "temp_" + "".join(random.choice(string.lowercase) for _ in range(20)))
+        f_name_tmp = os.path.join(self.base_dir, "temp_" + "".join(random.choice(string.lowercase) for _ in range(20)))
 
         try:
-            if path.exists(f_name):
+            if os.path.exists(f_name):
                 shutil.copy2(f_name, f_name_tmp)
             f_handle = open(f_name, "wb")
 
@@ -260,19 +271,16 @@ class Cache(object):
             else:
                 f_handle.write(data)
 
-        except Exception, e:
+        except Exception as e:
             if f_handle is not None and not f_handle.closed:
                 f_handle.close()
-            if path.exists(f_name_tmp):
-                if path.exists(f_name):
+            if os.path.exists(f_name_tmp):
+                if os.path.exists(f_name):
                     os.remove(f_name)
                 os.rename(f_name_tmp, f_name)
             raise e
 
         else:
             f_handle.close()
-            if path.exists(f_name_tmp):
+            if os.path.exists(f_name_tmp):
                 os.remove(f_name_tmp)
-
-
-

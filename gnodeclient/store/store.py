@@ -1,10 +1,16 @@
-import urlparse
-import convert
-import copy
+from __future__ import print_function, absolute_import, division
+
+try:
+    import urlparse
+except ImportError:
+    # python > 3.1 has not module urlparse
+    import urllib.parse as urlparse
 
 from requests_futures.sessions import FuturesSession
+
+from gnodeclient.store import convert
 from gnodeclient.util.cache import Cache
-from gnodeclient.model.rest_model import Models, RestResult
+from gnodeclient.model.models import Models, RestResult
 
 
 class GnodeStore(object):

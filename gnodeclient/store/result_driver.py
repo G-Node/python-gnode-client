@@ -4,6 +4,8 @@ in order to generate ready to use result objects from objects returned by a
 store.
 """
 
+from __future__ import print_function, absolute_import, division
+
 import quantities as pq
 
 from odml import Section, Property, Value
@@ -12,7 +14,7 @@ from neo import Block, Segment, EventArray, Event, EpochArray, Epoch, RecordingC
 
 from gnodeclient.util.proxy import LazyProxy
 
-from gnodeclient.model.rest_model import Models, RestResult, QuantityModel
+from gnodeclient.model.models import Models, RestResult
 from gnodeclient.store.proxies import lazy_list_loader, lazy_value_loader
 from gnodeclient.store.store import GnodeStore
 
@@ -137,10 +139,10 @@ class NativeDriver(ResultDriver):
                 field_val = getattr(obj, field_name)
 
                 if field.type_info == "data":
-                    kw[field_name] = pq.Quantity(field_val.data, field_val.units)
+                    kw[field_name] = pq.Quantity(field_val["data"], field_val["units"])
 
                 elif field.type_info == "datafile":
-                    kw[field_name] = pq.Quantity([], field_val.units)
+                    kw[field_name] = pq.Quantity([], field_val["units"])
 
                 else:
                     kw[field_name] = field_val
@@ -164,15 +166,12 @@ class NativeDriver(ResultDriver):
                         setattr(native, field_name, proxy)
 
                 elif field.type_info == "data":
-                    if field_val.data is not None and field_val.units is not None:
-                        q = pq.Quantity(field_val.data, field_val.units)
+                    if field_val["data"] is not None and field_val["units"] is not None:
+                        q = pq.Quantity(field_val["data"], field_val["units"])
                         setattr(native, field_name, q)
 
                 elif field.type_info == "datafile":
                     # TODO handle data files
-                    #print "%s: val = %s / unit = %s" % (field_name, str(field_val.data), str(field_val.units))
-                    #q = pq.Quantity([], field_val.units)
-                    #setattr(native, field_name, q)
                     pass
 
                 elif hasattr(native, field_name):
@@ -193,8 +192,7 @@ class NativeDriver(ResultDriver):
         :returns: A new model object.
         :rtype: RestResult
         """
-        # TODO detect unbound related objects and throw an error
-
+        # TODO detect unbound (newly created and not persisted) related objects and throw an error
         # get type name and create a model
         model_obj = None
         for model_name in NativeDriver.FW_MAP:
@@ -237,16 +235,13 @@ class NativeDriver(ResultDriver):
                 elif field.type_info == "data":
                     if field_val is not None:
                         data = float(field_val)
-                        units = str(field_val).split(" ")[1]  # TODO is there a nicer way?
-                        model_obj[field_name] = QuantityModel(data=data, units=units)
-                # TODO datafiles are ignored for now
+                        units = str(field_val).split(" ")[1]
+                        model_obj[field_name] = {"data": data, "units": units}
                 elif field.type_info == "datafile":
+                    # TODO handle datafiles here
                     pass
                 # default
                 else:
                     model_obj[field_name] = field_val
 
         return model_obj
-
-
-
