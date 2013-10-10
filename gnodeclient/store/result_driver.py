@@ -11,12 +11,12 @@ import quantities as pq
 from odml import Section, Property, Value
 from neo import Block, Segment, EventArray, Event, EpochArray, Epoch, RecordingChannelGroup, RecordingChannel, \
     Unit, SpikeTrain, Spike, AnalogSignalArray, AnalogSignal, IrregularlySampledSignal
+from gnodeclient.store.basic_store import BasicStore
 
 from gnodeclient.util.proxy import LazyProxy
 
 from gnodeclient.model.models import Model
 from gnodeclient.store.proxies import lazy_list_loader, lazy_value_loader
-from gnodeclient.store.store import GnodeStore
 
 
 class ResultDriver(object):
@@ -32,7 +32,7 @@ class ResultDriver(object):
         Constructor
 
         :param store: A data source that is used for the creation of proxy objects.
-        :type store: GnodeStore
+        :type store: BasicStore
         """
         self.__store = store
 
@@ -46,7 +46,7 @@ class ResultDriver(object):
         Readonly property for the used sore object.
 
         :returns: The store object, that is used by the driver.
-        :rtype: GnodeStore
+        :rtype: BasicStore
         """
         return self.__store
 

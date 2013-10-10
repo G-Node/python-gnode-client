@@ -1,0 +1,225 @@
+from __future__ import print_function, absolute_import, division
+
+from gnodeclient.model.models import Model
+from gnodeclient.store.basic_store import BasicStore
+from gnodeclient.store.cache_store import CacheStore
+from gnodeclient.store.rest_store import RestStore
+
+
+class CachingRestStore(BasicStore):
+    """
+    A store implementation, that uses an instance of BasicStore and CacheStore to implement
+    an interface to the G-Node REST API with transparent caching of results. Further more it provides
+    a recursive get method, which ensures the presence of all descendants of a certain entity in the cache.
+    """
+
+    def __init__(self, location, user, password, cache_location=None):
+        """
+        Constructor.
+
+        :param location: The location from where the data should be accessed.
+        :type location: str
+        :param user: The user name (might be ignored by some kinds of store)
+        :type user: str
+        :param password: The password (might be ignored by some kinds of store)
+        :type password: str
+        :param cache_location: The location of the cache, if not set a suitable system specific default
+                               will be chosen.
+        :type cache_location: str
+        """
+        super(CachingRestStore, self).__init__(location, user, password)
+
+        self.__cache_location = cache_location
+        self.__rest_store = RestStore(location, user, password)
+        self.__cache_store = CacheStore(cache_location)
+
+    #
+    # Properties
+    #
+
+    @property
+    def cache_location(self):
+        return self.__cache_location
+
+    @property
+    def rest_store(self):
+        return self.__rest_store
+
+    @property
+    def cache_store(self):
+        return self.__cache_store
+
+    #
+    # Methods
+    #
+
+    def connect(self):
+        """
+        Connect to the G-Node REST API and initialize a cache.
+        """
+        self.rest_store.connect()
+        self.cache_store.connect()
+
+    def is_connected(self):
+        """
+        Check the connection and the presence of a cache.
+        """
+        return self.rest_store.is_connected() and self.cache_store.is_connected()
+
+    def disconnect(self):
+        """
+        Disconnect from the G-Node REST API and flush the cache.
+        """
+        self.rest_store.disconnect()
+        self.cache_store.disconnect()
+
+    def select(self, model_name, raw_filters=None):
+        """
+        Select data from a certain type e.g. blocks or spiketrains from the G-Node REST API
+        and convert the results to a list of model objects. The results can be filtered on
+        the server, by passing a dictionary of filters as second argument.
+
+        Example:
+        >>> store = CachingRestStore("http://example.com", "user", "pw")
+        >>> results = store.select("block", {"name__icontains": "foo"})
+
+        :param model_name: The name of the model as string.
+        :type model_name: str
+        :param raw_filters: Filters as defined by the G-Node REST API.
+        :type raw_filters: dict
+
+        :returns: A list of (filtered) results.
+        :rtype: list
+        """
+        results = self.rest_store.select(model_name, raw_filters=raw_filters)
+
+        for obj in results:
+            self.cache_store.set(obj)
+
+        return results
+
+    def get(self, location, refresh=True, recursive=False):
+        """
+        Get a single entity from the G-Node REST API. If the entity is already in the cache and refresh
+        is True the method will check (using etags) if the entity is still up-to-data and renew it if
+        necessary. If recursive is true, all descendants of the entity will be leaded into the cache in
+        order to improve performance of subsequent operations.
+
+        :param location: The location or full URL to the entity.
+        :type location: str
+        :param refresh: If True, update the entity if necessary.
+        :type refresh: bool
+        :param recursive: Recursively fetch all descendants into the cache.
+        :type recursive: bool
+
+        :returns: The entity matching the given location.
+        :rtype: Model
+        """
+        obj = self.cache_store.get(location)
+
+        if obj is None:
+            obj = self.rest_store.get(location)
+            self.cache_store.set(obj)
+        elif refresh:
+            obj_refreshed = self.rest_store.get(location, obj.guid)
+            if obj_refreshed is not None:
+                self.cache_store.set(obj_refreshed)
+                obj = obj_refreshed
+
+        if recursive:
+            self.__get_recursive(location, refresh)
+
+        return obj
+
+    def get_list(self, locations, refresh=True):
+        """
+        Get a list of objects that are referenced by their locations or complete URLs
+        from the G-Node REST API. All results are cached.
+
+        :param locations: List with locations or URLs.
+        :type locations: list
+        :param refresh: Update cached entities if necessary.
+        :type refresh: bool
+
+        :returns: A list of objects matching the list of locations.
+        :rtype: list
+        """
+        results = []
+        locations_todo = []
+
+        if refresh:
+            locations_todo = locations
+        else:
+            for loc in locations:
+                obj = self.cache_store.get(loc)
+
+                if obj is None:
+                    locations_todo.append(loc)
+                else:
+                    results.append(obj)
+
+        objects = self.__rest_store.get_list(locations_todo)
+
+        for obj in objects:
+            self.cache_store.set(obj)
+            results.append(obj)
+
+        return results
+
+    def set(self, entity, avoid_collisions=False):
+        """
+        Store an entity that is provided as an instance of RestModel on the server. The returned
+        persisted entity is cached locally. If needed the method can check for colliding changes
+        of the particular entity on the server, if the entity was previously cached.
+
+        :param entity: The entity that should be persisted.
+        :type entity: Model
+        :param avoid_collisions: If true and the entity is cached check for colliding changes.
+        :type avoid_collisions: bool
+
+        :returns: The persisted entity
+        :rtype: Model
+        """
+        if entity.location is not None and avoid_collisions:
+            cached = self.__cache_store.get(entity.location)
+            if cached is not None:
+                entity.guid = cached.guid
+
+        obj = self.__rest_store.set(entity, avoid_collisions)
+        obj = self.__cache_store.set(obj)
+        return obj
+
+    def delete(self, entity):
+        """
+        Delete an entity from the G-Node REST API and from the cache.
+
+        :param entity: The entity to delete.
+        :type entity: Model
+        """
+        self.cache_store.delete(entity)
+        self.rest_store.delete(entity)
+
+    #
+    # Private functions
+    #
+
+    def __get_recursive(self, location, refresh):
+        locations_done = []
+        locations_todo = [urlparse.urlparse(location).path.strip("/")]
+
+        while len(locations_todo) > 0:
+            more_locations = []
+            objects = self.get_list(locations_todo, refresh)
+            locations_done = locations_done + locations_todo
+
+            for obj in objects:
+                for field_name in obj.child_fields:
+                    field_val = obj[field_name]
+
+                    if field_val is not None and len(field_val) > 0:
+                        for val in field_val:
+                            val = urlparse.urlparse(val).path.strip("/")
+                            if val not in locations_done:
+                                more_locations.append(val)
+
+            locations_todo = more_locations

@@ -30,7 +30,7 @@ quite well.
 from __future__ import print_function, absolute_import, division
 
 from gnodeclient.conf import Configuration
-from gnodeclient.store.store import CachingRestStore
+from gnodeclient.store.caching_rest_store import CachingRestStore
 from gnodeclient.store.result_driver import NativeDriver
 
 
