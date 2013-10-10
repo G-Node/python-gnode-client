@@ -1,16 +1,16 @@
 from __future__ import print_function, absolute_import, division
 
-from gnodeclient.util.declarative_models import Field, Model
-from gnodeclient.model.model_fields import FQuantity, FDatafile, FParent, FChildren
+import gnodeclient.util.declarative_models as dc
+from gnodeclient.model.model_fields import Field, FQuantity, FDatafile, FParent, FChildren
 
 
-class Models(object):
+class Model(dc.Model):
     """
-    Just a class that defines some constants and a static factory method
-    for models.
+    A base class for all defined models, that also provides some factory methods as well as some
+    constants for all model names.
 
     Example:
-    >>> signal = Models.create(Models.ANALOGSIGNAL)
+    >>> signal = Model.create(Model.ANALOGSIGNAL)
     >>> signal.id = "id"
     """
 
@@ -41,19 +41,34 @@ class Models(object):
         Creates an instance of the model class matching the type name.
 
         :param type_name: The name of the model class.
-        :type type_name: str
 
         :returns: An instance of the respective model class.
-        :rtype: RestResult
+        :rtype: Model
         """
         return cls._MODEL_MAP[type_name]()
 
     @classmethod
     def exists(cls, type_name):
+        """
+        Check if a model name exists.
+
+        :param type_name: The name of the model type.
+
+        :returns: True if the model exists, False otherwise.
+        :rtype: bool
+        """
         return type_name in cls._MODEL_MAP
 
     @classmethod
-    def location(cls, type_name):
+    def get_location(cls, type_name):
+        """
+        Get the location prefix for a certain type.
+
+        :param type_name: The name of the model type.
+
+        :returns: The location prefix.
+        :rtype: str
+        """
         if type_name == cls.DATAFILE:
             return 'datafiles/datafile'
         elif type_name in (cls.SECTION, cls.PROPERTY, cls.VALUE):
@@ -61,9 +76,10 @@ class Models(object):
         else:
             return 'electrophysiology/' + type_name
 
+    #
+    # Fields
+    #
 
-class RestResult(Model):
-    """Basic model for all kinds of results from the rest API"""
     id          = Field(field_type=str)
     guid        = Field(field_type=str)
     permalink   = Field(field_type=str)
@@ -71,93 +87,93 @@ class RestResult(Model):
     model       = Field(field_type=str)
 
 
-class SectionModel(RestResult):
-    model       = Field(field_type=str, default=Models.SECTION)
+class SectionModel(Model):
+    model       = Field(field_type=str, default=Model.SECTION)
     name        = Field(field_type=str, obligatory=True)
     description = Field(field_type=str)
 
-    parent      = FParent(type_info=Models.SECTION)
-    properties  = FChildren(type_info=Models.PROPERTY)
+    parent      = FParent(type_info=Model.SECTION)
+    properties  = FChildren(type_info=Model.PROPERTY)
 
-Models._MODEL_MAP[Models.SECTION] = SectionModel
+Model._MODEL_MAP[Model.SECTION] = SectionModel
 
 
-class PropertyModel(RestResult):
-    model       = Field(field_type=str, default=Models.PROPERTY)
+class PropertyModel(Model):
+    model       = Field(field_type=str, default=Model.PROPERTY)
     name        = Field(field_type=str, obligatory=True)
 
-    parent      = FParent(type_info=Models.SECTION)
-    values      = FChildren(type_info=Models.VALUE, obligatory=True)
+    parent      = FParent(type_info=Model.SECTION)
+    values      = FChildren(type_info=Model.VALUE, obligatory=True)
 
-Models._MODEL_MAP[Models.PROPERTY] = PropertyModel
+Model._MODEL_MAP[Model.PROPERTY] = PropertyModel
 
 
-class ValueModel(RestResult):
-    model       = Field(field_type=str, default=Models.VALUE)
+class ValueModel(Model):
+    model       = Field(field_type=str, default=Model.VALUE)
     value       = Field(field_type=str, obligatory=True)
 
-    parent      = FParent(type_info=Models.PROPERTY)
+    parent      = FParent(type_info=Model.PROPERTY)
 
-Models._MODEL_MAP[Models.VALUE] = ValueModel
+Model._MODEL_MAP[Model.VALUE] = ValueModel
 
 
-class BlockModel(RestResult):
-    model       = Field(field_type=str, default=Models.BLOCK)
+class BlockModel(Model):
+    model       = Field(field_type=str, default=Model.BLOCK)
     name        = Field(field_type=str)
     index       = Field(field_type=int, default=0)
     description = Field(field_type=str)
 
-    recordingchannelgroups = FChildren(type_info=Models.RECORDINGCHANNELGROUP)
-    segments               = FChildren(type_info=Models.SEGMENT)
+    recordingchannelgroups = FChildren(type_info=Model.RECORDINGCHANNELGROUP)
+    segments               = FChildren(type_info=Model.SEGMENT)
 
-Models._MODEL_MAP[Models.BLOCK] = BlockModel
+Model._MODEL_MAP[Model.BLOCK] = BlockModel
 
 
-class SegmentModel(RestResult):
-    model       = Field(field_type=str, default=Models.SEGMENT)
+class SegmentModel(Model):
+    model       = Field(field_type=str, default=Model.SEGMENT)
     name        = Field(field_type=str)
     index       = Field(default=0)
 
-    block       = FParent(type_info=Models.BLOCK)
+    block       = FParent(type_info=Model.BLOCK)
 
-    analogsignals             = FChildren(type_info=Models.ANALOGSIGNAL)
-    irregularlysampledsignals = FChildren(type_info=Models.IRREGULARLYSAMPLEDSIGNAL)
-    analogsignalarrays        = FChildren(type_info=Models.ANALOGSIGNALARRAY)
-    spiketrains               = FChildren(type_info=Models.SPIKETRAIN)
-    spikes                    = FChildren(type_info=Models.SPIKE)
-    events                    = FChildren(type_info=Models.EVENT)
-    epochs                    = FChildren(type_info=Models.EPOCH)
+    analogsignals             = FChildren(type_info=Model.ANALOGSIGNAL)
+    irregularlysampledsignals = FChildren(type_info=Model.IRREGULARLYSAMPLEDSIGNAL)
+    analogsignalarrays        = FChildren(type_info=Model.ANALOGSIGNALARRAY)
+    spiketrains               = FChildren(type_info=Model.SPIKETRAIN)
+    spikes                    = FChildren(type_info=Model.SPIKE)
+    events                    = FChildren(type_info=Model.EVENT)
+    epochs                    = FChildren(type_info=Model.EPOCH)
 
-Models._MODEL_MAP[Models.SEGMENT] = SegmentModel
+Model._MODEL_MAP[Model.SEGMENT] = SegmentModel
 
 
-class EventArrayModel(RestResult):
-    model       = Field(field_type=str, default=Models.EVENTARRAY)
+class EventArrayModel(Model):
+    model       = Field(field_type=str, default=Model.EVENTARRAY)
     name        = Field(field_type=str)
     description = Field(field_type=str)
 
     times       = FDatafile(obligatory=True)
 
-    segment     = FParent(type_info=Models.SEGMENT)
+    segment     = FParent(type_info=Model.SEGMENT)
 
-Models._MODEL_MAP[Models.EVENTARRAY] = EventArrayModel
+Model._MODEL_MAP[Model.EVENTARRAY] = EventArrayModel
 
 
-class EventModel(RestResult):
-    model       = Field(field_type=str, default=Models.EVENT)
+class EventModel(Model):
+    model       = Field(field_type=str, default=Model.EVENT)
     name        = Field(field_type=str)
     description = Field(field_type=str)
     label       = Field(obligatory=True, field_type=str, default="")
 
     time        = FQuantity(obligatory=True)
 
-    segment     = FParent(type_info=Models.SEGMENT)
+    segment     = FParent(type_info=Model.SEGMENT)
 
-Models._MODEL_MAP[Models.EVENT] = EventModel
+Model._MODEL_MAP[Model.EVENT] = EventModel
 
 
-class EpochArrayModel(RestResult):
-    model       = Field(field_type=str, default=Models.EPOCHARRAY)
+class EpochArrayModel(Model):
+    model       = Field(field_type=str, default=Model.EPOCHARRAY)
     name        = Field(field_type=str)
     description = Field(field_type=str)
     labels      = Field(obligatory=True, field_type=list)
@@ -165,13 +181,13 @@ class EpochArrayModel(RestResult):
     times       = FDatafile(obligatory=True)
     durations   = FDatafile(obligatory=True)
 
-    segment     = Field(is_parent=True, type_info=Models.SEGMENT)
+    segment     = Field(is_parent=True, type_info=Model.SEGMENT)
 
-Models._MODEL_MAP[Models.EPOCHARRAY] = EpochArrayModel
+Model._MODEL_MAP[Model.EPOCHARRAY] = EpochArrayModel
 
 
-class EpochModel(RestResult):
-    model       = Field(field_type=str, default=Models.EPOCH)
+class EpochModel(Model):
+    model       = Field(field_type=str, default=Model.EPOCH)
     name        = Field(field_type=str)
     description = Field(field_type=str)
     label       = Field(obligatory=True, field_type=str, default="")
@@ -179,50 +195,50 @@ class EpochModel(RestResult):
     time        = FQuantity(obligatory=True)
     duration    = FQuantity(obligatory=True)
 
-    segment     = FParent(type_info=Models.SEGMENT)
+    segment     = FParent(type_info=Model.SEGMENT)
 
-Models._MODEL_MAP[Models.EPOCH] = EpochModel
+Model._MODEL_MAP[Model.EPOCH] = EpochModel
 
 
-class RecordingChannelGroupModel(RestResult):
-    model       = Field(field_type=str, default=Models.RECORDINGCHANNELGROUP)
+class RecordingChannelGroupModel(Model):
+    model       = Field(field_type=str, default=Model.RECORDINGCHANNELGROUP)
     name        = Field(field_type=str)
     description = Field(field_type=str)
 
-    block       = FParent(type_info=Models.BLOCK)
-    units       = FChildren(type_info=Models.UNIT)
-    recordingchannels   = FChildren(type_info=Models.RECORDINGCHANNEL)
-    analogsignalarrays  = FChildren(type_info=Models.ANALOGSIGNALARRAY)
+    block       = FParent(type_info=Model.BLOCK)
+    units       = FChildren(type_info=Model.UNIT)
+    recordingchannels   = FChildren(type_info=Model.RECORDINGCHANNEL)
+    analogsignalarrays  = FChildren(type_info=Model.ANALOGSIGNALARRAY)
 
-Models._MODEL_MAP[Models.RECORDINGCHANNELGROUP] = RecordingChannelGroupModel
+Model._MODEL_MAP[Model.RECORDINGCHANNELGROUP] = RecordingChannelGroupModel
 
 
-class RecordingChannelModel(RestResult):
-    model       = Field(field_type=str, default=Models.RECORDINGCHANNEL)
+class RecordingChannelModel(Model):
+    model       = Field(field_type=str, default=Model.RECORDINGCHANNEL)
     name        = Field(field_type=str)
     description = Field(field_type=str)
 
-    recordingchannelgroups    = FChildren(type_info=Models.RECORDINGCHANNELGROUP)
-    analogsignals             = FChildren(type_info=Models.ANALOGSIGNAL)
-    irregularlysampledsignals = FChildren(type_info=Models.IRREGULARLYSAMPLEDSIGNAL)
+    recordingchannelgroups    = FChildren(type_info=Model.RECORDINGCHANNELGROUP)
+    analogsignals             = FChildren(type_info=Model.ANALOGSIGNAL)
+    irregularlysampledsignals = FChildren(type_info=Model.IRREGULARLYSAMPLEDSIGNAL)
 
-Models._MODEL_MAP[Models.RECORDINGCHANNEL] = RecordingChannelModel
+Model._MODEL_MAP[Model.RECORDINGCHANNEL] = RecordingChannelModel
 
 
-class UnitModel(RestResult):
-    model       = Field(field_type=str, default=Models.UNIT)
+class UnitModel(Model):
+    model       = Field(field_type=str, default=Model.UNIT)
     name        = Field(field_type=str)
     description = Field(field_type=str)
 
-    recordingchannelgroup   = FParent(type_info=Models.RECORDINGCHANNELGROUP)
-    spikes                  = FChildren(type_info=Models.SPIKE)
-    spiketrains             = FChildren(type_info=Models.SPIKETRAIN)
+    recordingchannelgroup   = FParent(type_info=Model.RECORDINGCHANNELGROUP)
+    spikes                  = FChildren(type_info=Model.SPIKE)
+    spiketrains             = FChildren(type_info=Model.SPIKETRAIN)
 
-Models._MODEL_MAP[Models.UNIT] = UnitModel
+Model._MODEL_MAP[Model.UNIT] = UnitModel
 
 
-class SpikeTrainModel(RestResult):
-    model       = Field(field_type=str, default=Models.SPIKETRAIN)
+class SpikeTrainModel(Model):
+    model       = Field(field_type=str, default=Model.SPIKETRAIN)
     name        = Field(field_type=str)
     description = Field(field_type=str)
 
@@ -231,14 +247,14 @@ class SpikeTrainModel(RestResult):
     times       = FDatafile(obligatory=True)
     waveforms   = FDatafile()
 
-    unit        = FParent(type_info=Models.UNIT)
-    segment     = FParent(type_info=Models.SEGMENT)
+    unit        = FParent(type_info=Model.UNIT)
+    segment     = FParent(type_info=Model.SEGMENT)
 
-Models._MODEL_MAP[Models.SPIKETRAIN] = SpikeTrainModel
+Model._MODEL_MAP[Model.SPIKETRAIN] = SpikeTrainModel
 
 
-class SpikeModel(RestResult):
-    model       = Field(field_type=str, default=Models.SPIKE)
+class SpikeModel(Model):
+    model       = Field(field_type=str, default=Model.SPIKE)
     name        = Field(field_type=str)
     description = Field(field_type=str)
 
@@ -247,14 +263,14 @@ class SpikeModel(RestResult):
     sampling_rate   = FQuantity()
     waveform        = FDatafile()
 
-    unit        = FParent(type_info=Models.UNIT)
-    segment     = FParent(type_info=Models.SEGMENT)
+    unit        = FParent(type_info=Model.UNIT)
+    segment     = FParent(type_info=Model.SEGMENT)
 
-Models._MODEL_MAP[Models.SPIKE] = SpikeModel
+Model._MODEL_MAP[Model.SPIKE] = SpikeModel
 
 
-class AnalogsignalArrayModel(RestResult):
-    model       = Field(field_type=str, default=Models.ANALOGSIGNALARRAY)
+class AnalogsignalArrayModel(Model):
+    model       = Field(field_type=str, default=Model.ANALOGSIGNALARRAY)
     name        = Field(field_type=str)
     description = Field(field_type=str)
 
@@ -262,14 +278,14 @@ class AnalogsignalArrayModel(RestResult):
     sampling_rate   = FQuantity(obligatory=True)
     signal          = FDatafile(obligatory=True)
 
-    segment                 = FParent(type_info=Models.SEGMENT)
-    recordingchannelgroup   = FParent(type_info=Models.RECORDINGCHANNELGROUP)
+    segment                 = FParent(type_info=Model.SEGMENT)
+    recordingchannelgroup   = FParent(type_info=Model.RECORDINGCHANNELGROUP)
 
-Models._MODEL_MAP[Models.ANALOGSIGNALARRAY] = AnalogsignalArrayModel
+Model._MODEL_MAP[Model.ANALOGSIGNALARRAY] = AnalogsignalArrayModel
 
 
-class AnalogsignalModel(RestResult):
-    model       = Field(field_type=str, default=Models.ANALOGSIGNAL)
+class AnalogsignalModel(Model):
+    model       = Field(field_type=str, default=Model.ANALOGSIGNAL)
     name        = Field(field_type=str)
     description = Field(field_type=str)
 
@@ -277,14 +293,14 @@ class AnalogsignalModel(RestResult):
     sampling_rate   = FQuantity(obligatory=True)
     signal          = FDatafile(obligatory=True)
 
-    segment          = FParent(type_info=Models.SEGMENT)
-    recordingchannel = FParent(type_info=Models.RECORDINGCHANNEL)
+    segment          = FParent(type_info=Model.SEGMENT)
+    recordingchannel = FParent(type_info=Model.RECORDINGCHANNEL)
 
-Models._MODEL_MAP[Models.ANALOGSIGNAL] = AnalogsignalModel
+Model._MODEL_MAP[Model.ANALOGSIGNAL] = AnalogsignalModel
 
 
-class IrregularlySampledSignalModel(RestResult):
-    model       = Field(field_type=str, default=Models.IRREGULARLYSAMPLEDSIGNAL)
+class IrregularlySampledSignalModel(Model):
+    model       = Field(field_type=str, default=Model.IRREGULARLYSAMPLEDSIGNAL)
     name        = Field(field_type=str)
     description = Field(field_type=str)
 
@@ -292,7 +308,7 @@ class IrregularlySampledSignalModel(RestResult):
     signal      = FDatafile(obligatory=True)
     times       = FDatafile(obligatory=True)
 
-    segment          = FParent(type_info=Models.SEGMENT)
-    recordingchannel = FParent(type_info=Models.RECORDINGCHANNEL)
+    segment          = FParent(type_info=Model.SEGMENT)
+    recordingchannel = FParent(type_info=Model.RECORDINGCHANNEL)
 
-Models._MODEL_MAP[Models.IRREGULARLYSAMPLEDSIGNAL] = IrregularlySampledSignalModel
+Model._MODEL_MAP[Model.IRREGULARLYSAMPLEDSIGNAL] = IrregularlySampledSignalModel

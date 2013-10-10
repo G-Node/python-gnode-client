@@ -6,14 +6,14 @@ functions operate on a global, application wide session object.
 
 Example usage:
 >>> from gnodeclient import session
->>> from gnodeclient.model.models import Models
+>>> from gnodeclient.model.models import Model
 
 Create a session and store the connection information in a config file.
 >>> s = session.create(location="http://predata.g-node.org", username="bob", password="pass", persist_options=True)
 
 Get a list of all blocks, get all segments from the first block and print the name of
 its first segment.
->>> blocks = s.select(Models.BLOCK)
+>>> blocks = s.select(Model.BLOCK)
 >>> segments = blocks[0].segments
 >>> seg = segments[0]
 >>> print(seg.name)

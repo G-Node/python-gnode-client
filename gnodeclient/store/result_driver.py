@@ -14,7 +14,7 @@ from neo import Block, Segment, EventArray, Event, EpochArray, Epoch, RecordingC
 
 from gnodeclient.util.proxy import LazyProxy
 
-from gnodeclient.model.models import Models, RestResult
+from gnodeclient.model.models import Model
 from gnodeclient.store.proxies import lazy_list_loader, lazy_value_loader
 from gnodeclient.store.store import GnodeStore
 
@@ -59,7 +59,7 @@ class ResultDriver(object):
         Converts a model into some kind of usable result (with proxies for lazy loading).
 
         :param obj: The object to convert.
-        :type obj: RestResult
+        :type obj: Model
 
         :returns: The converted object.
         :rtype: object
@@ -74,7 +74,7 @@ class ResultDriver(object):
         :type obj: object
 
         :returns: A new model object.
-        :rtype: RestResult
+        :rtype: Model
         """
         raise NotImplementedError()
 
@@ -90,30 +90,30 @@ class NativeDriver(ResultDriver):
     #
 
     FW_MAP = {
-        #Models.DATAFILE: "datafile",
-        Models.SECTION: Section,
-        Models.PROPERTY: Property,
-        Models.VALUE: Value,
-        Models.BLOCK: Block,
-        Models.SEGMENT: Segment,
-        Models.EVENTARRAY: EventArray,
-        Models.EVENT: Event,
-        Models.EPOCHARRAY: EpochArray,
-        Models.EPOCH: Epoch,
-        Models.RECORDINGCHANNELGROUP: RecordingChannelGroup,
-        Models.RECORDINGCHANNEL: RecordingChannel,
-        Models.UNIT: Unit,
-        Models.SPIKETRAIN: SpikeTrain,
-        Models.SPIKE: Spike,
-        Models.ANALOGSIGNALARRAY: AnalogSignalArray,
-        Models.ANALOGSIGNAL: AnalogSignal,
-        Models.IRREGULARLYSAMPLEDSIGNAL: IrregularlySampledSignal,
+        #Model.DATAFILE: "datafile",
+        Model.SECTION: Section,
+        Model.PROPERTY: Property,
+        Model.VALUE: Value,
+        Model.BLOCK: Block,
+        Model.SEGMENT: Segment,
+        Model.EVENTARRAY: EventArray,
+        Model.EVENT: Event,
+        Model.EPOCHARRAY: EpochArray,
+        Model.EPOCH: Epoch,
+        Model.RECORDINGCHANNELGROUP: RecordingChannelGroup,
+        Model.RECORDINGCHANNEL: RecordingChannel,
+        Model.UNIT: Unit,
+        Model.SPIKETRAIN: SpikeTrain,
+        Model.SPIKE: Spike,
+        Model.ANALOGSIGNALARRAY: AnalogSignalArray,
+        Model.ANALOGSIGNAL: AnalogSignal,
+        Model.IRREGULARLYSAMPLEDSIGNAL: IrregularlySampledSignal,
     }
 
     RW_MAP = {
-        Models.SECTION: type(Section("", "")),
-        Models.PROPERTY: type(Property("", "")),
-        Models.VALUE: type(Value("")),
+        Model.SECTION: type(Section("", "")),
+        Model.PROPERTY: type(Property("", "")),
+        Model.VALUE: type(Value("")),
     }
 
     #
@@ -125,7 +125,7 @@ class NativeDriver(ResultDriver):
         Converts a model into a usable result.
 
         :param obj: The object to convert.
-        :type obj: RestResult
+        :type obj: Model
 
         :returns: A native neo or odml object.
         :rtype: object
@@ -190,7 +190,7 @@ class NativeDriver(ResultDriver):
         :type obj: object
 
         :returns: A new model object.
-        :rtype: RestResult
+        :rtype: Model
         """
         # TODO detect unbound (newly created and not persisted) related objects and throw an error
         # get type name and create a model
@@ -202,7 +202,7 @@ class NativeDriver(ResultDriver):
                 cls = NativeDriver.FW_MAP[model_name]
 
             if isinstance(obj, cls):
-                model_obj = Models.create(model_name)
+                model_obj = Model.create(model_name)
                 break
 
         if model_obj is None:

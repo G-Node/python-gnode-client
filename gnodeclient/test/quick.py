@@ -7,7 +7,7 @@ import string
 import neo
 import requests
 
-from gnodeclient.model.models import Models
+from gnodeclient.model.models import Model
 from gnodeclient import session
 
 from gnodeclient.util.proxy import LazyProxy
@@ -22,7 +22,7 @@ px = LazyProxy(loader)
 
 s = session.create(password="pass")
 
-blocks = s.select(Models.BLOCK)
+blocks = s.select(Model.BLOCK)
 
 print(str(blocks[0]))
 print(blocks[0].name)
@@ -31,7 +31,7 @@ for b in blocks:
     print(repr(b))
     print(str(b))
 
-signals = s.select(Models.ANALOGSIGNAL)
+signals = s.select(Model.ANALOGSIGNAL)
 loc = signals[20].location
 sig = s.get(signals[20].location, refresh=True)
 seg = sig.segment

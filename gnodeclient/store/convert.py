@@ -1,6 +1,6 @@
 from __future__ import print_function, absolute_import, division
 
-from gnodeclient.model.models import Model, Models, RestResult
+from gnodeclient.model.models import Model
 
 try:
     import simplejson as json
@@ -19,7 +19,7 @@ def collections_to_model(collection, as_list=False):
     :type as_list: bool
 
     :returns: The converted object or a list of converted objects.
-    :rtype: RestResult|list
+    :rtype: Model|list
 
     :raises: ValueError
     """
@@ -39,14 +39,14 @@ def collections_to_model(collection, as_list=False):
             raise ValueError("Unable to convert json into a model!")
 
         category, model_name, obj_id = obj['location'].strip('/').split('/')
-        model_obj = Models.create(model_name)
+        model_obj = Model.create(model_name)
 
         for field_name in model_obj:
             field = model_obj.get_field(field_name)
 
             # FIXME ugly workaround that is necessary because of inconsistent naming schema
             if field.is_child:
-                if model_obj.model == Models.RECORDINGCHANNEL and field_name == "recordingchannelgroups":
+                if model_obj.model == Model.RECORDINGCHANNEL and field_name == "recordingchannelgroups":
                     obj_field_name = "recordingchannelgroup"
                 else:
                     obj_field_name = field.type_info + '_set'
@@ -103,7 +103,7 @@ def model_to_collections(model):
 
         # FIXME ugly workaround that is necessary because of inconsistent naming schema
         if field.is_child:
-            if (hasattr(model, "model") and model["model"] == Models.RECORDINGCHANNEL and
+            if (hasattr(model, "model") and model["model"] == Model.RECORDINGCHANNEL and
                     name == "recordingchannelgroups"):
                 name = "recordingchannelgroup"
             else:
@@ -119,7 +119,7 @@ def model_to_json_response(model, exclude=("location", "model", "guid", "permali
     response body for the G-Node REST API.
 
     :param model: The model to convert
-    :type model: RestResult
+    :type model: Model
     :param exclude: Excluded field names
     :type exclude: tuple
 
@@ -139,9 +139,9 @@ def model_to_json_response(model, exclude=("location", "model", "guid", "permali
             elif field.is_child:
                 # FIXME ugly workaround that is necessary because of inconsistent naming schema
                 new_name = False
-                if model.model == Models.RECORDINGCHANNELGROUP and name == "recordingchannels":
+                if model.model == Model.RECORDINGCHANNELGROUP and name == "recordingchannels":
                     new_name = field.type_info + "_set"
-                elif model.model == Models.RECORDINGCHANNEL and name == "recordingchannelgroups":
+                elif model.model == Model.RECORDINGCHANNEL and name == "recordingchannelgroups":
                     new_name = "recordingchannelgroup"
                 if new_name:
                     new_value = []

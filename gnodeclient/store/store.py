@@ -10,7 +10,7 @@ from requests_futures.sessions import FuturesSession
 
 from gnodeclient.store import convert
 from gnodeclient.util.cache import Cache
-from gnodeclient.model.models import Models, RestResult
+from gnodeclient.model.models import Model
 
 
 class GnodeStore(object):
@@ -108,7 +108,7 @@ class GnodeStore(object):
         :type location: str
 
         :returns: The entity or None.
-        :rtype: RestResult
+        :rtype: Model
         """
         raise NotImplementedError()
 
@@ -130,10 +130,10 @@ class GnodeStore(object):
         but in most cases this will be either a structure of dicts and lists or an instance of Model.
 
         :param entity: The entity to store.
-        :type entity: RestResult
+        :type entity: Model
 
         :returns: The updated entity.
-        :rtype: RestResult
+        :rtype: Model
         """
         raise NotImplementedError()
 
@@ -142,7 +142,7 @@ class GnodeStore(object):
         Remove an entity from the store.
 
         :param entity: The entity to delete.
-        :type entity: RestResult
+        :type entity: Model
         """
         raise NotImplementedError()
 
@@ -230,7 +230,7 @@ class RestStore(GnodeStore):
 
         raw_filters = {} if raw_filters is None else raw_filters
 
-        location = Models.location(model_name)
+        location = Model.get_location(model_name)
         url = urlparse.urljoin(self.location, location)
 
         headers = {}
@@ -256,7 +256,7 @@ class RestStore(GnodeStore):
         :type etag: str
 
         :returns: The found object or None if it was not updated.
-        :rtype: RestResult
+        :rtype: Model
 
         :raises: HTTPError if the entity was not found on the server (404).
         """
@@ -318,19 +318,19 @@ class RestStore(GnodeStore):
         will be included in the header with 'If-match' if avoid_collisions is True.
 
         :param entity: The entity to persist.
-        :type entity: RestResult
+        :type entity: Model
         :param avoid_collisions: Try to avoid collisions (lost update problem)
         :type avoid_collisions: bool
 
         :returns: The updated entity.
-        :rtype: RestResult
+        :rtype: Model
 
         :raises: RuntimeError If the changes collide with remote changes of the entity.
         """
         if hasattr(entity, "location") and entity.location is not None:
             url = urlparse.urljoin(self.location, entity.location)
         else:
-            url = urlparse.urljoin(self.location, Models.location(entity.model))
+            url = urlparse.urljoin(self.location, Model.get_location(entity.model))
         data = convert.model_to_json_response(entity)
         headers = {}
         if avoid_collisions and entity.guid is not None:
@@ -348,7 +348,7 @@ class RestStore(GnodeStore):
         Delete an entity from the G-Node REST API.
 
         :param entity: The entity to delete.
-        :type entity: RestResult
+        :type entity: Model
         """
         if hasattr(entity, "location") and entity.location is not None:
             url = urlparse.urljoin(self.location, entity.location)
@@ -508,7 +508,7 @@ class CachingRestStore(GnodeStore):
         :type recursive: bool
 
         :returns: The entity matching the given location.
-        :rtype: RestResult
+        :rtype: Model
         """
         obj = self.cache_store.get(location)
 
@@ -568,12 +568,12 @@ class CachingRestStore(GnodeStore):
         of the particular entity on the server, if the entity was previously cached.
 
         :param entity: The entity that should be persisted.
-        :type entity: RestResult
+        :type entity: Model
         :param avoid_collisions: If true and the entity is cached check for colliding changes.
         :type avoid_collisions: bool
 
         :returns: The persisted entity
-        :rtype: RestResult
+        :rtype: Model
         """
         if entity.location is not None and avoid_collisions:
             cached = self.__cache_store.get(entity.location)
@@ -589,7 +589,7 @@ class CachingRestStore(GnodeStore):
         Delete an entity from the G-Node REST API and from the cache.
 
         :param entity: The entity to delete.
-        :type entity: RestResult
+        :type entity: Model
         """
         self.cache_store.delete(entity)
         self.rest_store.delete(entity)

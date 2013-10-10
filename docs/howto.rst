@@ -26,5 +26,5 @@ Connect to the gnode server.
 
     from gnodeclient import *
     s = session.create()
-    bls = s.select(Models.BLOCK)
+    bls = s.select(Model.BLOCK)
 
