@@ -285,9 +285,9 @@ class CachingRestStore(BasicStore):
     def __get_arraydata(self, model_obj):
         for name in model_obj:
             field = model_obj.get_field(name)
-            file_location = model_obj[name]["data"]
             if field.type_info == "datafile":
                 # TODO provide a better performing way for checking file existence
+                file_location = model_obj[name]["data"]
                 data = self.cache_store.get_file(file_location)
                 if data is None:
                     data = self.rest_store.get_file(file_location)
