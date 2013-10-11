@@ -238,30 +238,32 @@ class RestStore(BasicStore):
         result = convert.collections_to_model(convert.json_to_collections(response.content))
         return result
 
-    def set_file(self, location, data):
+    def set_file(self, data):
         """
         Save raw file data on the G-Node REST API.
 
-        :param location: The location of the file.
-        :type location: str
         :param data: The raw data of the file.
         :type data: str
+
+        :returns: The url to the uploaded file.
+        :rtype: str
         """
         # TODO Datafiles: store file content on the server
-        pass
+        return "foo/location"
 
-    def set_array(self, location, array_data):
+    def set_array(self, array_data):
         """
         Create a temporary HDF5 file with the array data and upload the file
         data to the G-Node REST API.
 
-        :param location: The location of the file.
-        :type location: str
         :param array_data: The raw data to store.
         :type array_data: numpy.ndarray|list
+
+        :returns: The url to the uploaded file.
+        :rtype: str
         """
         # TODO Datafiles: store array on the server
-        pass
+        return "foo/location"
 
     def delete(self, entity):
         """
