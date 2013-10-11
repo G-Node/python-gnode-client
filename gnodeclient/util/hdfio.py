@@ -33,5 +33,8 @@ def read_array_data(path):
     :returns: The array read from the file.
     :rtype: numpy.ndarray|list
     """
-    with h5py.File(path, 'r') as f:
-        return f[f.keys()[0]].value
+    try:
+        with h5py.File(path, 'r') as f:
+            return f[f.keys()[0]].value
+    except IOError:
+        return None
