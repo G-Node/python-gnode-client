@@ -3,8 +3,8 @@ This module provides easy to use functions for reading and writing datasets
 to and from the root of an HDF5 file.
 """
 
-import numpy
-
+import numpy as np
+import h5py
 
 def store_array_data(path, array_data):
     """
@@ -15,8 +15,12 @@ def store_array_data(path, array_data):
     :param array_data: The array data to store.
     :type array_data: numpy.ndarray|list
     """
-    # TODO Datafile: implement store_array_data
-    pass
+    if not isinstance(array_data, np.ndarray):
+        array_data = np.array(array_data)
+
+    f = h5py.File(path, 'w')
+    f.create_dataset('arraydata', data=array_data)
+    f.close()
 
 
 def read_array_data(path):
@@ -29,5 +33,5 @@ def read_array_data(path):
     :returns: The array read from the file.
     :rtype: numpy.ndarray|list
     """
-    # TODO Datafile: implement read_array_data
-    return numpy.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
+    with h5py.File(path, 'r') as f:
+        return f[f.keys()[0]].value
