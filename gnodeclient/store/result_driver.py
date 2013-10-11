@@ -173,10 +173,11 @@ class NativeDriver(ResultDriver):
                         setattr(native, field_name, q)
 
                 elif field.type_info == "datafile":
-                    units = field_val["units"]
-                    data = self.store.get_array(field_val["data"])
-                    q = pq.Quantity(data, units)
-                    setattr(native, field_name, q)
+                    if field_val["data"] is not None and field_val["units"] is not None:
+                        units = field_val["units"]
+                        data = self.store.get_array(field_val["data"])
+                        q = pq.Quantity(data, units)
+                        setattr(native, field_name, q)
 
                 elif hasattr(native, field_name):
                     setattr(native, field_name, field_val)
