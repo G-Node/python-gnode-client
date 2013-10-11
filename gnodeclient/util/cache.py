@@ -2,8 +2,6 @@ from __future__ import print_function, absolute_import, division
 
 import os
 import shutil
-import random
-import string
 import appdirs
 
 try:
@@ -17,6 +15,8 @@ try:
 except ImportError:
     # python > 3.1 has not module urlparse
     import urllib.parse as urlparse
+
+import gnodeclient.util.helper as helper
 
 DEFAUTL_BASE_DIR = 'gnodeclient'
 FILE_DIR = 'files'
@@ -96,8 +96,8 @@ class Cache(object):
         :param data: Some object that can be serialized by pickle.
         :type data: object
         """
-        ident = urlparse.urlparse(location).path.strip("/").split("/")[-1].lower()
-        f_name = self._obj_cache_path(ident)
+        ident = helper.id_from_location(location)
+        f_name = self.obj_cache_path(ident)
 
         all_data = self._secure_read(f_name, {})
         all_data[ident] = data
@@ -114,10 +114,10 @@ class Cache(object):
         :rtype: object
         """
         result = None
-        ident = urlparse.urlparse(location).path.strip("/").split("/")[-1].lower()
+        ident = helper.id_from_location(location)
 
         if len(ident) > 0:
-            f_name = self._obj_cache_path(ident)
+            f_name = self.obj_cache_path(ident)
 
             all_data = self._secure_read(f_name, {})
 
@@ -136,8 +136,8 @@ class Cache(object):
         :returns: True if the object was deleted, False if not found.
         :rtype: bool
         """
-        ident = urlparse.urlparse(location).path.strip("/").split("/")[-1].lower()
-        f_name = self._obj_cache_path(ident)
+        ident = helper.id_from_location(location)
+        f_name = self.obj_cache_path(ident)
 
         all_data = self._secure_read(f_name, {})
 
@@ -156,8 +156,8 @@ class Cache(object):
         :param data: A byte-string that will be stored in a file.
         :type data: str
         """
-        ident = urlparse.urlparse(location).path.strip("/").split("/")[-1].lower()
-        f_name = self._file_cache_path(ident)
+        ident = helper.id_from_location(location)
+        f_name = self.file_cache_path(ident)
 
         self._secure_write(f_name, data, False)
 
@@ -171,8 +171,8 @@ class Cache(object):
         :returns: The cached file data or None if not found.
         :rtype: str
         """
-        ident = urlparse.urlparse(location).path.strip("/").split("/")[-1].lower()
-        f_name = self._file_cache_path(ident)
+        ident = helper.id_from_location(location)
+        f_name = self.file_cache_path(ident)
 
         if os.path.isfile(f_name):
             data = self._secure_read(f_name, serialize=False)
@@ -190,8 +190,8 @@ class Cache(object):
         :returns: True if the file was deleted, False if not found.
         :rtype: bool
         """
-        ident = urlparse.urlparse(location).path.strip("/").split("/")[-1].lower()
-        f_name = self._file_cache_path(ident)
+        ident = helper.id_from_location(location)
+        f_name = self.file_cache_path(ident)
 
         if os.path.isfile(f_name):
             os.remove(f_name)
@@ -209,20 +209,20 @@ class Cache(object):
                 shutil.rmtree(d)
             os.makedirs(d, 0o0750)
 
+    def obj_cache_path(self, ident):
+        prefix = ident[0:2]
+        return os.path.join(self.obj_dir, prefix)
+
+    def file_cache_path(self, ident):
+        return os.path.join(self.file_dir, ident)
+
     #
     # Helper methods
     #
 
-    def _obj_cache_path(self, ident):
-        prefix = ident[0:2]
-        return os.path.join(self.obj_dir, prefix)
-
-    def _file_cache_path(self, ident):
-        return os.path.join(self.file_dir, ident)
-
     def _secure_read(self, f_name, default=None, serialize=True):
         f_handle = None
-        f_name_tmp = os.path.join(self.base_dir, "temp_" + "".join(random.choice(string.lowercase) for _ in range(20)))
+        f_name_tmp = os.path.join(self.base_dir, helper.random_str(20, "tmp"))
 
         try:
             if os.path.exists(f_name):
@@ -259,7 +259,7 @@ class Cache(object):
 
     def _secure_write(self, f_name, data, serialize=True):
         f_handle = None
-        f_name_tmp = os.path.join(self.base_dir, "temp_" + "".join(random.choice(string.lowercase) for _ in range(20)))
+        f_name_tmp = os.path.join(self.base_dir, helper.random_str(20, "tmp"))
 
         try:
             if os.path.exists(f_name):

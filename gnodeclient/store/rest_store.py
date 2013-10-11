@@ -1,5 +1,7 @@
 from __future__ import print_function, absolute_import, division
 
+import numpy
+
 try:
     import urlparse
 except ImportError:
@@ -178,6 +180,33 @@ class RestStore(BasicStore):
 
         return results
 
+    def get_file(self, location):
+        """
+        Get raw file data (bytestring) from the G-Node REST API.
+
+        :param location: The locations of all entities as path or URL.
+        :type location: str
+
+        :returns: The raw file data.
+        :rtype: str
+        """
+        # TODO Datafile: get file content from the server
+        return "foo file content"
+
+    def get_array(self, location):
+        """
+        Get raw file data from the G-Node REST API, store it temporarily as an HDF5 file
+        and extract the array data from the file.
+
+        :param location: The locations of all entities as path or URL.
+        :type location: str
+
+        :returns: The raw file data.
+        :rtype: numpy.ndarray|list
+        """
+        # TODO Datafile: get array data from the server
+        return numpy.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
+
     def set(self, entity, avoid_collisions=False):
         """
         Update or create an entity on the G-Node REST API. If an etag/guid is provided by the entity it
@@ -208,6 +237,33 @@ class RestStore(BasicStore):
 
         result = convert.collections_to_model(convert.json_to_collections(response.content))
         return result
+
+    def set_file(self, data):
+        """
+        Save raw file data on the G-Node REST API.
+
+        :param data: The raw data of the file.
+        :type data: str
+
+        :returns: The url to the uploaded file.
+        :rtype: str
+        """
+        # TODO Datafiles: store file content on the server
+        return "foo/location"
+
+    def set_array(self, array_data):
+        """
+        Create a temporary HDF5 file with the array data and upload the file
+        data to the G-Node REST API.
+
+        :param array_data: The raw data to store.
+        :type array_data: numpy.ndarray|list
+
+        :returns: The url to the uploaded file.
+        :rtype: str
+        """
+        # TODO Datafiles: store array on the server
+        return "foo/location"
 
     def delete(self, entity):
         """

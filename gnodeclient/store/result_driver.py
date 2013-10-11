@@ -142,7 +142,9 @@ class NativeDriver(ResultDriver):
                     kw[field_name] = pq.Quantity(field_val["data"], field_val["units"])
 
                 elif field.type_info == "datafile":
-                    kw[field_name] = pq.Quantity([], field_val["units"])
+                    units = field_val["units"]
+                    data = self.store.get_array(field_val["data"])
+                    kw[field_name] = pq.Quantity(data, units)
 
                 else:
                     kw[field_name] = field_val
@@ -171,8 +173,10 @@ class NativeDriver(ResultDriver):
                         setattr(native, field_name, q)
 
                 elif field.type_info == "datafile":
-                    # TODO handle data files
-                    pass
+                    units = field_val["units"]
+                    data = self.store.get_array(field_val["data"])
+                    q = pq.Quantity(data, units)
+                    setattr(native, field_name, q)
 
                 elif hasattr(native, field_name):
                     setattr(native, field_name, field_val)
