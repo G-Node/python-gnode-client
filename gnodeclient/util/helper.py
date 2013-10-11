@@ -17,7 +17,7 @@ def id_from_location(location):
     return ident
 
 
-def random_str(length=20, prefix="", separator="_"):
+def random_str(length=20, prefix=None, separator="_"):
     rnd = "".join(random.choice(string.lowercase) for _ in range(length))
     if prefix is not None and len(prefix) > 0:
         rnd = prefix + separator + rnd
