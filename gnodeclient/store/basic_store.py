@@ -148,25 +148,27 @@ class BasicStore(object):
         """
         raise NotImplementedError()
 
-    def set_file(self, location, data):
+    def set_file(self, data):
         """
         Save raw file data in the store.
 
-        :param location: The location of the file.
-        :type location: str
         :param data: The raw data of the file.
         :type data: str
+
+        :returns: The url to the uploaded file.
+        :rtype: str
         """
         raise NotImplementedError()
 
-    def set_array(self, location, array_data):
+    def set_array(self, array_data):
         """
         Save array data in the store.
 
-        :param location: The location of the file.
-        :type location: str
         :param array_data: The raw data to store.
         :type array_data: numpy.ndarray|list
+
+        :returns: The url to the uploaded file.
+        :rtype: str
         """
         raise NotImplementedError()
 
