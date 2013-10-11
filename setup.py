@@ -17,6 +17,7 @@ setup(
         "quantities >= 0.10.0",
         "neo >= 0.3.0",
         "requests-futures >= 0.9.0",
-        "odml"
+        "odml",
+        "h5py >= 2.0.1"
     ],
 )
