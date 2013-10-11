@@ -1,6 +1,7 @@
 from __future__ import print_function, absolute_import, division
 
-import numpy
+import os
+import tempfile
 
 try:
     import urlparse
@@ -13,7 +14,8 @@ from requests_futures.sessions import FuturesSession
 import gnodeclient.store.convert as convert
 from gnodeclient.model.models import Model
 from gnodeclient.store.basic_store import BasicStore
-
+from gnodeclient.util.helper import id_from_location
+from gnodeclient.util.hdfio import store_array_data, read_array_data
 
 class RestStore(BasicStore):
     """
@@ -190,8 +192,13 @@ class RestStore(BasicStore):
         :returns: The raw file data.
         :rtype: str
         """
-        # TODO Datafile: get file content from the server
-        return "foo file content"
+        fid = id_from_location(location)
+        url = urlparse.urljoin(self.location, '%s/%s/%s/' % ('datafiles/datafile', fid, 'data'))
+
+        future = self.__session.get(url)
+        response = future.result()
+        response.raise_for_status()
+        return response.content
 
     def get_array(self, location):
         """
@@ -204,8 +211,13 @@ class RestStore(BasicStore):
         :returns: The raw file data.
         :rtype: numpy.ndarray|list
         """
-        # TODO Datafile: get array data from the server
-        return numpy.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
+        tmphandler, tmppath = tempfile.mkstemp()
+        with open(tmppath, 'w') as f:
+            f.write(self.get_file(location))
+
+        array_data = read_array_data(tmppath)
+        os.remove(tmppath)
+        return array_data
 
     def set(self, entity, avoid_collisions=False):
         """
@@ -248,8 +260,15 @@ class RestStore(BasicStore):
         :returns: The url to the uploaded file.
         :rtype: str
         """
-        # TODO Datafiles: store file content on the server
-        return "foo/location"
+        files = {'raw_file': data}
+        url = urlparse.urljoin(self.location, 'datafiles/datafile/')
+
+        future = self.__session.post(url, files=files)
+        response = future.result()
+        response.raise_for_status()
+
+        datafile = convert.json_to_collections(response.content)
+        return datafile['location']
 
     def set_array(self, array_data):
         """
@@ -262,8 +281,12 @@ class RestStore(BasicStore):
         :returns: The url to the uploaded file.
         :rtype: str
         """
-        # TODO Datafiles: store array on the server
-        return "foo/location"
+        tmphandler, tmppath = tempfile.mkstemp()
+        store_array_data(tmppath, array_data)
+        with open(tmppath, 'rb') as f:
+            location = self.set_file(f.read())
+        os.remove(tmppath)
+        return location
 
     def delete(self, entity):
         """
