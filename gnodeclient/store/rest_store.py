@@ -1,5 +1,7 @@
 from __future__ import print_function, absolute_import, division
 
+import numpy
+
 try:
     import urlparse
 except ImportError:
@@ -188,7 +190,8 @@ class RestStore(BasicStore):
         :returns: The raw file data.
         :rtype: str
         """
-        raise NotImplementedError()
+        # TODO Datafile: get file content from the server
+        return "foo file content"
 
     def get_array(self, location):
         """
@@ -201,7 +204,8 @@ class RestStore(BasicStore):
         :returns: The raw file data.
         :rtype: numpy.ndarray|list
         """
-        raise NotImplementedError()
+        # TODO Datafile: get array data from the server
+        return numpy.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
 
     def set(self, entity, avoid_collisions=False):
         """
@@ -243,7 +247,8 @@ class RestStore(BasicStore):
         :param data: The raw data of the file.
         :type data: str
         """
-        raise NotImplementedError()
+        # TODO Datafiles: store file content on the server
+        pass
 
     def set_array(self, location, array_data):
         """
@@ -255,7 +260,8 @@ class RestStore(BasicStore):
         :param array_data: The raw data to store.
         :type array_data: numpy.ndarray|list
         """
-        raise NotImplementedError()
+        # TODO Datafiles: store array on the server
+        pass
 
     def delete(self, entity):
         """
