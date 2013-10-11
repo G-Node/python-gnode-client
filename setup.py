@@ -15,7 +15,6 @@ setup(
         "requests >= 0.12.0",
         "simplejson >= 2.6.0",
         "appdirs >= 1.2.0",
-        "fcache >= 0.3.0",
         "quantities >= 0.10.0",
         "neo >= 0.3.0",
         "requests-futures >= 0.9.0"
