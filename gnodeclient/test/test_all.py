@@ -4,16 +4,14 @@
 # > PYTHONPATH="./" python tests/test_all.py
 
 import unittest
-from gnodeclient.test.test_remote import TestRemote
-from gnodeclient.test.test_cache import TestCache
+from gnodeclient.test.test_hdfio import TestHDFIO
 
 
 class TestAll(unittest.TestSuite):
 
     def __init__(self):
         super(TestAll, self).__init__()
-        self.addTests(unittest.makeSuite(TestRemote))
-        self.addTests(unittest.makeSuite(TestCache))
+        self.addTests(unittest.makeSuite(TestHDFIO))
 
     def test(self, verbosity=2):
         unittest.TextTestRunner(verbosity=verbosity).run(self)

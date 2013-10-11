@@ -1,11 +1,21 @@
-from distutils.core import setup
+try:
+    from setuptools import setup
+except ImportError:
+    from distutils.core import setup
 
 setup(
     name='gnodeclient',
     version='0.1.0',
     author='A. Stoewer, A. Sobolev',
     author_email='',
-    packages=['gnodeclient', 'gnodeclient.test'],
+    packages=[
+        'gnodeclient',
+        'gnodeclient.model',
+        'gnodeclient.store',
+        'gnodeclient.test',
+        'gnodeclient.util'
+    ],
+    test_suite="gnodeclient.test.test_all",
     scripts=[],
     url='http://pypi.python.org/pypi/GnodeClient/',
     license='LICENSE.txt',
