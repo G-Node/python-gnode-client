@@ -125,10 +125,12 @@ class CachingRestStore(BasicStore):
 
         if obj is None:
             obj = self.rest_store.get(location)
+            self.__get_arraydata(obj)
             self.cache_store.set(obj)
         elif refresh:
             obj_refreshed = self.rest_store.get(location, obj.guid)
             if obj_refreshed is not None:
+                self.__get_arraydata(obj_refreshed)
                 self.cache_store.set(obj_refreshed)
                 obj = obj_refreshed
 
@@ -167,6 +169,7 @@ class CachingRestStore(BasicStore):
         objects = self.__rest_store.get_list(locations_todo)
 
         for obj in objects:
+            self.__get_arraydata(obj)
             self.cache_store.set(obj)
             results.append(obj)
 
@@ -182,7 +185,11 @@ class CachingRestStore(BasicStore):
         :returns: The raw file data.
         :rtype: str
         """
-        raise NotImplementedError()
+        data = self.cache_store.get_file(location)
+        if data is None:
+            data = self.rest_store.get_file(location)
+            self.cache_store.set_file(data, location)
+        return data
 
     def get_array(self, location):
         """
@@ -194,7 +201,12 @@ class CachingRestStore(BasicStore):
         :returns: The raw file data.
         :rtype: numpy.ndarray|list
         """
-        raise NotImplementedError()
+        array_data = self.cache_store.get_array(location)
+        if array_data is None:
+            data = self.rest_store.get_file(location)
+            self.cache_store.set_file(data, location)
+            array_data = self.cache_store.get_array(location)
+        return array_data
 
     def set(self, entity, avoid_collisions=False):
         """
@@ -219,27 +231,41 @@ class CachingRestStore(BasicStore):
         obj = self.__cache_store.set(obj)
         return obj
 
-    def set_file(self, location, data):
+    def set_file(self, data, old_location=None):
         """
         Save raw file data in the store.
 
-        :param location: The location of the file.
-        :type location: str
         :param data: The raw data of the file.
         :type data: str
-        """
-        raise NotImplementedError()
+        :param old_location: The old location of the file.
+        :type old_location: str
 
-    def set_array(self, location, array_data):
+        :returns: The url to the stored file.
+        :rtype: str
+        """
+        if old_location is not None:
+            self.cache_store.delete_file(old_location)
+        location = self.rest_store.set_file(data)
+        self.cache_store.set_file(data, location)
+        return location
+
+    def set_array(self, array_data, old_location=None):
         """
         Save array data in the store.
 
-        :param location: The location of the file.
-        :type location: str
         :param array_data: The raw data to store.
         :type array_data: numpy.ndarray|list
+        :param old_location: The old location of the file.
+        :type old_location: str
+
+        :returns: The url to the stored file.
+        :rtype: str
         """
-        raise NotImplementedError()
+        if old_location is not None:
+            self.cache_store.delete_file(old_location)
+        location = self.rest_store.set_array(array_data)
+        self.cache_store.set_array(array_data, location)
+        return location
 
     def delete(self, entity):
         """
@@ -254,6 +280,18 @@ class CachingRestStore(BasicStore):
     #
     # Private functions
     #
+
+    # A little helper that makes sure that the array data of an object are on the cache
+    def __get_arraydata(self, model_obj):
+        for name in model_obj:
+            field = model_obj.get_field(name)
+            file_location = model_obj[name]["data"]
+            if field.type_info == "datafile":
+                # TODO provide a better performing way for checking file existence
+                data = self.cache_store.get_file(file_location)
+                if data is None:
+                    data = self.rest_store.get_file(file_location)
+                    self.cache_store.set_file(data, file_location)
 
     def __get_recursive(self, location, refresh):
         locations_done = []
