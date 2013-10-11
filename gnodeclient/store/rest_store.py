@@ -178,6 +178,31 @@ class RestStore(BasicStore):
 
         return results
 
+    def get_file(self, location):
+        """
+        Get raw file data (bytestring) from the G-Node REST API.
+
+        :param location: The locations of all entities as path or URL.
+        :type location: str
+
+        :returns: The raw file data.
+        :rtype: str
+        """
+        raise NotImplementedError()
+
+    def get_array(self, location):
+        """
+        Get raw file data from the G-Node REST API, store it temporarily as an HDF5 file
+        and extract the array data from the file.
+
+        :param location: The locations of all entities as path or URL.
+        :type location: str
+
+        :returns: The raw file data.
+        :rtype: numpy.ndarray|list
+        """
+        raise NotImplementedError()
+
     def set(self, entity, avoid_collisions=False):
         """
         Update or create an entity on the G-Node REST API. If an etag/guid is provided by the entity it
@@ -208,6 +233,29 @@ class RestStore(BasicStore):
 
         result = convert.collections_to_model(convert.json_to_collections(response.content))
         return result
+
+    def set_file(self, location, data):
+        """
+        Save raw file data on the G-Node REST API.
+
+        :param location: The location of the file.
+        :type location: str
+        :param data: The raw data of the file.
+        :type data: str
+        """
+        raise NotImplementedError()
+
+    def set_array(self, location, array_data):
+        """
+        Create a temporary HDF5 file with the array data and upload the file
+        data to the G-Node REST API.
+
+        :param location: The location of the file.
+        :type location: str
+        :param array_data: The raw data to store.
+        :type array_data: numpy.ndarray|list
+        """
+        raise NotImplementedError()
 
     def delete(self, entity):
         """

@@ -1,5 +1,11 @@
 from __future__ import print_function, absolute_import, division
 
+try:
+    import urlparse
+except ImportError:
+    # python > 3.1 has not module urlparse
+    import urllib.parse as urlparse
+
 from gnodeclient.model.models import Model
 from gnodeclient.store.basic_store import BasicStore
 from gnodeclient.store.cache_store import CacheStore
@@ -166,6 +172,30 @@ class CachingRestStore(BasicStore):
 
         return results
 
+    def get_file(self, location):
+        """
+        Get raw file data (bytestring) from the store.
+
+        :param location: The locations of all entities as path or URL.
+        :type location: str
+
+        :returns: The raw file data.
+        :rtype: str
+        """
+        raise NotImplementedError()
+
+    def get_array(self, location):
+        """
+        Read array data from an hdf5 file.
+
+        :param location: The locations of all entities as path or URL.
+        :type location: str
+
+        :returns: The raw file data.
+        :rtype: numpy.ndarray|list
+        """
+        raise NotImplementedError()
+
     def set(self, entity, avoid_collisions=False):
         """
         Store an entity that is provided as an instance of RestModel on the server. The returned
@@ -188,6 +218,28 @@ class CachingRestStore(BasicStore):
         obj = self.__rest_store.set(entity, avoid_collisions)
         obj = self.__cache_store.set(obj)
         return obj
+
+    def set_file(self, location, data):
+        """
+        Save raw file data in the store.
+
+        :param location: The location of the file.
+        :type location: str
+        :param data: The raw data of the file.
+        :type data: str
+        """
+        raise NotImplementedError()
+
+    def set_array(self, location, array_data):
+        """
+        Save array data in the store.
+
+        :param location: The location of the file.
+        :type location: str
+        :param array_data: The raw data to store.
+        :type array_data: numpy.ndarray|list
+        """
+        raise NotImplementedError()
 
     def delete(self, entity):
         """

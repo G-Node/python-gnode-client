@@ -111,6 +111,30 @@ class BasicStore(object):
         """
         raise NotImplementedError()
 
+    def get_file(self, location):
+        """
+        Get raw file data (bytestring) from the store.
+
+        :param location: The locations of all entities as path or URL.
+        :type location: str
+
+        :returns: The raw file data.
+        :rtype: str
+        """
+        raise NotImplementedError()
+
+    def get_array(self, location):
+        """
+        Read array data from an hdf5 file.
+
+        :param location: The locations of all entities as path or URL.
+        :type location: str
+
+        :returns: The raw file data.
+        :rtype: numpy.ndarray|list
+        """
+        raise NotImplementedError()
+
     def set(self, entity):
         """
         Save an entity in the store. The type of this entity depends on the implementation of the store
@@ -121,6 +145,28 @@ class BasicStore(object):
 
         :returns: The updated entity.
         :rtype: Model
+        """
+        raise NotImplementedError()
+
+    def set_file(self, location, data):
+        """
+        Save raw file data in the store.
+
+        :param location: The location of the file.
+        :type location: str
+        :param data: The raw data of the file.
+        :type data: str
+        """
+        raise NotImplementedError()
+
+    def set_array(self, location, array_data):
+        """
+        Save array data in the store.
+
+        :param location: The location of the file.
+        :type location: str
+        :param array_data: The raw data to store.
+        :type array_data: numpy.ndarray|list
         """
         raise NotImplementedError()
 
