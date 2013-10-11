@@ -8,7 +8,7 @@ except ImportError:
     # python > 3.1 has not module urlparse
     import urllib.parse as urlparse
 
-import gnodeclient.util.hdf5io as hdf5io
+import gnodeclient.util.hdfio as hdfio
 import gnodeclient.util.helper as helper
 import gnodeclient.store.convert as convert
 from gnodeclient.store.basic_store import BasicStore
@@ -71,7 +71,7 @@ class CacheStore(BasicStore):
         path = self.__cache.file_cache_path(ident)
 
         if os.path.isfile(path):
-            data = hdf5io.read_array_data(path)
+            data = hdfio.read_array_data(path)
             return data
         else:
             return None
@@ -118,7 +118,7 @@ class CacheStore(BasicStore):
             ident = helper.id_from_location(location)
 
         path = self.__cache.file_cache_path(ident)
-        hdf5io.store_array_data(path, array_data)
+        hdfio.store_array_data(path, array_data)
 
         return location
 
