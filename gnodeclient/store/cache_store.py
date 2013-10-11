@@ -82,35 +82,52 @@ class CacheStore(BasicStore):
             self.__cache.set(entity.location, obj)
         return entity
 
-    def set_file(self, location, data):
+    def set_file(self, data, location=None):
         """
         Save raw file data in the cache.
 
-        :param location: The location of the file.
-        :type location: str
         :param data: The raw data of the file.
         :type data: str
+        :param location: The location of the file.
+        :type location: str
+
+        :returns: The url to the uploaded file.
+        :rtype: str
         """
+        if location is None:
+            location = "datafiles/datafile/" + helper.random_str()
+
         self.__cache.set_file(location, data)
 
-    def set_array(self, location, array_data):
+    def set_array(self, array_data, location=None):
         """
         Save array data in a cached HDF5 file.
 
-        :param location: The location of the file.
-        :type location: str
         :param array_data: The raw data to store.
         :type array_data: numpy.ndarray|list
-        """
-        ident = helper.id_from_location(location)
-        path = self.__cache.file_cache_path(ident)
+        :param location: The location of the file.
+        :type location: str
 
-        data = hdf5io.store_array_data(path, array_data)
-        return data
+        :returns: The url to the uploaded file.
+        :rtype: str
+        """
+        if location is None:
+            ident = helper.random_str()
+            location = "datafiles/datafile/" + ident
+        else:
+            ident = helper.id_from_location(location)
+
+        path = self.__cache.file_cache_path(ident)
+        hdf5io.store_array_data(path, array_data)
+
+        return location
 
     def delete(self, entity):
         if entity is not None:
             self.__cache.delete(entity.location)
+
+    def delete_file(self, location):
+        self.__cache.delete_file(location)
 
     def clear_cache(self):
         self.__cache.clear()
