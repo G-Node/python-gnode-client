@@ -3,6 +3,7 @@ import numpy as np
 
 from gnodeclient.util.hdfio import store_array_data, read_array_data
 
+
 class TestHDFIO(unittest.TestCase):
     """
     Unit tests for the hdf array data reading and writing.
