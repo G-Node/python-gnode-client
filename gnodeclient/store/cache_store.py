@@ -1,11 +1,15 @@
 from __future__ import print_function, absolute_import, division
 
+import os
+
 try:
     import urlparse
 except ImportError:
     # python > 3.1 has not module urlparse
     import urllib.parse as urlparse
 
+import gnodeclient.util.hdf5io as hdf5io
+import gnodeclient.util.helper as helper
 import gnodeclient.store.convert as convert
 from gnodeclient.store.basic_store import BasicStore
 from gnodeclient.util.cache import Cache
@@ -18,16 +22,18 @@ class CacheStore(BasicStore):
 
     def __init__(self, location=None):
         super(CacheStore, self).__init__(location)
-        self.__cache = None
+        self.__cache = Cache(self.location)
 
     def connect(self):
-        self.__cache = Cache(self.location)
+        if self.__cache is None:
+            self.__cache = Cache(self.location)
 
     def is_connected(self):
         return self.__cache is not None
 
     def disconnect(self):
-        del self.__cache
+        if self.__cache is not None:
+            del self.__cache
         self.__cache = None
 
     def get(self, location):
@@ -48,7 +54,8 @@ class CacheStore(BasicStore):
         :returns: The raw file data.
         :rtype: str
         """
-        raise NotImplementedError()
+        data = self.__cache.get_file(location)
+        return data
 
     def get_array(self, location):
         """
@@ -60,7 +67,14 @@ class CacheStore(BasicStore):
         :returns: The raw file data.
         :rtype: numpy.ndarray|list
         """
-        raise NotImplementedError()
+        ident = helper.id_from_location(location)
+        path = self.__cache.file_cache_path(ident)
+
+        if os.path.isfile(path):
+            data = hdf5io.read_array_data(path)
+            return data
+        else:
+            return None
 
     def set(self, entity):
         if entity is not None:
@@ -77,7 +91,7 @@ class CacheStore(BasicStore):
         :param data: The raw data of the file.
         :type data: str
         """
-        raise NotImplementedError()
+        self.__cache.set_file(location, data)
 
     def set_array(self, location, array_data):
         """
@@ -88,7 +102,11 @@ class CacheStore(BasicStore):
         :param array_data: The raw data to store.
         :type array_data: numpy.ndarray|list
         """
-        raise NotImplementedError()
+        ident = helper.id_from_location(location)
+        path = self.__cache.file_cache_path(ident)
+
+        data = hdf5io.store_array_data(path, array_data)
+        return data
 
     def delete(self, entity):
         if entity is not None:
