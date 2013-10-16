@@ -114,3 +114,34 @@ class LazyProxy(object):
         :type loader: function
         """
         self._loader = loader
+
+
+def lazy_value_loader(location, store, result_driver):
+
+    def do_lazy_load():
+
+        if isinstance(location, list) and len(location) == 1:
+            loc = location[0]
+        else:
+            loc = location
+
+        obj = store.get(loc, False)
+        res = result_driver.to_result(obj)
+        return res
+
+    return do_lazy_load
+
+
+def lazy_list_loader(locations, store, result_driver, list_cls=list):
+
+    def do_lazy_load():
+        results = list_cls()
+
+        for location in locations:
+            obj = store.get(location, False)
+            res = result_driver.to_result(obj)
+            results.append(res)
+
+        return results
+
+    return do_lazy_load

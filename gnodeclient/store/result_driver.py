@@ -8,15 +8,15 @@ from __future__ import print_function, absolute_import, division
 
 import quantities as pq
 
+import odml
 from odml import Section, Property, Value
 from neo import Block, Segment, EventArray, Event, EpochArray, Epoch, RecordingChannelGroup, RecordingChannel, \
     Unit, SpikeTrain, Spike, AnalogSignalArray, AnalogSignal, IrregularlySampledSignal
 from gnodeclient.store.basic_store import BasicStore
 
-from gnodeclient.util.proxy import LazyProxy
+from gnodeclient.util.proxy import LazyProxy, lazy_list_loader, lazy_value_loader
 
 from gnodeclient.model.models import Model
-from gnodeclient.store.proxies import lazy_list_loader, lazy_value_loader
 
 
 class ResultDriver(object):
@@ -163,8 +163,14 @@ class NativeDriver(ResultDriver):
                         setattr(native, field_name, proxy)
 
                 elif field.is_child:
+                    list_cls = list
+                    if field.type_info == Model.SECTION or field.type_info == Model.PROPERTY:
+                        list_cls = odml.base.SmartList
+                    elif field.type_info == Model.VALUE:
+                        list_cls = odml.base.SafeList
+
                     if field_val is not None and len(field_val) > 0:
-                        proxy = LazyProxy(lazy_list_loader(field_val, self.store, self))
+                        proxy = LazyProxy(lazy_list_loader(field_val, self.store, self, list_cls))
                         setattr(native, field_name, proxy)
 
                 elif field.type_info == "data":
