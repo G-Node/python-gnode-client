@@ -1,6 +1,6 @@
 from __future__ import print_function, absolute_import, division
 
-import gnodeclient.util.declarative_models as dc
+import gnodeclient.model.declarative_models as dc
 from gnodeclient.model.model_fields import Field, FQuantity, FDatafile, FParent, FChildren
 
 
