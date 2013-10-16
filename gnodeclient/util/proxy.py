@@ -132,7 +132,7 @@ def lazy_value_loader(location, store, result_driver):
     return do_lazy_load
 
 
-def lazy_list_loader(locations, store, result_driver, list_cls=list):
+def lazy_list_loader(locations, store, result_driver, list_cls):
 
     def do_lazy_load():
         results = list_cls()

@@ -171,7 +171,12 @@ class NativeDriver(ResultDriver):
 
                     if field_val is not None and len(field_val) > 0:
                         proxy = LazyProxy(lazy_list_loader(field_val, self.store, self, list_cls))
-                        setattr(native, field_name, proxy)
+                        if field.type_info in [Model.SECTION, Model.VALUE]:
+                            setattr(native, '_' + field_name, proxy)
+                        elif field.type_info == Model.PROPERTY:
+                            setattr(native, '_props', proxy)
+                        else:
+                            setattr(native, field_name, proxy)
 
                 elif field.type_info == "data":
                     if field_val["data"] is not None and field_val["units"] is not None:
