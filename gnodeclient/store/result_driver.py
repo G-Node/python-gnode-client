@@ -146,6 +146,9 @@ class NativeDriver(ResultDriver):
                     data = self.store.get_array(field_val["data"])
                     kw[field_name] = pq.Quantity(data, units)
 
+                elif obj.model == Model.PROPERTY and field.type_info == Model.VALUE:
+                    kw['value'] = field_val
+
                 else:
                     kw[field_name] = field_val
 
@@ -171,6 +174,7 @@ class NativeDriver(ResultDriver):
 
                     if field_val is not None and len(field_val) > 0:
                         proxy = LazyProxy(lazy_list_loader(field_val, self.store, self, list_cls))
+                        # TODO think about a better way to assign attrs
                         if field.type_info in [Model.SECTION, Model.VALUE]:
                             setattr(native, '_' + field_name, proxy)
                         elif field.type_info == Model.PROPERTY:

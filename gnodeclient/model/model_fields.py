@@ -1,7 +1,7 @@
 from __future__ import print_function, absolute_import, division
 
 from numbers import Number
-from gnodeclient.model.declarative_models import Field
+from gnodeclient.util.declarative_models import Field
 
 
 class FTyped(Field):
