@@ -9,6 +9,7 @@ from __future__ import print_function, absolute_import, division
 import quantities as pq
 
 import odml
+import odml.base
 from odml import Section, Property, Value
 from neo import Block, Segment, EventArray, Event, EpochArray, Epoch, RecordingChannelGroup, RecordingChannel, \
     Unit, SpikeTrain, Spike, AnalogSignalArray, AnalogSignal, IrregularlySampledSignal
@@ -147,7 +148,8 @@ class NativeDriver(ResultDriver):
                     kw[field_name] = pq.Quantity(data, units)
 
                 elif obj.model == Model.PROPERTY and field.type_info == Model.VALUE:
-                    kw['value'] = field_val
+                    proxy = LazyProxy(lazy_list_loader(field_val, self.store, self, odml.base.SafeList))
+                    kw["value"] = proxy
 
                 else:
                     kw[field_name] = field_val

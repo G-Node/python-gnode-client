@@ -111,7 +111,7 @@ Model._MODEL_MAP[Model.PROPERTY] = PropertyModel
 
 class ValueModel(Model):
     model       = Field(field_type=str, default=Model.VALUE)
-    value       = Field(field_type=str, obligatory=True)
+    data       = Field(field_type=str, obligatory=True)
 
     parent      = FParent(type_info=Model.PROPERTY)
 
