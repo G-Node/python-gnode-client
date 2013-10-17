@@ -18,15 +18,15 @@ except ImportError:
 
 import gnodeclient.util.helper as helper
 
-DEFAUTL_BASE_DIR = 'gnodeclient'
-FILE_DIR = 'files'
-OBJ_DIR = 'objects'
-
 
 class Cache(object):
     """
     A file system based cache that uses pickle to store python objects and file data.
     """
+
+    DEFAUTL_BASE_DIR = 'gnodeclient'
+    FILE_DIR = 'files'
+    OBJ_DIR = 'objects'
 
     def __init__(self, location=None, base_dir=DEFAUTL_BASE_DIR):
         """
@@ -42,8 +42,8 @@ class Cache(object):
         else:
             self.__base_dir = os.path.join(location, base_dir)
 
-        self.__file_dir = os.path.join(self.base_dir, FILE_DIR)
-        self.__obj_dir = os.path.join(self.base_dir, OBJ_DIR)
+        self.__file_dir = os.path.join(self.base_dir, Cache.FILE_DIR)
+        self.__obj_dir = os.path.join(self.base_dir, Cache.OBJ_DIR)
 
         dirs = (self.base_dir, self.file_dir, self.obj_dir)
         for d in dirs:
