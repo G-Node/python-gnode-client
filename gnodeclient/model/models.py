@@ -93,6 +93,7 @@ class SectionModel(Model):
     description = Field(field_type=str)
 
     parent      = FParent(type_info=Model.SECTION)
+    sections    = FChildren(type_info=Model.SECTION)
     properties  = FChildren(type_info=Model.PROPERTY)
 
 Model._MODEL_MAP[Model.SECTION] = SectionModel
