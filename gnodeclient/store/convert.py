@@ -48,6 +48,8 @@ def collections_to_model(collection, as_list=False):
             if field.is_child:
                 if model_obj.model == Model.RECORDINGCHANNEL and field_name == "recordingchannelgroups":
                     obj_field_name = "recordingchannelgroup"
+                elif field_name == "metadata":
+                    obj_field_name = "metadata"
                 else:
                     obj_field_name = field.type_info + '_set'
             else:
@@ -106,7 +108,7 @@ def model_to_collections(model):
             if (hasattr(model, "model") and model["model"] == Model.RECORDINGCHANNEL and
                     name == "recordingchannelgroups"):
                 name = "recordingchannelgroup"
-            else:
+            elif name != "metadata":
                 name = field.type_info + "_set"
 
         result[name] = value
