@@ -31,7 +31,7 @@ from __future__ import print_function, absolute_import, division
 
 from gnodeclient.conf import Configuration
 from gnodeclient.store.caching_rest_store import CachingRestStore
-from gnodeclient.store.result_driver import NativeDriver
+from gnodeclient.result.result_driver import NativeDriver
 
 
 # The version of the client
