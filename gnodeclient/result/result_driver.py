@@ -8,14 +8,19 @@ from __future__ import print_function, absolute_import, division
 
 import quantities as pq
 
-import odml
-from odml import Section, Property, Value
-from neo import Block, Segment, EventArray, Event, EpochArray, Epoch, RecordingChannelGroup, RecordingChannel, \
-    Unit, SpikeTrain, Spike, AnalogSignalArray, AnalogSignal, IrregularlySampledSignal
+#import odml
+import odml.base
+import odml.section
+import odml.property
+import odml.value
+import neo
+
+from gnodeclient.result.adapt_odml import Section, Property, Value
+from gnodeclient.result.adapt_neo import Block, Segment, EventArray, Event, EpochArray, Epoch, \
+    RecordingChannelGroup, RecordingChannel, Unit, SpikeTrain, Spike, AnalogSignalArray, \
+    AnalogSignal, IrregularlySampledSignal
 from gnodeclient.store.basic_store import BasicStore
-
 from gnodeclient.util.proxy import LazyProxy, lazy_list_loader, lazy_value_loader
-
 from gnodeclient.model.models import Model
 
 
@@ -90,10 +95,6 @@ class NativeDriver(ResultDriver):
     #
 
     FW_MAP = {
-        #Model.DATAFILE: "datafile",
-        Model.SECTION: Section,
-        Model.PROPERTY: Property,
-        Model.VALUE: Value,
         Model.BLOCK: Block,
         Model.SEGMENT: Segment,
         Model.EVENTARRAY: EventArray,
@@ -108,12 +109,29 @@ class NativeDriver(ResultDriver):
         Model.ANALOGSIGNALARRAY: AnalogSignalArray,
         Model.ANALOGSIGNAL: AnalogSignal,
         Model.IRREGULARLYSAMPLEDSIGNAL: IrregularlySampledSignal,
+        Model.SECTION: Section,
+        Model.PROPERTY: Property,
+        Model.VALUE: Value,
     }
 
     RW_MAP = {
-        Model.SECTION: type(Section("", "")),
-        Model.PROPERTY: type(Property("", "")),
-        Model.VALUE: type(Value("")),
+        Model.BLOCK: neo.Block,
+        Model.SEGMENT: neo.Segment,
+        Model.EVENTARRAY: neo.EventArray,
+        Model.EVENT: neo.Event,
+        Model.EPOCHARRAY: neo.EpochArray,
+        Model.EPOCH: neo.Epoch,
+        Model.RECORDINGCHANNELGROUP: neo.RecordingChannelGroup,
+        Model.RECORDINGCHANNEL: neo.RecordingChannel,
+        Model.UNIT: neo.Unit,
+        Model.SPIKETRAIN: neo.SpikeTrain,
+        Model.SPIKE: neo.Spike,
+        Model.ANALOGSIGNALARRAY: neo.AnalogSignalArray,
+        Model.ANALOGSIGNAL: neo.AnalogSignal,
+        Model.IRREGULARLYSAMPLEDSIGNAL: neo.IrregularlySampledSignal,
+        Model.SECTION: odml.section.Section,
+        Model.PROPERTY: odml.property.Property,
+        Model.VALUE: odml.value.Value,
     }
 
     #
@@ -147,7 +165,8 @@ class NativeDriver(ResultDriver):
                     kw[field_name] = pq.Quantity(data, units)
 
                 elif obj.model == Model.PROPERTY and field.type_info == Model.VALUE:
-                    kw['value'] = field_val
+                    proxy = LazyProxy(lazy_list_loader(field_val, self.store, self, odml.base.SafeList))
+                    kw["value"] = proxy
 
                 else:
                     kw[field_name] = field_val
@@ -175,7 +194,7 @@ class NativeDriver(ResultDriver):
                     if field_val is not None and len(field_val) > 0:
                         proxy = LazyProxy(lazy_list_loader(field_val, self.store, self, list_cls))
                         # TODO think about a better way to assign attrs
-                        if field.type_info in [Model.SECTION, Model.VALUE]:
+                        if field.type_info in [Model.SECTION, Model.VALUE] and field_name != "metadata":
                             setattr(native, '_' + field_name, proxy)
                         elif field.type_info == Model.PROPERTY:
                             setattr(native, '_props', proxy)
@@ -215,11 +234,8 @@ class NativeDriver(ResultDriver):
         # TODO detect unbound (newly created and not persisted) related objects and throw an error
         # get type name and create a model
         model_obj = None
-        for model_name in NativeDriver.FW_MAP:
-            if model_name in NativeDriver.RW_MAP:
-                cls = NativeDriver.RW_MAP[model_name]
-            else:
-                cls = NativeDriver.FW_MAP[model_name]
+        for model_name in NativeDriver.RW_MAP:
+            cls = NativeDriver.RW_MAP[model_name]
 
             if isinstance(obj, cls):
                 model_obj = Model.create(model_name)

@@ -31,14 +31,14 @@ from __future__ import print_function, absolute_import, division
 
 from gnodeclient.conf import Configuration
 from gnodeclient.store.caching_rest_store import CachingRestStore
-from gnodeclient.store.result_driver import NativeDriver
+from gnodeclient.result.result_driver import NativeDriver
 
 
 # The version of the client
 VERSION = "0.1.0"
 
 # A global session object.
-__MAIN_SESSION = None
+_MAIN_SESSION = None
 
 
 class Session(object):
@@ -158,8 +158,8 @@ def create(username=None, password=None, location=None, file_name=None, persist_
     Creates and returns a main session object. Multiple calls will return always
     the same object unless close() was not called.
     """
-    global __MAIN_SESSION
-    if __MAIN_SESSION is None:
+    global _MAIN_SESSION
+    if _MAIN_SESSION is None:
         options = {}
         if username is not None:
             options["username"] = username
@@ -168,16 +168,16 @@ def create(username=None, password=None, location=None, file_name=None, persist_
         if location is not None:
             options["location"] = location
 
-        __MAIN_SESSION = Session(options, file_name, persist_options)
+        _MAIN_SESSION = Session(options, file_name, persist_options)
 
-    return __MAIN_SESSION
+    return _MAIN_SESSION
 
 
 def close():
     """
     Close the main session object.
     """
-    global __MAIN_SESSION
-    if __MAIN_SESSION is not None:
-        __MAIN_SESSION.close()
-        __MAIN_SESSION = None
+    global _MAIN_SESSION
+    if _MAIN_SESSION is not None:
+        _MAIN_SESSION.close()
+        _MAIN_SESSION = None
