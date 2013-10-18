@@ -44,16 +44,10 @@ def collections_to_model(collection, as_list=False):
         for field_name in model_obj:
             field = model_obj.get_field(field_name)
 
-            # FIXME ugly workaround that is necessary because of inconsistent naming schema
             if field.is_child:
-                if model_obj.model == Model.RECORDINGCHANNEL and field_name == "recordingchannelgroups":
-                    obj_field_name = "recordingchannelgroup"
-                elif field_name == "metadata":
-                    obj_field_name = "metadata"
-                else:
-                    obj_field_name = field.type_info + '_set'
+                obj_field_name = field.name_mapping or field.type_info + '_set'
             else:
-                obj_field_name = field_name
+                obj_field_name = field.name_mapping or field_name
 
             if obj_field_name in obj:
                 field_val = obj[obj_field_name]
@@ -63,12 +57,8 @@ def collections_to_model(collection, as_list=False):
                 field_val = None
 
             if field_val is not None:
-                if field.type_info == 'datafile':
-                    # TODO handle datafiles here
-                    pass
-                elif field.type_info == 'data':
-                    if field_val['data'] is not None:
-                        field_val['data'] = float(field_val['data'])
+                if field.type_info == 'data' and field_val['data'] is not None:
+                    field_val['data'] = float(field_val['data'])
                 elif field_name == 'model':
                     field_val = model_name
 
@@ -96,22 +86,19 @@ def model_to_collections(model):
     :rtype: dict
     """
     result = {}
-    for name in model:
-        value = model[name]
-        field = model.get_field(name)
+    for field_name in model:
+        value = model[field_name]
+        field = model.get_field(field_name)
 
         if isinstance(value, Model):
             value = model_to_collections(value)
 
-        # FIXME ugly workaround that is necessary because of inconsistent naming schema
         if field.is_child:
-            if (hasattr(model, "model") and model["model"] == Model.RECORDINGCHANNEL and
-                    name == "recordingchannelgroups"):
-                name = "recordingchannelgroup"
-            elif name != "metadata":
-                name = field.type_info + "_set"
+            field_name = field.name_mapping or field.type_info + "_set"
+        else:
+            field_name = field.name_mapping or field_name
 
-        result[name] = value
+        result[field_name] = value
     return result
 
 
@@ -129,34 +116,31 @@ def model_to_json_response(model, exclude=("location", "model", "guid", "permali
     :rtype: str
     """
     result = {}
-    for name in model:
-        if exclude is not None and name not in exclude:
-            field = model.get_field(name)
-            value = model[name]
+    for field_name in model:
+        if exclude is not None and field_name not in exclude:
+            field = model.get_field(field_name)
+            value = model[field_name]
+
             if field.type_info == "data":
-                result[name] = {"units": value["units"], "data": value["data"]}
-            elif field.type_info == "datafile":
-                # TODO add support for data files
-                pass
+                result[field_name] = {"units": value["units"], "data": value["data"]}
+
             elif field.is_child:
-                # FIXME ugly workaround that is necessary because of inconsistent naming schema
-                new_name = False
-                if model.model == Model.RECORDINGCHANNELGROUP and name == "recordingchannels":
-                    new_name = field.type_info + "_set"
-                elif model.model == Model.RECORDINGCHANNEL and name == "recordingchannelgroups":
-                    new_name = "recordingchannelgroup"
-                if new_name:
+                if (model.model == Model.RECORDINGCHANNELGROUP and field_name == "recordingchannels" or
+                        model.model == Model.RECORDINGCHANNEL and field_name == "recordingchannelgroups"):
+                    field_name = field.name_mapping or field.type_info + "_set"
                     new_value = []
                     for i in value:
                         new_value.append(i.split("/")[-1])
-                    result[new_name] = value
-            elif field.is_parent:
-                if value is not None:
-                    result[name] = value.split("/")[-1]
-                else:
-                    result[name] = value
+                    result[field_name] = new_value
+
+            elif field.is_parent and value is not None:
+                field_name = field.name_mapping or field_name
+                result[field_name] = value.split("/")[-1]
+
             else:
-                result[name] = value
+                field_name = field.name_mapping or field_name
+                result[field_name] = value
+
     json_response = json.dumps(result)
     return json_response
 
