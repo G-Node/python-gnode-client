@@ -22,6 +22,7 @@ px = LazyProxy(loader)
 
 s = session.create(password="pass")
 
+seg = s.get("http://predata.g-node.org/electrophysiology/segment/C4FU130GIK/")
 blocks = s.select(Model.BLOCK)
 
 print(str(blocks[0]))

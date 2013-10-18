@@ -24,8 +24,8 @@ class FNumber(Field):
     """
 
     def __init__(self, ignore=False, type_info="number", default=None, obligatory=False,
-                 min_val=None, max_val=None):
-        super(FNumber, self).__init__(False, False, ignore, Number, type_info, default, obligatory)
+                 min_val=None, max_val=None, name_mapping=None):
+        super(FNumber, self).__init__(False, False, ignore, Number, type_info, default, obligatory, name_mapping)
         self.__min = min_val
         self.__max = max_val
 
@@ -62,8 +62,8 @@ class FQuantity(Field):
     a dict that has the keys "units" and "data".
     """
 
-    def __init__(self, ignore=False, default=None, obligatory=False):
-        super(FQuantity, self).__init__(False, False, ignore, dict, "data", default, obligatory)
+    def __init__(self, ignore=False, default=None, obligatory=False, name_mapping=None):
+        super(FQuantity, self).__init__(False, False, ignore, dict, "data", default, obligatory, name_mapping)
 
     def check(self, val):
         check_passed = True
@@ -87,8 +87,8 @@ class FDatafile(Field):
     a dict that has the keys "units" and "data".
     """
 
-    def __init__(self, ignore=False, default=None, obligatory=False):
-        super(FDatafile, self).__init__(False, False, ignore, dict, "datafile", default, obligatory)
+    def __init__(self, ignore=False, default=None, obligatory=False, name_mapping=False):
+        super(FDatafile, self).__init__(False, False, ignore, dict, "datafile", default, obligatory, name_mapping)
 
     def check(self, val):
         check_passed = True
@@ -109,8 +109,9 @@ class FParent(FTyped):
     A special field class for parent relationships.
     """
 
-    def __init__(self, ignore=False, field_type=object, type_info=None, default=None, obligatory=False):
-        super(FParent, self).__init__(True, False, ignore, field_type, type_info, default, obligatory)
+    def __init__(self, ignore=False, field_type=object, type_info=None, default=None,
+                 obligatory=False, name_mapping=None):
+        super(FParent, self).__init__(True, False, ignore, field_type, type_info, default, obligatory, name_mapping)
 
 
 class FChildren(FTyped):
@@ -118,5 +119,5 @@ class FChildren(FTyped):
     A special field class for child relationships.
     """
 
-    def __init__(self, ignore=False, type_info=None, default=None, obligatory=False):
-        super(FChildren, self).__init__(False, True, ignore, list, type_info, default, obligatory)
+    def __init__(self, ignore=False, type_info=None, default=None, obligatory=False, name_mapping=None):
+        super(FChildren, self).__init__(False, True, ignore, list, type_info, default, obligatory, name_mapping)
