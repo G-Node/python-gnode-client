@@ -175,7 +175,7 @@ class CachingRestStore(BasicStore):
 
         return results
 
-    def get_file(self, location):
+    def get_file(self, location, temporary=False):
         """
         Get raw file data (bytestring) from the store.
 
@@ -185,13 +185,13 @@ class CachingRestStore(BasicStore):
         :returns: The raw file data.
         :rtype: str
         """
-        data = self.cache_store.get_file(location)
-        if data is None:
+        data = self.cache_store.get_file(location, temporary)
+        if data is None and not temporary:
             data = self.rest_store.get_file(location)
             self.cache_store.set_file(data, location)
         return data
 
-    def get_array(self, location):
+    def get_array(self, location, temporary=False):
         """
         Read array data from an hdf5 file.
 
@@ -201,8 +201,8 @@ class CachingRestStore(BasicStore):
         :returns: The raw file data.
         :rtype: numpy.ndarray|list
         """
-        array_data = self.cache_store.get_array(location)
-        if array_data is None:
+        array_data = self.cache_store.get_array(location, temporary)
+        if array_data is None and not temporary:
             data = self.rest_store.get_file(location)
             self.cache_store.set_file(data, location)
             array_data = self.cache_store.get_array(location)
@@ -231,7 +231,7 @@ class CachingRestStore(BasicStore):
         obj = self.__cache_store.set(obj)
         return obj
 
-    def set_file(self, data, old_location=None):
+    def set_file(self, data, old_location=None, temporary=False):
         """
         Save raw file data in the store.
 
@@ -245,11 +245,16 @@ class CachingRestStore(BasicStore):
         """
         if old_location is not None:
             self.cache_store.delete_file(old_location)
-        location = self.rest_store.set_file(data)
-        self.cache_store.set_file(data, location)
+
+        if not temporary:
+            location = self.rest_store.set_file(data)
+            self.cache_store.set_file(data, location)
+        else:
+            location = self.cache_store.set_file(data, temporary=True)
+
         return location
 
-    def set_array(self, array_data, old_location=None):
+    def set_array(self, array_data, old_location=None, temporary=False):
         """
         Save array data in the store.
 
@@ -263,8 +268,13 @@ class CachingRestStore(BasicStore):
         """
         if old_location is not None:
             self.cache_store.delete_file(old_location)
-        location = self.rest_store.set_array(array_data)
-        self.cache_store.set_array(array_data, location)
+
+        if not temporary:
+            location = self.rest_store.set_array(array_data)
+            self.cache_store.set_array(array_data, location)
+        else:
+            location = self.cache_store.set_array(array_data, temporary=True)
+
         return location
 
     def delete(self, entity):

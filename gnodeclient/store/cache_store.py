@@ -99,6 +99,8 @@ class CacheStore(BasicStore):
 
         self.__cache.set_file(location, data, temporary)
 
+        return location
+
     def set_array(self, array_data, location=None, temporary=False):
         """
         Save array data in a cached HDF5 file.
