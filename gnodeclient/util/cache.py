@@ -263,9 +263,6 @@ class Cache(object):
             # TODO log error
             pass
 
-    def __del__(self):
-        self.clear(temporary=True)
-
     #
     # Helper methods
     #
