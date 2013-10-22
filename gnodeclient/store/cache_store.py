@@ -36,15 +36,15 @@ class CacheStore(BasicStore):
             del self.__cache
         self.__cache = None
 
-    def get(self, location):
-        obj = self.__cache.get(location)
+    def get(self, location, temporary=False):
+        obj = self.__cache.get(location, temporary)
         if obj is not None:
             entity = convert.collections_to_model(obj)
             return entity
         else:
             return None
 
-    def get_file(self, location):
+    def get_file(self, location, temporary=False):
         """
         Get raw file data (bytestring) from the cache.
 
@@ -54,10 +54,10 @@ class CacheStore(BasicStore):
         :returns: The raw file data.
         :rtype: str
         """
-        data = self.__cache.get_file(location)
+        data = self.__cache.get_file(location, temporary)
         return data
 
-    def get_array(self, location):
+    def get_array(self, location, temporary=False):
         """
         Read array data from an hdf5 file in the cache.
 
@@ -68,7 +68,7 @@ class CacheStore(BasicStore):
         :rtype: numpy.ndarray|list
         """
         ident = helper.id_from_location(location)
-        path = self.__cache.file_cache_path(ident)
+        path = self.__cache.file_cache_path(ident, temporary)
 
         if os.path.isfile(path):
             data = hdfio.read_array_data(path)
@@ -76,13 +76,13 @@ class CacheStore(BasicStore):
         else:
             return None
 
-    def set(self, entity):
+    def set(self, entity, temporary=False):
         if entity is not None:
             obj = convert.model_to_collections(entity)
-            self.__cache.set(entity.location, obj)
+            self.__cache.set(entity.location, obj, temporary)
         return entity
 
-    def set_file(self, data, location=None):
+    def set_file(self, data, location=None, temporary=False):
         """
         Save raw file data in the cache.
 
@@ -97,9 +97,11 @@ class CacheStore(BasicStore):
         if location is None:
             location = "datafiles/datafile/" + helper.random_str()
 
-        self.__cache.set_file(location, data)
+        self.__cache.set_file(location, data, temporary)
 
-    def set_array(self, array_data, location=None):
+        return location
+
+    def set_array(self, array_data, location=None, temporary=False):
         """
         Save array data in a cached HDF5 file.
 
@@ -117,17 +119,17 @@ class CacheStore(BasicStore):
         else:
             ident = helper.id_from_location(location)
 
-        path = self.__cache.file_cache_path(ident)
+        path = self.__cache.file_cache_path(ident, temporary)
         hdfio.store_array_data(path, array_data)
 
         return location
 
-    def delete(self, entity):
+    def delete(self, entity, temporary=False):
         if entity is not None:
-            self.__cache.delete(entity.location)
+            self.__cache.delete(entity.location, temporary)
 
-    def delete_file(self, location):
-        self.__cache.delete_file(location)
+    def delete_file(self, location, temporary=False):
+        self.__cache.delete_file(location, temporary)
 
-    def clear_cache(self):
-        self.__cache.clear()
+    def clear_cache(self, temporary=False):
+        self.__cache.clear(temporary)

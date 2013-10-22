@@ -25,12 +25,9 @@ s = session.create(password="pass")
 seg = s.get("http://predata.g-node.org/electrophysiology/segment/C4FU130GIK/")
 blocks = s.select(Model.BLOCK)
 
-print(str(blocks[0]))
-print(blocks[0].name)
+sig = seg.analogsignals[0]
+sig = s.set(sig)
 
-for b in blocks:
-    print(repr(b))
-    print(str(b))
 
 signals = s.select(Model.ANALOGSIGNAL)
 loc = signals[20].location
