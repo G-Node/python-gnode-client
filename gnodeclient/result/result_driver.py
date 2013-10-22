@@ -19,7 +19,7 @@ from gnodeclient.result.adapt_odml import Section, Property, Value
 from gnodeclient.result.adapt_neo import Block, Segment, EventArray, Event, EpochArray, Epoch, \
     RecordingChannelGroup, RecordingChannel, Unit, SpikeTrain, Spike, AnalogSignalArray, \
     AnalogSignal, IrregularlySampledSignal
-from gnodeclient.store.basic_store import BasicStore
+from gnodeclient.store.caching_rest_store import CachingRestStore
 from gnodeclient.util.proxy import LazyProxy, lazy_list_loader, lazy_value_loader
 from gnodeclient.model.models import Model
 
@@ -51,7 +51,7 @@ class ResultDriver(object):
         Readonly property for the used sore object.
 
         :returns: The store object, that is used by the driver.
-        :rtype: BasicStore
+        :rtype: CachingRestStore
         """
         return self.__store
 
@@ -181,8 +181,12 @@ class NativeDriver(ResultDriver):
                 field = obj.get_field(field_name)
                 if field.is_parent:
                     if field_val is not None:
-                        proxy = LazyProxy(lazy_value_loader(field_val, self.store, self))
-                        setattr(native, field_name, proxy)
+                        if obj.model == Model.VALUE and field_name == "parent":
+                            proxy = LazyProxy(lazy_value_loader(field_val, self.store, self))
+                            setattr(native, "_property", proxy)
+                        else:
+                            proxy = LazyProxy(lazy_value_loader(field_val, self.store, self))
+                            setattr(native, field_name, proxy)
 
                 elif field.is_child:
                     list_cls = list
@@ -246,38 +250,53 @@ class NativeDriver(ResultDriver):
 
         # iterate over fields and set them on the model
         for field_name in model_obj:
-            if hasattr(obj, field_name):
-                field = model_obj.get_field(field_name)
-                field_val = getattr(obj, field_name, field.default)
+            field = model_obj.get_field(field_name)
+            if field.type_info != "datafile":
+                if hasattr(obj, field_name):
+                    field_val = getattr(obj, field_name, field.default)
 
-                # special treatment for the location field
-                if field_name == "location":
-                    model_obj.location = field_val
-                    model_obj.id = field_val.split("/")[-1]
-                # process all child relationships
-                elif field.is_child:
-                    if field_val is not None:
-                        locations = []
-                        for val in field_val:
-                            if hasattr(val, 'location'):
-                                locations.append(val.location)
+                    # special treatment for the location field
+                    if field_name == "location":
+                        model_obj.location = field_val
+                        model_obj.id = field_val.split("/")[-1]
+                    # process all child relationships
+                    elif field.is_child:
+                        if field_val is not None:
+                            locations = []
+                            for val in field_val:
+                                if hasattr(val, 'location'):
+                                    locations.append(val.location)
 
-                        model_obj[field_name] = locations
-                # process all parent relationships
-                elif field.is_parent:
-                    if field_val is not None and hasattr(field_val, 'location'):
-                        model_obj[field_name] = field_val.location
-                # data fields
-                elif field.type_info == "data":
+                            model_obj[field_name] = locations
+                    # process all parent relationships
+                    elif field.is_parent:
+                        if field_val is not None and hasattr(field_val, 'location'):
+                            model_obj[field_name] = field_val.location
+                    # data fields
+                    elif field.type_info == "data":
+                        if field_val is not None:
+                            data = float(field_val)
+                            units = field_val.dimensionality.string
+                            model_obj[field_name] = {"data": data, "units": units}
+                            # default
+                    else:
+                        model_obj[field_name] = field_val
+            # datafile fields
+            else:
+                if field_name == "signal" and model_obj.model in (Model.ANALOGSIGNAL, Model.ANALOGSIGNALARRAY,
+                                                                  Model.IRREGULARLYSAMPLEDSIGNAL):
+                    units = obj.dimensionality.string
+                    datafiel_location = self.store.set_array(obj, temporary=True)
+                    model_obj[field_name] = {"units": units, "data": datafiel_location}
+                elif field_name == "times" and model_obj.model == Model.SPIKETRAIN:
+                    units = obj.dimensionality.string
+                    datafiel_location = self.store.set_array(obj, temporary=True)
+                    model_obj[field_name] = {"units": units, "data": datafiel_location}
+                elif hasattr(obj, field_name):
+                    field_val = getattr(obj, field_name, field.default)
                     if field_val is not None:
-                        data = float(field_val)
-                        units = str(field_val).split(" ")[1]
-                        model_obj[field_name] = {"data": data, "units": units}
-                elif field.type_info == "datafile":
-                    # TODO handle datafiles here
-                    pass
-                # default
-                else:
-                    model_obj[field_name] = field_val
+                        units = field_val.dimensionality.string
+                        datafiel_location = self.store.set_array(field_val, temporary=True)
+                        model_obj[field_name] = {"units": units, "data": datafiel_location}
 
         return model_obj
