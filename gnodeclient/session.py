@@ -149,6 +149,9 @@ class Session(object):
         """
         self.__store.disconnect()
 
+    def is_open(self):
+        return self.__store.is_connected()
+
     def clear_cache(self):
         self.__store.cache_store.clear_cache()
 
