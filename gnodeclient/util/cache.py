@@ -223,20 +223,16 @@ class Cache(object):
         """
         Erase all data from the cache.
         """
-        try:
-            if temporary:
-                dirs = (self.file_dir_tmp, self.obj_dir_tmp)
-            else:
-                dirs = (self.file_dir, self.obj_dir, self.file_dir_tmp, self.obj_dir_tmp)
+        if temporary:
+            dirs = (self.file_dir_tmp, self.obj_dir_tmp)
+        else:
+            dirs = (self.file_dir, self.obj_dir, self.file_dir_tmp, self.obj_dir_tmp)
 
-            for d in dirs:
-                if os.path.exists(d):
-                    shutil.rmtree(d)
+        for d in dirs:
+            if os.path.exists(d):
+                shutil.rmtree(d)
 
-            self.ensure_dirs()
-        except RuntimeError:
-            # TODO log error
-            pass
+        self.ensure_dirs()
 
     def obj_cache_path(self, ident, temporary):
         prefix = ident[0:2]
@@ -252,16 +248,12 @@ class Cache(object):
             return os.path.join(self.file_dir, ident)
 
     def ensure_dirs(self):
-        try:
-            dirs = (self.base_dir, self.file_dir, self.obj_dir, self.file_dir_tmp, self.obj_dir_tmp)
-            for d in dirs:
-                if not os.path.isdir(d):
-                    os.makedirs(d, 0o0750)
-                else:
-                    os.chmod(d, 0o0750)
-        except IOError:
-            # TODO log error
-            pass
+        dirs = (self.base_dir, self.file_dir, self.obj_dir, self.file_dir_tmp, self.obj_dir_tmp)
+        for d in dirs:
+            if not os.path.isdir(d):
+                os.makedirs(d, 0o0750)
+            else:
+                os.chmod(d, 0o0750)
 
     #
     # Helper methods
