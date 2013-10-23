@@ -2,7 +2,6 @@
 Miscellaneous helper functions.
 """
 
-import string
 import random
 
 try:
