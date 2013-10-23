@@ -125,8 +125,9 @@ class CachingRestStore(BasicStore):
 
         if obj is None:
             obj = self.rest_store.get(location)
-            self.__get_arraydata(obj)
-            self.cache_store.set(obj)
+            if obj is not None:
+                self.__get_arraydata(obj)
+                self.cache_store.set(obj)
         elif refresh:
             obj_refreshed = self.rest_store.get(location, obj.guid)
             if obj_refreshed is not None:
@@ -166,7 +167,7 @@ class CachingRestStore(BasicStore):
                 else:
                     results.append(obj)
 
-        objects = self.__rest_store.get_list(locations_todo)
+        objects = self.rest_store.get_list(locations_todo)
 
         for obj in objects:
             self.__get_arraydata(obj)

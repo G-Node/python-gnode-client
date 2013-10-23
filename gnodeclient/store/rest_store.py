@@ -17,6 +17,7 @@ from gnodeclient.store.basic_store import BasicStore
 from gnodeclient.util.helper import id_from_location
 from gnodeclient.util.hdfio import store_array_data, read_array_data
 
+
 class RestStore(BasicStore):
     """
     Implementation of Abstract store, that uses the gnode REST API as
@@ -140,11 +141,11 @@ class RestStore(BasicStore):
             headers['If-none-match'] = etag
         future = self.__session.get(url, headers=headers)
         response = future.result()
-        response.raise_for_status()
 
-        if response.status_code == 304:
+        if response.status_code in (304, 404):
             result = None
         else:
+            response.raise_for_status()
             result = convert.collections_to_model(convert.json_to_collections(response.content))
 
         return result
