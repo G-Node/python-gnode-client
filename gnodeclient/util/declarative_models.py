@@ -229,43 +229,36 @@ class Model(object):
     #
 
     @property
-    # TODO refactor to: inspect
     def fields(self):
         """Descriptors for all fields of the model"""
         return self.__inspect_filtered()
 
     @property
-    # TODO refactor to: inspect_parents
     def parent_fields(self):
         """Descriptors for all fields of the model, that are parent relationships"""
         return self.__inspect_filtered(lambda x: x.is_parent)
 
     @property
-    # TODO refactor to: inspect_children
     def child_fields(self):
         """Descriptors for all fields of the model, that are child relationships"""
         return self.__inspect_filtered(lambda x: x.is_child)
 
     @property
-    # TODO refactor to: inspect_relationship
     def reference_fields(self):
         """Descriptors for all fields of the model, that are some kind of relationship"""
         return self.__inspect_filtered(lambda x: x.is_child or x.is_parent)
 
     @property
-    # TODO refactor to: inspect_non_relationship
     def none_reference_fields(self):
         """Descriptors for all fields of the model, that are not a kind of relationship"""
         return self.__inspect_filtered(lambda x: not x.is_child and not x.is_parent)
 
     @property
-    # TODO refactor to: inspect_optional
     def optional_fields(self):
         """Descriptors for all fields of the model, that are optional"""
         return self.__inspect_filtered(lambda x: not x.obligatory)
 
     @property
-    # TODO refactor to: inspect_obligatory
     def obligatory_fields(self):
         """Descriptors for all fields of the model, that are obligatory"""
         return self.__inspect_filtered(lambda x: x.obligatory)
@@ -274,7 +267,6 @@ class Model(object):
     # Methods
     #
 
-    # TODO refactor to: inspect_field
     def get_field(self, name):
         """
         Get a field descriptor by the name of the field.
