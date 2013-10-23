@@ -183,7 +183,7 @@ class EpochArrayModel(Model):
     model       = Field(field_type=str, default=Model.EPOCHARRAY)
     name        = Field(field_type=str)
     description = Field(field_type=str)
-    labels      = Field(obligatory=True, field_type=list)
+    labels      = FDatafile(obligatory=True)
 
     times       = FDatafile(obligatory=True)
     durations   = FDatafile(obligatory=True)
@@ -320,7 +320,7 @@ class IrregularlySampledSignalModel(Model):
     name        = Field(field_type=str)
     description = Field(field_type=str)
 
-    #t_start    = FQuantity()
+    t_start     = FQuantity(obligatory=True)
     signal      = FDatafile(obligatory=True)
     times       = FDatafile(obligatory=True)
 

@@ -60,9 +60,10 @@ def collections_to_model(collection, as_list=False):
             if field_val is not None:
                 if field.type_info == 'data' and field_val['data'] is not None:
                     field_val['data'] = float(field_val['data'])
+                if model_name in (Model.EPOCHARRAY, Model.EPOCHARRAY) and field_name == "labels":
+                    field_val = {"units": None, "data": field_val}
                 elif field_name == 'model':
                     field_val = model_name
-
                 model_obj[field_name] = field_val
 
         models.append(model_obj)
@@ -93,6 +94,9 @@ def model_to_collections(model):
 
         if isinstance(value, Model):
             value = model_to_collections(value)
+        elif model.model in (Model.EVENTARRAY, Model.EPOCHARRAY) and field_name == "labels":
+            if value is not None:
+                value = value["data"]
 
         if field.is_child:
             field_name = field.name_mapping or field.type_info + "_set"
@@ -123,11 +127,18 @@ def model_to_json_response(model, exclude=("location", "model", "guid", "permali
             value = model[field_name]
 
             if field.type_info == "data":
-                result[field_name] = {"units": value["units"], "data": value["data"]}
+                if value is None:
+                    result[field_name] = None
+                else:
+                    result[field_name] = {"units": value["units"], "data": value["data"]}
 
             elif field.type_info == "datafile":
                 if value is not None:
-                    result[field_name] = {"units": value["units"], "data": helper.id_from_location(value["data"])}
+                    if model.model in (Model.EPOCHARRAY, Model.EPOCHARRAY) and field_name == "labels":
+                        new_value = helper.id_from_location(value["data"])
+                    else:
+                        new_value = {"units": value["units"], "data": helper.id_from_location(value["data"])}
+                    result[field_name] = new_value
 
             elif field.is_child:
                 if model.model == Model.RECORDINGCHANNEL and field_name == "recordingchannelgroups":
@@ -150,6 +161,7 @@ def model_to_json_response(model, exclude=("location", "model", "guid", "permali
                 result[field_name] = value
 
     json_response = json.dumps(result)
+
     return json_response
 
 

@@ -5,6 +5,7 @@
 
 import unittest
 from gnodeclient.test.test_hdfio import TestHDFIO
+from gnodeclient.test.test_remote import TestRemote
 
 
 class TestAll(unittest.TestSuite):
@@ -12,6 +13,7 @@ class TestAll(unittest.TestSuite):
     def __init__(self):
         super(TestAll, self).__init__()
         self.addTests(unittest.makeSuite(TestHDFIO))
+        self.addTests(unittest.makeSuite(TestRemote))
 
     def test(self, verbosity=2):
         unittest.TextTestRunner(verbosity=verbosity).run(self)

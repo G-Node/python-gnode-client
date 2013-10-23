@@ -113,7 +113,10 @@ class Session(object):
         :returns: The requested object (Neo or odML).
         """
         obj = self.__store.get(location, refresh, recursive)
-        res = self.__driver.to_result(obj)
+        if obj is not None:
+            res = self.__driver.to_result(obj)
+        else:
+            res = None
         return res
 
     def set(self, entity, avoid_collisions=False):

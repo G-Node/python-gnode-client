@@ -163,6 +163,7 @@ class Cache(object):
 
         if ident in all_data:
             del all_data[ident]
+            self._secure_write(f_name, all_data)
             return True
         else:
             return False
