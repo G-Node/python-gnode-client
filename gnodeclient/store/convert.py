@@ -126,20 +126,24 @@ def model_to_json_response(model, exclude=("location", "model", "guid", "permali
                 result[field_name] = {"units": value["units"], "data": value["data"]}
 
             elif field.type_info == "datafile":
-                result[field_name] = {"units": value["units"], "data": helper.id_from_location(value["data"])}
+                if value is not None:
+                    result[field_name] = {"units": value["units"], "data": helper.id_from_location(value["data"])}
 
             elif field.is_child:
-                if (model.model == Model.RECORDINGCHANNELGROUP and field_name == "recordingchannels" or
-                        model.model == Model.RECORDINGCHANNEL and field_name == "recordingchannelgroups"):
+                if model.model == Model.RECORDINGCHANNEL and field_name == "recordingchannelgroups":
                     field_name = field.name_mapping or field.type_info + "_set"
                     new_value = []
-                    for i in value:
-                        new_value.append(helper.id_from_location(i))
+                    if value is not None:
+                        for i in value:
+                            new_value.append(helper.id_from_location(i))
                     result[field_name] = new_value
 
-            elif field.is_parent and value is not None:
+            elif field.is_parent:
                 field_name = field.name_mapping or field_name
-                result[field_name] = helper.id_from_location(value)
+                if value is None:
+                    result[field_name] = None
+                else:
+                    result[field_name] = helper.id_from_location(value)
 
             else:
                 field_name = field.name_mapping or field_name
