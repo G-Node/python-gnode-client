@@ -1,19 +1,16 @@
+from __future__ import print_function, absolute_import, division
+
 import unittest
+from requests.exceptions import HTTPError
 from random import randint
 
+from gnodeclient import *
 from gnodeclient.test.test_data import TestDataCollection
-
-from gnodeclient import session
 
 
 class TestRemote(unittest.TestCase):
     """
-    Unit tests for the session object that focus on the remote functionality
-    of the api.
-
-    Tested methods:
-    Session.select()
-    Session.push()
+    Unit tests for the session object.
     """
 
     data = None
@@ -23,11 +20,12 @@ class TestRemote(unittest.TestCase):
     #
 
     def setUp(self):
-        self.session = session.init()
+        self.session = session.create(location="http://predata.g-node.org", username="bob", password="pass")
+        self.session.clear_cache()
         self.data = TestDataCollection()
 
     def tearDown(self):
-        self.session.shutdown()
+        session.close()
 
     #
     # Tests
@@ -36,7 +34,7 @@ class TestRemote(unittest.TestCase):
     def test_01_select(self):
         for name in self.data:
             data = self.data[name]
-            results = self.session.select(name, {'max_results': 10})
+            results = self.session.select(name, {'max_results': 5})
 
             msg = "No results for select('%s')!" % name
             self.assertTrue(len(results) > 0, msg)
@@ -48,36 +46,44 @@ class TestRemote(unittest.TestCase):
 
             data.existing_data = elem
 
-    def test_02_select_by_id(self):
+    def test_02_get_by_id(self):
         for name in self.data:
             data = self.data[name]
-            elem_id = data.existing_data._gnode['id']
-            results = self.session.select(name, params={'id': elem_id})
+            if data.existing_data is not None:
+                location = data.existing_data.location
+                result = self.session.get(location)
 
-            msg = "The query select(%s, param={'id': %s}) should have one result!" % (name, elem_id)
-            self.assertEquals(len(results), 1, msg)
+                msg = "The result of get(%s) should not be None!" % data.existing_data.location
+                self.assertIsNotNone(result, msg)
+            else:
+                self.assertIsNotNone(data.existing_data, "No existing data for %s" % name)
 
-            # FIXME why are they not equal
-            # self.assertEquals(results[0], data.existing_data)
-
-    def test_03_select_missing_by_id(self):
+    def test_03_get_missing_by_id(self):
         for name in self.data:
             data = self.data[name]
-            elem_id = data.missing_id
-            results = self.session.select(name, params={'id': elem_id})
+            location = Model.get_location(name) + "/" + data.missing_id
+            result = self.session.get(location)
 
-            msg = "The query select(%s, param={'id': %s}) should be empty!" % (name, elem_id)
-            self.assertEquals(len(results), 0, msg)
+            msg = "The result of get(%s) should be None!" % location
+            self.assertIsNone(result, msg)
 
-    def test_04_push(self):
+    def test_04_set_delete(self):
         for name in self.data:
             data = self.data[name]
-            self.session.push(data.test_data)
+            first_result = self.session.set(data.test_data)
 
-            msg = "Unable to push object %s" % str(data.test_data)
-            self.assertTrue(hasattr(data.test_data, '_gnode'), msg)
+            msg = "Unable to save object %s" % str(data.test_data)
+            self.assertTrue(hasattr(first_result, 'location'), msg)
 
-            self.session.cache.clear_cache()
+            second_result = self.session.get(first_result.location)
+            msg = "Unable to retrieve saved object from location: %s" % first_result.location
+            self.assertIsNotNone(second_result, msg)
+
+            self.session.delete(second_result)
+            second_result = self.session.get(first_result.location)
+
+            msg = "The result of get(%s) should be None!" % first_result.location
+            self.assertIsNone(second_result, msg)
 
 
 if __name__ == "__main__":
