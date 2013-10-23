@@ -123,11 +123,15 @@ def model_to_json_response(model, exclude=("location", "model", "guid", "permali
             value = model[field_name]
 
             if field.type_info == "data":
-                result[field_name] = {"units": value["units"], "data": value["data"]}
+                if value is None:
+                    result[field_name] = None
+                else:
+                    result[field_name] = {"units": value["units"], "data": value["data"]}
 
             elif field.type_info == "datafile":
                 if value is not None:
-                    result[field_name] = {"units": value["units"], "data": helper.id_from_location(value["data"])}
+                    new_value = {"units": value["units"], "data": helper.id_from_location(value["data"])}
+                    result[field_name] = new_value
 
             elif field.is_child:
                 if model.model == Model.RECORDINGCHANNEL and field_name == "recordingchannelgroups":
@@ -150,6 +154,7 @@ def model_to_json_response(model, exclude=("location", "model", "guid", "permali
                 result[field_name] = value
 
     json_response = json.dumps(result)
+
     return json_response
 
 
