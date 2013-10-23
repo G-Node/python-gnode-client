@@ -6,6 +6,7 @@ store.
 
 from __future__ import print_function, absolute_import, division
 
+import numpy
 import quantities as pq
 
 #import odml
@@ -280,6 +281,8 @@ class NativeDriver(ResultDriver):
                             model_obj[field_name] = {"data": data, "units": units}
                             # default
                     else:
+                        if isinstance(field_val, numpy.ndarray):
+                            field_val = list(field_val)
                         model_obj[field_name] = field_val
             # datafile fields
             else:
@@ -295,7 +298,10 @@ class NativeDriver(ResultDriver):
                 elif hasattr(obj, field_name):
                     field_val = getattr(obj, field_name, field.default)
                     if field_val is not None:
-                        units = field_val.dimensionality.string
+                        if hasattr(field_val, "dimensionality"):
+                            units = field_val.dimensionality.string
+                        else:
+                            units = None
                         datafiel_location = self.store.set_array(field_val, temporary=True)
                         model_obj[field_name] = {"units": units, "data": datafiel_location}
 
