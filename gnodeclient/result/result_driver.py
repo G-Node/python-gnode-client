@@ -163,7 +163,10 @@ class NativeDriver(ResultDriver):
                 elif field.type_info == "datafile":
                     units = field_val["units"]
                     data = self.store.get_array(field_val["data"])
-                    kw[field_name] = pq.Quantity(data, units)
+                    if units is not None:
+                        kw[field_name] = pq.Quantity(data, units)
+                    else:
+                        kw[field_name] = numpy.array(data)
 
                 elif obj.model == Model.PROPERTY and field.type_info == Model.VALUE:
                     proxy = LazyProxy(lazy_list_loader(field_val, self.store, self, odml.base.SafeList))
