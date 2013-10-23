@@ -119,5 +119,5 @@ class FChildren(FTyped):
     A special field class for child relationships.
     """
 
-    def __init__(self, ignore=False, type_info=None, default=None, obligatory=False, name_mapping=None):
-        super(FChildren, self).__init__(False, True, ignore, list, type_info, default, obligatory, name_mapping)
+    def __init__(self, ignore=False, type_info=None, obligatory=False, name_mapping=None):
+        super(FChildren, self).__init__(False, True, ignore, list, type_info, [], obligatory, name_mapping)
