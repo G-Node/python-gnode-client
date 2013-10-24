@@ -5,26 +5,31 @@ G-Node REST API. Further the module defines the functions crate() and close(): b
 functions operate on a global, application wide session object.
 
 Example usage:
->>> from gnodeclient import session
->>> from gnodeclient.model.models import Model
+
+>>> from gnodeclient import session, Model
 
 Create a session and store the connection information in a config file.
+
 >>> s = session.create(location="http://predata.g-node.org", username="bob", password="pass", persist_options=True)
 
 Get a list of all blocks, get all segments from the first block and print the name of
 its first segment.
+
 >>> blocks = s.select(Model.BLOCK)
 >>> segments = blocks[0].segments
 >>> seg = segments[0]
 >>> print(seg.name)
 
 Fetch the whole segment and all its child objects to the cache.
+
 >>> seg = s.get(seg.location, refresh=True, recursive=True)
 
 Since all child objects are now in the cache, the next operations should perform
 quite well.
+
 >>> for sig in seg.analogsignals:
 >>>     print(repr(sig))
+
 """
 
 from __future__ import print_function, absolute_import, division
@@ -33,9 +38,11 @@ from gnodeclient.conf import Configuration
 from gnodeclient.store.caching_rest_store import CachingRestStore
 from gnodeclient.result.result_driver import NativeDriver
 
+__all__ = ("GNODECLIENT_VERSION", "GNODECLIENT_RELEASE", "Session", "create", "close")
 
-# The version of the client
-VERSION = "0.1.0"
+# The version and release status of the client
+GNODECLIENT_VERSION = "0.1.0"
+GNODECLIENT_RELEASE = "Alpha"
 
 # A global session object.
 _MAIN_SESSION = None
