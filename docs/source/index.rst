@@ -1,25 +1,22 @@
-How to install and use the python G-Node client
-===============================================
+==================================
+Python G-Node client Documentation
+==================================
 
-About
------
+The Python G-Node Client is a library, that provides access to the `G-Node REST-API`_
+for the Python programming language.
+The client provides a high-level interface to the REST API which includes useful features such as
+lazy loading, caching and the prevention of so called lost updates.
+Further more this client library can handle native neo and odml objects.
 
-TODO write about the client
 
-Usage
------
+.. toctree::
+   :maxdepth: 3
 
-Connect to the gnode server.
+   install
+   getting_started
+   general
+   retrieval
+   upload
 
-.. code-block:: python
-
-    from gnodeclient import *
-    s = session.create()
-    bls = s.select(Model.BLOCK)
-
-Session Reference
------------------
-
-.. automodule:: gnodeclient.session
-   :members:
-
+.. external references
+.. _G-Node REST-API: http://g-node.github.io/g-node-portal/
