@@ -307,6 +307,27 @@ class CachingRestStore(BasicStore):
         self.cache_store.delete(entity)
         self.rest_store.delete(entity)
 
+    def permissions(self, entity, permissions=None):
+        """
+        Set or get permissions of an object from the G-Node service.
+
+        :param entity: The entity to get or set permissions from/to.
+        :type entity: object
+        :param permissions: new permissions to apply. It should look like
+            {
+                "safety_level": 1, # 1-private, 2-friendly, 3-public
+                "shared_with": {
+                    "bob": 1, # 1-read-only
+                    "jeff", 2 # 2-read-write
+                }
+            }
+        :type permissions: dict
+
+        :returns: actual object permissions
+        :rtype: dict (see above)
+        """
+        return self.rest_store.permissions(entity, permissions)
+
     #
     # Private functions
     #

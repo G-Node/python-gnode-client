@@ -304,3 +304,41 @@ class RestStore(BasicStore):
         future = self.__session.delete(url)
         response = future.result()
         response.raise_for_status()
+
+    def permissions(self, entity, permissions=None):
+        """
+        Set or get permissions of an object from the G-Node service.
+
+        :param entity: The entity to get or set permissions from/to.
+        :type entity: object
+        :param permissions: new permissions to apply. It should look like
+            {
+                "safety_level": 1, # 1-private, 2-friendly, 3-public
+                "shared_with": {
+                    "bob": 1, # 1-read-only
+                    "jeff", 2 # 2-read-write
+                }
+            }
+        :type permissions: dict
+
+        :returns: actual object permissions
+        :rtype: dict (see above)
+        """
+        if hasattr(entity, "location") and entity.location is not None:
+            base_url = entity.location
+            if not base_url.endswith('/'):
+                base_url += '/'
+            url = urlparse.urljoin(self.location, base_url + 'acl/')
+        else:
+            raise ValueError("Please submit object "
+                             "to the server before changing permissions")
+        if permissions:
+            data = convert.permissions_to_json(permissions)
+            future = self.__session.post(url, data=data)
+        else:
+            future = self.__session.get(url)
+
+        response = future.result()
+        response.raise_for_status()
+
+        return convert.json_to_permissions(response.content)
