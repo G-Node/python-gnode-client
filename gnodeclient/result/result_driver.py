@@ -6,16 +6,22 @@ store.
 
 from __future__ import print_function, absolute_import, division
 
+import numpy
 import quantities as pq
 
-import odml
-from odml import Section, Property, Value
-from neo import Block, Segment, EventArray, Event, EpochArray, Epoch, RecordingChannelGroup, RecordingChannel, \
-    Unit, SpikeTrain, Spike, AnalogSignalArray, AnalogSignal, IrregularlySampledSignal
-from gnodeclient.store.basic_store import BasicStore
+#import odml
+import odml.base
+import odml.section
+import odml.property
+import odml.value
+import neo
 
+from gnodeclient.result.adapt_odml import Section, Property, Value
+from gnodeclient.result.adapt_neo import Block, Segment, EventArray, Event, EpochArray, Epoch, \
+    RecordingChannelGroup, RecordingChannel, Unit, SpikeTrain, Spike, AnalogSignalArray, \
+    AnalogSignal, IrregularlySampledSignal
+from gnodeclient.store.caching_rest_store import CachingRestStore
 from gnodeclient.util.proxy import LazyProxy, lazy_list_loader, lazy_value_loader
-
 from gnodeclient.model.models import Model
 
 
@@ -46,7 +52,7 @@ class ResultDriver(object):
         Readonly property for the used sore object.
 
         :returns: The store object, that is used by the driver.
-        :rtype: BasicStore
+        :rtype: CachingRestStore
         """
         return self.__store
 
@@ -90,10 +96,6 @@ class NativeDriver(ResultDriver):
     #
 
     FW_MAP = {
-        #Model.DATAFILE: "datafile",
-        Model.SECTION: Section,
-        Model.PROPERTY: Property,
-        Model.VALUE: Value,
         Model.BLOCK: Block,
         Model.SEGMENT: Segment,
         Model.EVENTARRAY: EventArray,
@@ -108,12 +110,29 @@ class NativeDriver(ResultDriver):
         Model.ANALOGSIGNALARRAY: AnalogSignalArray,
         Model.ANALOGSIGNAL: AnalogSignal,
         Model.IRREGULARLYSAMPLEDSIGNAL: IrregularlySampledSignal,
+        Model.SECTION: Section,
+        Model.PROPERTY: Property,
+        Model.VALUE: Value,
     }
 
     RW_MAP = {
-        Model.SECTION: type(Section("", "")),
-        Model.PROPERTY: type(Property("", "")),
-        Model.VALUE: type(Value("")),
+        Model.BLOCK: neo.Block,
+        Model.SEGMENT: neo.Segment,
+        Model.EVENTARRAY: neo.EventArray,
+        Model.EVENT: neo.Event,
+        Model.EPOCHARRAY: neo.EpochArray,
+        Model.EPOCH: neo.Epoch,
+        Model.RECORDINGCHANNELGROUP: neo.RecordingChannelGroup,
+        Model.RECORDINGCHANNEL: neo.RecordingChannel,
+        Model.UNIT: neo.Unit,
+        Model.SPIKETRAIN: neo.SpikeTrain,
+        Model.SPIKE: neo.Spike,
+        Model.ANALOGSIGNALARRAY: neo.AnalogSignalArray,
+        Model.ANALOGSIGNAL: neo.AnalogSignal,
+        Model.IRREGULARLYSAMPLEDSIGNAL: neo.IrregularlySampledSignal,
+        Model.SECTION: odml.section.Section,
+        Model.PROPERTY: odml.property.Property,
+        Model.VALUE: odml.value.Value,
     }
 
     #
@@ -144,10 +163,14 @@ class NativeDriver(ResultDriver):
                 elif field.type_info == "datafile":
                     units = field_val["units"]
                     data = self.store.get_array(field_val["data"])
-                    kw[field_name] = pq.Quantity(data, units)
+                    if units is not None:
+                        kw[field_name] = pq.Quantity(data, units)
+                    else:
+                        kw[field_name] = numpy.array(data)
 
                 elif obj.model == Model.PROPERTY and field.type_info == Model.VALUE:
-                    kw['value'] = field_val
+                    proxy = LazyProxy(lazy_list_loader(field_val, self.store, self, odml.base.SafeList))
+                    kw["value"] = proxy
 
                 else:
                     kw[field_name] = field_val
@@ -162,8 +185,12 @@ class NativeDriver(ResultDriver):
                 field = obj.get_field(field_name)
                 if field.is_parent:
                     if field_val is not None:
-                        proxy = LazyProxy(lazy_value_loader(field_val, self.store, self))
-                        setattr(native, field_name, proxy)
+                        if obj.model == Model.VALUE and field_name == "parent":
+                            proxy = LazyProxy(lazy_value_loader(field_val, self.store, self))
+                            setattr(native, "_property", proxy)
+                        else:
+                            proxy = LazyProxy(lazy_value_loader(field_val, self.store, self))
+                            setattr(native, field_name, proxy)
 
                 elif field.is_child:
                     list_cls = list
@@ -175,7 +202,7 @@ class NativeDriver(ResultDriver):
                     if field_val is not None and len(field_val) > 0:
                         proxy = LazyProxy(lazy_list_loader(field_val, self.store, self, list_cls))
                         # TODO think about a better way to assign attrs
-                        if field.type_info in [Model.SECTION, Model.VALUE]:
+                        if field.type_info in [Model.SECTION, Model.VALUE] and field_name != "metadata":
                             setattr(native, '_' + field_name, proxy)
                         elif field.type_info == Model.PROPERTY:
                             setattr(native, '_props', proxy)
@@ -215,11 +242,8 @@ class NativeDriver(ResultDriver):
         # TODO detect unbound (newly created and not persisted) related objects and throw an error
         # get type name and create a model
         model_obj = None
-        for model_name in NativeDriver.FW_MAP:
-            if model_name in NativeDriver.RW_MAP:
-                cls = NativeDriver.RW_MAP[model_name]
-            else:
-                cls = NativeDriver.FW_MAP[model_name]
+        for model_name in NativeDriver.RW_MAP:
+            cls = NativeDriver.RW_MAP[model_name]
 
             if isinstance(obj, cls):
                 model_obj = Model.create(model_name)
@@ -230,38 +254,58 @@ class NativeDriver(ResultDriver):
 
         # iterate over fields and set them on the model
         for field_name in model_obj:
-            if hasattr(obj, field_name):
-                field = model_obj.get_field(field_name)
-                field_val = getattr(obj, field_name, field.default)
+            field = model_obj.get_field(field_name)
+            if field.type_info != "datafile":
+                if hasattr(obj, field_name):
+                    field_val = getattr(obj, field_name, field.default)
 
-                # special treatment for the location field
-                if field_name == "location":
-                    model_obj.location = field_val
-                    model_obj.id = field_val.split("/")[-1]
-                # process all child relationships
-                elif field.is_child:
-                    if field_val is not None:
-                        locations = []
-                        for val in field_val:
-                            if hasattr(val, 'location'):
-                                locations.append(val.location)
+                    # special treatment for the location field
+                    if field_name == "location":
+                        model_obj.location = field_val
+                        model_obj.id = field_val.split("/")[-1]
+                    # process all child relationships
+                    elif field.is_child:
+                        if field_val is not None:
+                            locations = []
+                            for val in field_val:
+                                if hasattr(val, 'location'):
+                                    locations.append(val.location)
 
-                        model_obj[field_name] = locations
-                # process all parent relationships
-                elif field.is_parent:
-                    if field_val is not None and hasattr(field_val, 'location'):
-                        model_obj[field_name] = field_val.location
-                # data fields
-                elif field.type_info == "data":
+                            model_obj[field_name] = locations
+                    # process all parent relationships
+                    elif field.is_parent:
+                        if field_val is not None and hasattr(field_val, 'location'):
+                            model_obj[field_name] = field_val.location
+                    # data fields
+                    elif field.type_info == "data":
+                        if field_val is not None:
+                            data = float(field_val)
+                            units = field_val.dimensionality.string
+                            model_obj[field_name] = {"data": data, "units": units}
+                            # default
+                    else:
+                        if isinstance(field_val, numpy.ndarray):
+                            field_val = list(field_val)
+                        model_obj[field_name] = field_val
+            # datafile fields
+            else:
+                if field_name == "signal" and model_obj.model in (Model.ANALOGSIGNAL, Model.ANALOGSIGNALARRAY,
+                                                                  Model.IRREGULARLYSAMPLEDSIGNAL):
+                    units = obj.dimensionality.string
+                    datafiel_location = self.store.set_array(obj, temporary=True)
+                    model_obj[field_name] = {"units": units, "data": datafiel_location}
+                elif field_name == "times" and model_obj.model == Model.SPIKETRAIN:
+                    units = obj.dimensionality.string
+                    datafiel_location = self.store.set_array(obj, temporary=True)
+                    model_obj[field_name] = {"units": units, "data": datafiel_location}
+                elif hasattr(obj, field_name):
+                    field_val = getattr(obj, field_name, field.default)
                     if field_val is not None:
-                        data = float(field_val)
-                        units = str(field_val).split(" ")[1]
-                        model_obj[field_name] = {"data": data, "units": units}
-                elif field.type_info == "datafile":
-                    # TODO handle datafiles here
-                    pass
-                # default
-                else:
-                    model_obj[field_name] = field_val
+                        if hasattr(field_val, "dimensionality"):
+                            units = field_val.dimensionality.string
+                        else:
+                            units = None
+                        datafiel_location = self.store.set_array(field_val, temporary=True)
+                        model_obj[field_name] = {"units": units, "data": datafiel_location}
 
         return model_obj

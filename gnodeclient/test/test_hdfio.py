@@ -9,7 +9,7 @@ class TestHDFIO(unittest.TestCase):
     Unit tests for the hdf array data reading and writing.
     """
 
-    def test_all(self):
+    def test_hdf5_io(self):
         testpath = '/tmp/bla.hdf5'
         testlist = [1, 2, 3, 4, 5, 6, 7, 8, 9]
         testarray = np.array(testlist)

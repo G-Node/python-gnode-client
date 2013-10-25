@@ -18,15 +18,17 @@ except ImportError:
 
 import gnodeclient.util.helper as helper
 
-DEFAUTL_BASE_DIR = 'gnodeclient'
-FILE_DIR = 'files'
-OBJ_DIR = 'objects'
-
 
 class Cache(object):
     """
     A file system based cache that uses pickle to store python objects and file data.
     """
+
+    DEFAUTL_BASE_DIR = 'gnodeclient'
+    FILE_DIR = 'files'
+    FILE_DIR_TMP = 'files_tmp'
+    OBJ_DIR = 'objects'
+    OBJ_DIR_TMP = 'objects_tmp'
 
     def __init__(self, location=None, base_dir=DEFAUTL_BASE_DIR):
         """
@@ -42,15 +44,12 @@ class Cache(object):
         else:
             self.__base_dir = os.path.join(location, base_dir)
 
-        self.__file_dir = os.path.join(self.base_dir, FILE_DIR)
-        self.__obj_dir = os.path.join(self.base_dir, OBJ_DIR)
+        self.__file_dir = os.path.join(self.base_dir, Cache.FILE_DIR)
+        self.__file_dir_tmp = os.path.join(self.base_dir, Cache.FILE_DIR_TMP)
+        self.__obj_dir = os.path.join(self.base_dir, Cache.OBJ_DIR)
+        self.__obj_dir_tmp = os.path.join(self.base_dir, Cache.OBJ_DIR_TMP)
 
-        dirs = (self.base_dir, self.file_dir, self.obj_dir)
-        for d in dirs:
-            if not os.path.isdir(d):
-                os.makedirs(d, 0o0750)
-            else:
-                os.chmod(d, 0o0750)
+        self.ensure_dirs()
 
     #
     # Properties
@@ -77,11 +76,32 @@ class Cache(object):
         """
         return self.__obj_dir
 
+    @property
+    def file_dir_tmp(self):
+        """
+        The path to the directory where temporarily cached files are stored.
+        """
+        return self.__file_dir_tmp
+
+    @property
+    def obj_dir(self):
+        """
+        The path to the directory where cached objects are stored.
+        """
+        return self.__obj_dir
+
+    @property
+    def obj_dir_tmp(self):
+        """
+        The path to the directory where temporarily cached objects are stored.
+        """
+        return self.__obj_dir_tmp
+
     #
     # Methods
     #
 
-    def set(self, location, data):
+    def set(self, location, data, temporary=False):
         """
         Caches some object under a certain identifier. The identifier is extracted from the given
         location.
@@ -97,13 +117,13 @@ class Cache(object):
         :type data: object
         """
         ident = helper.id_from_location(location)
-        f_name = self.obj_cache_path(ident)
+        f_name = self.obj_cache_path(ident, temporary)
 
         all_data = self._secure_read(f_name, {})
         all_data[ident] = data
         self._secure_write(f_name, all_data)
 
-    def get(self, location):
+    def get(self, location, temporary=False):
         """
         Get an object form the cache.
 
@@ -117,7 +137,7 @@ class Cache(object):
         ident = helper.id_from_location(location)
 
         if len(ident) > 0:
-            f_name = self.obj_cache_path(ident)
+            f_name = self.obj_cache_path(ident, temporary)
 
             all_data = self._secure_read(f_name, {})
 
@@ -126,7 +146,7 @@ class Cache(object):
 
         return result
 
-    def delete(self, location):
+    def delete(self, location, temporary=False):
         """
         Delete an object form the cache.
 
@@ -137,17 +157,18 @@ class Cache(object):
         :rtype: bool
         """
         ident = helper.id_from_location(location)
-        f_name = self.obj_cache_path(ident)
+        f_name = self.obj_cache_path(ident, temporary)
 
         all_data = self._secure_read(f_name, {})
 
         if ident in all_data:
             del all_data[ident]
+            self._secure_write(f_name, all_data)
             return True
         else:
             return False
 
-    def set_file(self, location, data):
+    def set_file(self, location, data, temporary=False):
         """
         Write file data to the cache.
 
@@ -157,11 +178,11 @@ class Cache(object):
         :type data: str
         """
         ident = helper.id_from_location(location)
-        f_name = self.file_cache_path(ident)
+        f_name = self.file_cache_path(ident, temporary)
 
         self._secure_write(f_name, data, False)
 
-    def get_file(self, location):
+    def get_file(self, location, temporary=False):
         """
         Get file data form the cache.
 
@@ -172,7 +193,7 @@ class Cache(object):
         :rtype: str
         """
         ident = helper.id_from_location(location)
-        f_name = self.file_cache_path(ident)
+        f_name = self.file_cache_path(ident, temporary)
 
         if os.path.isfile(f_name):
             data = self._secure_read(f_name, serialize=False)
@@ -180,7 +201,7 @@ class Cache(object):
         else:
             return None
 
-    def delete_file(self, location):
+    def delete_file(self, location, temporary=False):
         """
         Delete file data form the cache.
 
@@ -191,7 +212,7 @@ class Cache(object):
         :rtype: bool
         """
         ident = helper.id_from_location(location)
-        f_name = self.file_cache_path(ident)
+        f_name = self.file_cache_path(ident, temporary)
 
         if os.path.isfile(f_name):
             os.remove(f_name)
@@ -199,22 +220,41 @@ class Cache(object):
         else:
             return False
 
-    def clear(self):
+    def clear(self, temporary=False):
         """
         Erase all data from the cache.
         """
-        dirs = (self.base_dir, self.file_dir, self.obj_dir)
+        if temporary:
+            dirs = (self.file_dir_tmp, self.obj_dir_tmp)
+        else:
+            dirs = (self.file_dir, self.obj_dir, self.file_dir_tmp, self.obj_dir_tmp)
+
         for d in dirs:
             if os.path.exists(d):
                 shutil.rmtree(d)
-            os.makedirs(d, 0o0750)
 
-    def obj_cache_path(self, ident):
+        self.ensure_dirs()
+
+    def obj_cache_path(self, ident, temporary):
         prefix = ident[0:2]
-        return os.path.join(self.obj_dir, prefix)
+        if temporary:
+            return os.path.join(self.obj_dir_tmp, prefix)
+        else:
+            return os.path.join(self.obj_dir, prefix)
 
-    def file_cache_path(self, ident):
-        return os.path.join(self.file_dir, ident)
+    def file_cache_path(self, ident, temporary):
+        if temporary:
+            return os.path.join(self.file_dir_tmp, ident)
+        else:
+            return os.path.join(self.file_dir, ident)
+
+    def ensure_dirs(self):
+        dirs = (self.base_dir, self.file_dir, self.obj_dir, self.file_dir_tmp, self.obj_dir_tmp)
+        for d in dirs:
+            if not os.path.isdir(d):
+                os.makedirs(d, 0o0750)
+            else:
+                os.chmod(d, 0o0750)
 
     #
     # Helper methods

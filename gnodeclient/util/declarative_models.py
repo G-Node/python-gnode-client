@@ -35,7 +35,7 @@ def _mangle_field_name(cls_name, field_name):
     return "_%s__%s" % (cls_name, field_name)
 
 
-def _generate_field_property(dct, fields):
+def _make_registered_fields_property(dct, fields):
     """
     Generates a property that returns all registered fields.
     """
@@ -48,13 +48,40 @@ def _generate_field_property(dct, fields):
     dct[_REGISTERED_FIELDS_GETTER] = property(getter, None, None, "All registered field descriptors")
 
 
+def _add_field_property_to_dct(dct, cls_name, field, field_name):
+    """
+    Creates a property with setter, getter and deleter from a given field, and
+    adds this field to a dict.
+    """
+    mangled_name = _mangle_field_name(cls_name, field_name)
+
+    def getter(myself):
+        if not hasattr(myself, mangled_name):
+            setattr(myself, mangled_name, field.default)
+        return getattr(myself, mangled_name)
+
+    def setter(myself, value):
+        if field.check(value):
+            setattr(myself, mangled_name, value)
+        else:
+            raise ValueError("Not a valid value: %s!" % str(value))
+
+    def deleter(myself):
+        if hasattr(myself, mangled_name):
+            delattr(myself, mangled_name)
+        if field.default is not None:
+            setattr(myself, mangled_name, field.default)
+
+    dct[field_name] = property(getter, setter, deleter, "Property accessor for %s.%s" % (cls_name, field_name))
+
+
 class Field(object):
     """
     Field objects can be used to describe fields/properties of model classes.
     """
 
     def __init__(self, is_parent=False, is_child=False, ignore=False, field_type=object, type_info=None,
-                 default=None, obligatory=False):
+                 default=None, obligatory=False, name_mapping=None):
         """
         Constructor for Field.
 
@@ -78,6 +105,9 @@ class Field(object):
 
         :param obligatory: Specifies if a field is optional or obligatory.
         :type obligatory: bool
+
+        :param name_mapping: The original field name should be mapped to another name for serialisation.
+        :type name_mapping: str
         """
         self.__is_parent = is_parent
         self.__is_child = is_child
@@ -86,6 +116,7 @@ class Field(object):
         self.__type_info = type_info
         self.__default = default
         self.__obligatory = obligatory
+        self.__name_mapping = name_mapping
 
     #
     # Properties
@@ -119,34 +150,16 @@ class Field(object):
     def obligatory(self):
         return self.__obligatory
 
+    @property
+    def name_mapping(self):
+        return self.__name_mapping
+
     #
     # Methods
     #
 
     def check(self, val):
         return True
-
-    def _generate_property(self, dct, cls_name, field_name, doc=""):
-        mangled_name = _mangle_field_name(cls_name, field_name)
-
-        def getter(myself):
-            if not hasattr(myself, mangled_name):
-                setattr(myself, mangled_name, self.default)
-            return getattr(myself, mangled_name)
-
-        def setter(myself, value):
-            if self.check(value):
-                setattr(myself, mangled_name, value)
-            else:
-                raise ValueError("Not a valid value: %s!" % str(value))
-
-        def deleter(myself):
-            if hasattr(myself, mangled_name):
-                delattr(myself, mangled_name)
-            if self.default is not None:
-                setattr(myself, mangled_name, self.default)
-
-        dct[field_name] = property(getter, setter, deleter, doc)
 
     #
     # Built-in functions
@@ -176,13 +189,13 @@ class ModelMeta(type):
                 fields.update(getattr(b, _REGISTERED_FIELDS))
 
         # collect field descriptors from own dict
-        for f in dct.keys():
-            f_desc = dct[f]
-            if isinstance(f_desc, Field):
-                f_desc._generate_property(dct, name, f, "Property accessor for %s" % f)
-                fields[f] = f_desc
+        for field_name in dct.keys():
+            field = dct[field_name]
+            if isinstance(field, Field):
+                _add_field_property_to_dct(dct, name, field, field_name)
+                fields[field_name] = field
 
-        _generate_field_property(dct, fields)
+        _make_registered_fields_property(dct, fields)
         return type.__new__(mcs, name, bases, dct)
 
 
@@ -216,43 +229,36 @@ class Model(object):
     #
 
     @property
-    # TODO refactor to: inspect
     def fields(self):
         """Descriptors for all fields of the model"""
         return self.__inspect_filtered()
 
     @property
-    # TODO refactor to: inspect_parents
     def parent_fields(self):
         """Descriptors for all fields of the model, that are parent relationships"""
         return self.__inspect_filtered(lambda x: x.is_parent)
 
     @property
-    # TODO refactor to: inspect_children
     def child_fields(self):
         """Descriptors for all fields of the model, that are child relationships"""
         return self.__inspect_filtered(lambda x: x.is_child)
 
     @property
-    # TODO refactor to: inspect_relationship
     def reference_fields(self):
         """Descriptors for all fields of the model, that are some kind of relationship"""
         return self.__inspect_filtered(lambda x: x.is_child or x.is_parent)
 
     @property
-    # TODO refactor to: inspect_non_relationship
     def none_reference_fields(self):
         """Descriptors for all fields of the model, that are not a kind of relationship"""
         return self.__inspect_filtered(lambda x: not x.is_child and not x.is_parent)
 
     @property
-    # TODO refactor to: inspect_optional
     def optional_fields(self):
         """Descriptors for all fields of the model, that are optional"""
         return self.__inspect_filtered(lambda x: not x.obligatory)
 
     @property
-    # TODO refactor to: inspect_obligatory
     def obligatory_fields(self):
         """Descriptors for all fields of the model, that are obligatory"""
         return self.__inspect_filtered(lambda x: x.obligatory)
@@ -261,7 +267,6 @@ class Model(object):
     # Methods
     #
 
-    # TODO refactor to: inspect_field
     def get_field(self, name):
         """
         Get a field descriptor by the name of the field.
