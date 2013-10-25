@@ -85,6 +85,30 @@ class TestRemote(unittest.TestCase):
             msg = "The result of get(%s) should be None!" % first_result.location
             self.assertIsNone(second_result, msg)
 
+    def test_05_permissions(self):
+        default_perms = {
+            "safety_level": 1,
+            "shared_with": {
+                "anita": 1,
+                "jeff": 2
+            }
+        }
+        for name in self.data:
+            data = self.data[name]
+            obj = self.session.set(data.test_data)
+
+            old_perms = self.session.permissions(obj)
+
+            new_perms = self.session.permissions(obj, default_perms)
+            msg = "Permissions do not match, before: %s, after: %s" % \
+                  (default_perms, new_perms)
+            self.assertEqual(default_perms, new_perms, msg)
+
+            new_perms = self.session.permissions(obj, old_perms)
+            msg = "Permissions do not match, before: %s, after: %s" % \
+                  (old_perms, new_perms)
+            self.assertEqual(old_perms, new_perms, msg)
+
 
 if __name__ == "__main__":
     suite = unittest.TestSuite()
