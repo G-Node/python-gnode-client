@@ -1,35 +1,8 @@
 """
 The session module defines the main programming interface of the G-Node Client. It
-provides Session class which defines all methods, that are necessary to access the
+provides the Session class which defines all methods, that are necessary to access the
 G-Node REST API. Further the module defines the functions crate() and close(): both
 functions operate on a global, application wide session object.
-
-Example usage:
-
->>> from gnodeclient import session, Model
-
-Create a session and store the connection information in a config file.
-
->>> s = session.create(location="http://predata.g-node.org", username="bob", password="pass", persist_options=True)
-
-Get a list of all blocks, get all segments from the first block and print the name of
-its first segment.
-
->>> blocks = s.select(Model.BLOCK)
->>> segments = blocks[0].segments
->>> seg = segments[0]
->>> print(seg.name)
-
-Fetch the whole segment and all its child objects to the cache.
-
->>> seg = s.get(seg.location, refresh=True, recursive=True)
-
-Since all child objects are now in the cache, the next operations should perform
-quite well.
-
->>> for sig in seg.analogsignals:
->>>     print(repr(sig))
-
 """
 
 from __future__ import print_function, absolute_import, division
