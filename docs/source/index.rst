@@ -10,7 +10,7 @@ Further more this client library can handle native neo and odml objects.
 
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 1
 
    install
    getting_started

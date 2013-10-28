@@ -7,17 +7,23 @@ Therefore those models are also used in this client library.
 In order to ge a better understanding about both concepts it is recommended to familiarize yourself with the
 `neo documentation`_ and the publication about odML: `A bottom-up approach to data annotation in neurophysiology`_.
 
+The best way to follow this getting started guide ist to start python in interactive mode or ipython and try out
+the following code examples.
 Before you can use the G-Node client, you have import the :py:mod:`gnodeclient` package and connect to a genode server.
+Since we need the neo package later on, we also include this.
 
 .. code-block:: python
+    :linenos:
 
+    import neo
     from gnodeclient import session, Model
 
-    s = session.create(location="http://predate.g-node.org", username="user", password="pass")
+    s = session.create(location="http://predata.g-node.org", username="user", password="pass")
 
 Once you have a session object and the session object is open, you can retrieve some data from the G-Node server.
 
 .. code-block:: python
+    :linenos:
 
     blocks = s.select(Model.BLOCK)
 
@@ -31,6 +37,7 @@ quite simple.
 Lets examine the block a bit closer:
 
 .. code-block:: python
+    :linenos:
 
     block = blocks[0]
     print block.name
@@ -51,10 +58,50 @@ object are accessed for the first time.
 The following piece of code illustrates this behaviour.
 
 .. code-block:: python
+    :linenos:
 
-    print str(block.section)
+    print type(block.segments)
     print len(block.segments)
     print len(block.recordingchannelgroups)
+
+The output of line one will show, that :py:attr:`Block.segments` is a proxy object.
+As soon as data from the proxy is requested (line 2 and 3) the data will be fetched from the server or the cache.
+
+The :py:meth:`Session.select` method is used to get data by type and provides the possibility to reduce the results by filter.
+A second method for getting dat is :py:meth:`Session.get`.
+This method takes a single object identifier, the location, as first argument.
+
+.. code-block:: python
+    :linenos:
+
+    block = s.get(block.location, refresh=True)
+
+The parameter refresh controls whether or not the client should check for updates on the server if the object was
+found in the cache.
+
+The next code example should demonstrate how to upload data on the G-Node REST API.
+First a new :py:class:`neo.Segment` is created and in a second step the segment is added to the segments of an existing
+block.
+
+.. code-block:: python
+    :linenos:
+
+    segment = neo.Segment("cool segment")
+    segment.block = block
+
+    segment = s.set(segment)
+
+    block = s.get(block.location, refresh=True)
+
+The above example reveals some design principles of the G-Node API and the client library:
+
+1. Associations between objects can only be changed on the one-side of the one-to-many relationship.
+2. All functions of the client interface are free of side-effects.
+   This means, that existing objects are never changed by subsequent function calls.
+   In this example the content of :py:attr:`block.segments` changes when the segment was saved using :py:meth:`Session.set`.
+   Since the original block object is not changed by this method, the block has to be updated (line 6).
+
+
 
 
 
