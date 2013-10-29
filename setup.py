@@ -5,6 +5,9 @@ except ImportError:
 
 from gnodeclient import GNODECLIENT_VERSION
 
+with open('README.rst') as file:
+    long_description = file.read()
+
 setup(
     name='gnodeclient',
     version=GNODECLIENT_VERSION,
@@ -22,7 +25,7 @@ setup(
     url='http://pypi.python.org/pypi/GnodeClient/',
     license='LICENSE.txt',
     description='Client for the G-Node REST API.',
-    long_description=open('README.rst').read(),
+    long_description=long_description,
     install_requires=[
         "requests >= 0.12.0",
         "appdirs >= 1.2.0",
