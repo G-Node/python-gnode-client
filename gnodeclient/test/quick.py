@@ -22,6 +22,9 @@ px = LazyProxy(loader)
 
 s = session.create(password="pass")
 
+sections = s.select(Model.SECTION, {'max_results': 5})
+props = s.select(Model.PROPERTY, {'max_results': 5})
+vals = s.select(Model.VALUE, {'max_results': 5})
 seg = s.get("http://predata.g-node.org/electrophysiology/segment/C4FU130GIK/")
 blocks = s.select(Model.BLOCK)
 
@@ -54,7 +57,8 @@ print("Block location: " + bl.location)
 
 s.delete(bl)
 
-try:
-    bl = s.get(bl.location)
-except requests.exceptions.HTTPError:
+bl = s.get(bl.location)
+if bl is None:
     print("Block deleted: OK")
+else:
+    print("Block deleted: FAIL")
