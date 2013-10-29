@@ -1,13 +1,6 @@
-====================
-Python G-Node Client
-====================
-
-The Python G-Node Client is a library, that provides access to the `G-Node REST-API`_
-for the Python programming language.
-The client provides a high-level interface to the REST API which includes usefull features such as
-lazy loading, caching and the prevention of so called lost updades.
-Further more this client liabrary can handle native neo and odml objects.
-
+==================
+Installation guide
+==================
 
 Dependencies
 ============
@@ -15,7 +8,7 @@ Dependencies
 Using the G-Node Client requires some other python packages to be installed:
 
 - neo_ A package for representing electrophysiology data in Python
-- quantities_ Arithmetic and conversions of physical quantities
+- quantities_ Arithmetic conversions of physical quantities
 - odml_ Open metadata markup language
 - appdirs_ Get appropriate platform-specific user dirs
 - request-futures_ Asynchronous Python HTTP Request
@@ -23,10 +16,10 @@ Using the G-Node Client requires some other python packages to be installed:
 
 All dependencies with the exception of the python odml package, can be installed
 using easy_install.
-On debian bases linux distributions one install packages for quantities (python-quantities),
-neo (python-neo) and h5py (python-h5py) using apt-get or aptitude.
+On debian based linux distributions packages for quantities (python-quantities),
+neo (python-neo) and h5py (python-h5py) can be installed using the package manager (apt-get, aptitude).
 
-To install the odml package use the following commands, with apropriate permissions
+To install the odml package use the following commands, with appropriate permissions
 (e.g. with sudo for the last command).
 
 .. code-block:: guess
@@ -48,18 +41,6 @@ To install the client invoke the following commands using appropriate permission
     python setup.py install
 
 
-Howto use the client
-====================
-
-If sphinx_ is installed on the system, the ducumentation can be build from the cloned repository by executing:
-
-.. code-block:: guess
-
-    python setup.py build_sphinx
-
-Afterwards the G-Node Client HOWTO and documentation  can be found under 'docs/build/html'.
-
-
 .. TODO add link to github pages here
 
 .. external references
@@ -70,4 +51,3 @@ Afterwards the G-Node Client HOWTO and documentation  can be found under 'docs/b
 .. _request-futures: https://github.com/ross/requests-futures
 .. _h5py: http://www.h5py.org/
 .. _G-Node REST-API: http://g-node.github.io/g-node-portal/
-.. _sphinx: http://sphinx-doc.org/

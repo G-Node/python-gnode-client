@@ -3,9 +3,11 @@ try:
 except ImportError:
     from distutils.core import setup
 
+from gnodeclient import GNODECLIENT_VERSION
+
 setup(
     name='gnodeclient',
-    version='0.1.0',
+    version=GNODECLIENT_VERSION,
     author='A. Stoewer, A. Sobolev',
     author_email='',
     packages=[
