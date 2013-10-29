@@ -14,8 +14,8 @@ from gnodeclient.result.result_driver import NativeDriver
 __all__ = ("GNODECLIENT_VERSION", "GNODECLIENT_RELEASE", "Session", "create", "close")
 
 # The version and release status of the client
-GNODECLIENT_VERSION = "0.1.0"
-GNODECLIENT_RELEASE = "Alpha"
+GNODECLIENT_VERSION = "0.2.0"
+GNODECLIENT_RELEASE = "Beta"
 
 # A global session object.
 _MAIN_SESSION = None
