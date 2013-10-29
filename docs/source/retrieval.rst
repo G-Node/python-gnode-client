@@ -42,7 +42,7 @@ The following example illustrates some common use cases for filters:
         "max_results": 100,
         "owner": "bob"
     }
-    sections = s.select(Model.SECTION, {"parent_section__isnull": 1})
+    sections = s.select(Model.SECTION, filters)
 
 The basic syntax for raw filters is rather complex.
 The documentation of the G-Node REST API describes how to `query data`_ from the server in detail.
