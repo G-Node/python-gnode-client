@@ -125,7 +125,15 @@ certain objects are cached.
 Get Permissions
 ===============
 
+Every kind of object that is returned by :py:meth:`Session.get` of :py:meth:`Session.select` has its own security
+settings.
+Those settings can be obtained using the :py:meth:`Session.permissions` method.
 
+.. code-block:: python
+    :linenos:
+
+    segment = s.get("electrophysiology/segment/K6LO7NH133")
+    perms = s.permissions(segment)
 
 .. external references
 .. _query data: http://g-node.github.io/g-node-portal/key_functions/data_api/query.html
