@@ -130,9 +130,11 @@ class Session(object):
         """
         Set or get permissions of an object from the G-Node service.
 
-        :param entity: The entity to get or set permissions from/to.
-        :type entity: object
-        :param permissions: new permissions to apply. It should look like
+        The permissions object, that is passed as a second parameter
+        contains the following information:
+
+        .. code-block:: python
+
             {
                 "safety_level": 1, # 1-private, 2-friendly, 3-public
                 "shared_with": {
@@ -140,6 +142,11 @@ class Session(object):
                     "jeff", 2 # 2-read-write
                 }
             }
+
+        :param entity: The entity to get or set permissions from/to.
+        :type entity: object
+        :param permissions: new permissions to apply.
+
         :type permissions: dict
 
         :returns: actual object permissions
