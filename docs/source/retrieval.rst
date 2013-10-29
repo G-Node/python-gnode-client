@@ -102,7 +102,7 @@ If this is not the case, the client will return the cached object.
     segment = s.get("electrophysiology/segment/K6LO7NH133", refresh=True)
 
 Using the refresh parameter as shown above, also speeds up the performance in cases where the most recent
-version was already cached, but is still considerably slower that without.
+version was already cached, but is still considerably slower than without.
 
 When working with larger datasets it can be quite annoying when some operations are fast (due to caching) whereas
 other operations take longer.
