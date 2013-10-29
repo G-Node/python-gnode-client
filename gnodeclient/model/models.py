@@ -92,7 +92,7 @@ class SectionModel(Model):
     name        = Field(field_type=str, obligatory=True)
     description = Field(field_type=str)
 
-    parent      = FParent(type_info=Model.SECTION, name_mapping="parent_section")
+    parent      = FParent(type_info=Model.SECTION, name_mapping="parent_section", obligatory=True)
     sections    = FChildren(type_info=Model.SECTION)
     properties  = FChildren(type_info=Model.PROPERTY)
     blocks      = FChildren(type_info=Model.BLOCK)
