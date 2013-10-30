@@ -1,0 +1,7 @@
+0.2.0, 2013-10-29
+ * Support for lazy loading
+ * Native odML and neo output and input
+ * Caching of all objects types
+ * Documentation
+
+0.1, 2013-09-12 -- Initial release.
