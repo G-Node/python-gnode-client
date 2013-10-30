@@ -12,7 +12,7 @@ setup(
     name='gnodeclient',
     version=GNODECLIENT_VERSION,
     author='A. Stoewer, A. Sobolev',
-    author_email='',
+    author_email='adrian.stoewer@rz.ifi.lmu.de',
     packages=[
         'gnodeclient',
         'gnodeclient.model',
