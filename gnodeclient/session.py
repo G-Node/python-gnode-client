@@ -1,3 +1,12 @@
+# Python G-Node Client
+#
+# Copyright (C) 2013  A. Stoewer
+#                     A. Sobolev
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License (see LICENSE.txt).
+
 """
 The session module defines the main programming interface of the G-Node Client. It
 provides the Session class which defines all methods, that are necessary to access the

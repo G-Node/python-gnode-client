@@ -4,9 +4,9 @@ Python G-Node Client
 
 The Python G-Node Client is a library, that provides access to the `G-Node REST-API`_
 for the Python programming language.
-The client provides a high-level interface to the REST API which includes usefull features such as
-lazy loading, caching and the prevention of so called lost updades.
-Further more this client liabrary can handle native neo and odml objects.
+The client provides a high-level interface to this service which includes useful features such as
+lazy loading, caching and the prevention of so called lost updates.
+Further more this client library can handle native neo and odml objects.
 
 
 Dependencies
@@ -21,12 +21,19 @@ Using the G-Node Client requires some other python packages to be installed:
 - request-futures_ Asynchronous Python HTTP Request
 - h5py_ HDF5 for Python
 
+In order to build the documentation and install the package using setup.py the following
+packages are recommended.
+
+- sphinx_
+- setuptools_
+
 All dependencies with the exception of the python odml package, can be installed
 using easy_install.
 On debian bases linux distributions one install packages for quantities (python-quantities),
-neo (python-neo) and h5py (python-h5py) using apt-get or aptitude.
+neo (python-neo), sphinx (python-sphinx), setuptools (python-setuptools) and h5py (python-h5py)
+using the package manager (apt-get, aptitude).
 
-To install the odml package use the following commands, with apropriate permissions
+To install the odml package use the following commands, with appropriate permissions
 (e.g. with sudo for the last command).
 
 .. code-block:: guess
@@ -51,7 +58,8 @@ To install the client invoke the following commands using appropriate permission
 Howto use the client
 ====================
 
-If sphinx_ is installed on the system, the ducumentation can be build from the cloned repository by executing:
+If this packages :py:module:`sphinx` and :py:module`setuptools` are installed on the system, the documentation can
+be build from the cloned repository by executing the following command:
 
 .. code-block:: guess
 
@@ -71,3 +79,5 @@ Afterwards the G-Node Client HOWTO and documentation  can be found under 'docs/b
 .. _h5py: http://www.h5py.org/
 .. _G-Node REST-API: http://g-node.github.io/g-node-portal/
 .. _sphinx: http://sphinx-doc.org/
+.. _setuptools: https://pypi.python.org/pypi/setuptools
+

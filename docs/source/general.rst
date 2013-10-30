@@ -2,7 +2,7 @@
 General concepts
 ================
 
-This chapter introduces some general concepts and functions of the G-Node Python Client such as session management,
+This chapter introduces some general concepts and functions of the Python G-Node Client such as session management,
 configuration files and cache handling.
 
 Creating a Session
@@ -69,7 +69,7 @@ The subsequent example illustrates the use of them:
 
     from gnodeclient import session
 
-    s1 = session.create(location="http://predata.g-node.org", username="user", password="pass", persist_options=True)
+    s1 = session.create(location="http://predata.g-node.org", username="user", password="secret", persist_options=True)
     s2 = session.create()
     id(s1) == id(s2)           # is True
 
@@ -82,7 +82,7 @@ In the last line the global session is closed and destroyed, thus invalidating b
 Caching
 =======
 
-As already mentioned in the getting started guide, the Python G-Node Client performs caching of remote objects.
+The Python G-Node Client performs caching of remote objects.
 Since the cache management is completely handled by the client, there is not much to learn about it for the user.
 However, for some operations it is very useful to have some knowledge about how caching is used in order to understand
 the behaviour of the client.
@@ -108,9 +108,9 @@ There are mainly two methods, that give the user some control over the cache:
     # .. further operations
 
 In line one, the :py:meth:`Session.get` method is invoked with both parameters refresh and recursive set to True.
-This causes the block object to be updated and further more ensures that all its descendants are now present in
+This causes the block object to be updated and furthermore ensures that all its descendants are now present in
 the cache with their most recent version.
-An other way of making sure that only the most recent versions are used is to purge every cached object.
+Another way of making sure that only the most recent versions are used is to purge every cached object.
 This is shown in line 4 of the above example.
 
 

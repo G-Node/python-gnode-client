@@ -66,7 +66,7 @@ Typical location strings have the following format <category>/<type>/<id> here a
 
 Without any other parameter :py:meth:`Session.get` will look up the requested object in the cache and return it.
 Only if an object is missing from the cache it will be requested from the server.
-If and object was not found at all :py:meth:`Session.get` returns :py:const:`None`.
+If an object was not found at all :py:meth:`Session.get` returns :py:const:`None`.
 The following example demonstrates this behaviour.
 
 .. code-block:: python
@@ -102,11 +102,11 @@ If this is not the case, the client will return the cached object.
     segment = s.get("electrophysiology/segment/K6LO7NH133", refresh=True)
 
 Using the refresh parameter as shown above, also speeds up the performance in cases where the most recent
-version was already cached, but is still considerably slower that without.
+version was already cached, but is still considerably slower than without.
 
 When working with larger datasets it can be quite annoying when some operations are fast (due to caching) whereas
 other operations take longer.
-Therefore the py:meth:`Session.get` method provides a third optional parameter, that can be used to make sure, that
+Therefore the :py:meth:`Session.get` method provides a third optional parameter, that can be used to make sure, that
 certain objects are cached.
 
 .. code-block:: python
@@ -121,6 +121,27 @@ certain objects are cached.
     # lazy loading is fast because it uses the cache
     noof_signals = len(segment.analogsignals)
 
+
+Work with Signal Data
+=====================
+
+The next short example shows how signal data can be retrieved from the server and then plotted using matplotlib.
+
+.. code-block:: python
+    :linenos:
+
+    from matplotlib import pylab
+
+    segment = s.get("electrophysiology/segment/K6LO7NH133")
+    signals = segment.analogsignals
+
+    for s in signals:
+        pylab.plot(s.times, s)
+
+    pylab.xlabel(signals[0].times.units.dimensionality.string)
+    pylab.ylabel(signals[0].units.dimensionality.string)
+
+    pylab.show()
 
 Get Permissions
 ===============
