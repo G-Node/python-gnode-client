@@ -8,6 +8,9 @@ from gnodeclient import GNODECLIENT_VERSION
 with open('README.rst') as file:
     long_description = file.read()
 
+with open('LICENSE.txt') as file:
+    license_text = file.read()
+
 setup(
     name='gnodeclient',
     version=GNODECLIENT_VERSION,
@@ -23,7 +26,7 @@ setup(
     test_suite="gnodeclient.test.test_all",
     scripts=[],
     url='http://pypi.python.org/pypi/GnodeClient/',
-    license='LICENSE.txt',
+    license=license_text,
     description='Client for the G-Node REST API.',
     long_description=long_description,
     install_requires=[

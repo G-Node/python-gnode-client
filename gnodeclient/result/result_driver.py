@@ -1,3 +1,12 @@
+# Python G-Node Client
+#
+# Copyright (C) 2013  A. Stoewer
+#                     A. Sobolev
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License (see LICENSE.txt).
+
 """
 This module defines so called result driver classes. A result driver is used
 in order to generate ready to use result objects from objects returned by a
