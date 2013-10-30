@@ -1,4 +1,5 @@
-import os, sys
+import os
+import sys
 
 from gnodeclient import GNODECLIENT_VERSION, GNODECLIENT_RELEASE
 

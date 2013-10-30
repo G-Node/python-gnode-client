@@ -2,7 +2,7 @@
 General concepts
 ================
 
-This chapter introduces some general concepts and functions of the G-Node Python Client such as session management,
+This chapter introduces some general concepts and functions of the Python G-Node Client such as session management,
 configuration files and cache handling.
 
 Creating a Session
@@ -69,7 +69,7 @@ The subsequent example illustrates the use of them:
 
     from gnodeclient import session
 
-    s1 = session.create(location="http://predata.g-node.org", username="user", password="pass", persist_options=True)
+    s1 = session.create(location="http://predata.g-node.org", username="user", password="secret", persist_options=True)
     s2 = session.create()
     id(s1) == id(s2)           # is True
 

@@ -1,7 +1,6 @@
 from __future__ import print_function, absolute_import, division
 
 import unittest
-from requests.exceptions import HTTPError
 from random import randint
 
 from gnodeclient import *
