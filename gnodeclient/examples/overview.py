@@ -1,4 +1,6 @@
 """
+This examples are outdated and need to be adopted to the new client!!!
+
 Before the start, you have to configure connection settings in conf.json file.
 
 Use our DEMO user to get an overview:
