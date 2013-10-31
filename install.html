@@ -1,0 +1,166 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Installation guide &mdash; Python G-Node Client 0.2.0 Beta documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.2.0 Beta',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Python G-Node Client 0.2.0 Beta documentation" href="index.html" />
+    <link rel="next" title="Getting started" href="getting_started.html" />
+    <link rel="prev" title="Python G-Node client Documentation" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="getting_started.html" title="Getting started"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Python G-Node client Documentation"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">Python G-Node Client 0.2.0 Beta documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="installation-guide">
+<h1>Installation guide<a class="headerlink" href="#installation-guide" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="dependencies">
+<h2>Dependencies<a class="headerlink" href="#dependencies" title="Permalink to this headline">¶</a></h2>
+<p>Using the G-Node Client requires some other python packages to be installed:</p>
+<ul class="simple">
+<li><a class="reference external" href="http://neuralensemble.org/neo/">neo</a> A package for representing electrophysiology data in Python</li>
+<li><a class="reference external" href="https://github.com/python-quantities/python-quantities">quantities</a> Arithmetic conversions of physical quantities</li>
+<li><a class="reference external" href="https://github.com/G-Node/python-odml">odml</a> Open metadata markup language</li>
+<li><a class="reference external" href="https://github.com/ActiveState/appdirs">appdirs</a> Get appropriate platform-specific user dirs</li>
+<li><a class="reference external" href="https://github.com/ross/requests-futures">request-futures</a> Asynchronous Python HTTP Request</li>
+<li><a class="reference external" href="http://www.h5py.org/">h5py</a> HDF5 for Python</li>
+</ul>
+<p>In order to build the documentation and install the package using setup.py the following
+packages are recommended.</p>
+<ul class="simple">
+<li><a class="reference external" href="http://sphinx-doc.org/">sphinx</a></li>
+<li><a class="reference external" href="https://pypi.python.org/pypi/setuptools">setuptools</a></li>
+</ul>
+<p>All dependencies with the exception of the python odml package, can be installed
+using easy_install.
+On debian bases linux distributions one install packages for quantities (python-quantities),
+neo (python-neo), sphinx (python-sphinx), setuptools (python-setuptools) and h5py (python-h5py)
+using the package manager (apt-get, aptitude).</p>
+<p>To install the odml package use the following commands, with appropriate permissions
+(e.g. with sudo for the last command).</p>
+<div class="highlight-guess"><div class="highlight"><pre><span class="n">git</span> <span class="n">clone</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="p">.</span><span class="n">com</span><span class="o">/</span><span class="n">G</span><span class="o">-</span><span class="n">Node</span><span class="o">/</span><span class="n">python</span><span class="o">-</span><span class="n">odml</span><span class="p">.</span><span class="n">git</span>
+<span class="n">cd</span> <span class="n">python</span><span class="o">-</span><span class="n">odml</span>
+<span class="n">python</span> <span class="n">setup</span><span class="p">.</span><span class="n">py</span> <span class="n">install</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="install">
+<h2>Install<a class="headerlink" href="#install" title="Permalink to this headline">¶</a></h2>
+<p>To install the client invoke the following commands using appropriate permissions.</p>
+<div class="highlight-guess"><div class="highlight"><pre><span class="n">git</span> <span class="n">clone</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="p">.</span><span class="n">com</span><span class="o">/</span><span class="n">G</span><span class="o">-</span><span class="n">Node</span><span class="o">/</span><span class="n">python</span><span class="o">-</span><span class="n">gnode</span><span class="o">-</span><span class="n">client</span><span class="p">.</span><span class="n">git</span>
+<span class="n">cd</span> <span class="n">python</span><span class="o">-</span><span class="n">gnode</span><span class="o">-</span><span class="n">client</span>
+<span class="n">python</span> <span class="n">setup</span><span class="p">.</span><span class="n">py</span> <span class="n">install</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Installation guide</a><ul>
+<li><a class="reference internal" href="#dependencies">Dependencies</a></li>
+<li><a class="reference internal" href="#install">Install</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">Python G-Node client Documentation</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="getting_started.html"
+                        title="next chapter">Getting started</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/install.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="getting_started.html" title="Getting started"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Python G-Node client Documentation"
+             >previous</a> |</li>
+        <li><a href="index.html">Python G-Node Client 0.2.0 Beta documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Adrian Stoewer, Andrey Sobolev.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

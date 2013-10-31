@@ -1,0 +1,415 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>General concepts &mdash; Python G-Node Client 0.2.0 Beta documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.2.0 Beta',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="Python G-Node Client 0.2.0 Beta documentation" href="index.html" />
+    <link rel="next" title="Get data from the G-Node" href="retrieval.html" />
+    <link rel="prev" title="Getting started" href="getting_started.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="retrieval.html" title="Get data from the G-Node"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="getting_started.html" title="Getting started"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">Python G-Node Client 0.2.0 Beta documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="general-concepts">
+<h1>General concepts<a class="headerlink" href="#general-concepts" title="Permalink to this headline">¶</a></h1>
+<p>This chapter introduces some general concepts and functions of the Python G-Node Client such as session management,
+configuration files and cache handling.</p>
+<div class="section" id="creating-a-session">
+<h2>Creating a Session<a class="headerlink" href="#creating-a-session" title="Permalink to this headline">¶</a></h2>
+<p>The following code example demonstrates how to create a new session object.
+First a dictionary containing all connection parameters is created, which is later passed, along with other parameters,
+to the constructor of the <tt class="xref py py-class docutils literal"><span class="pre">Session</span></tt> class.</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11</pre></div></td><td class="code"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">gnodeclient.session</span> <span class="kn">import</span> <span class="n">Session</span>
+
+<span class="n">options</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s">&quot;location&quot;</span><span class="p">:</span> <span class="s">&quot;http://predata.g-node.org&quot;</span><span class="p">,</span>
+    <span class="s">&quot;username&quot;</span><span class="p">:</span> <span class="s">&quot;user&quot;</span><span class="p">,</span>
+    <span class="s">&quot;password&quot;</span><span class="p">:</span> <span class="s">&quot;secret&quot;</span><span class="p">,</span>
+    <span class="s">&quot;cache_dir&quot;</span><span class="p">:</span> <span class="s">&quot;~/.gnodeclient/cache&quot;</span>
+<span class="p">}</span>
+
+<span class="n">s</span> <span class="o">=</span> <span class="n">Session</span><span class="p">(</span><span class="n">options</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="s">&quot;~/gnodeclient/conf&quot;</span><span class="p">,</span> <span class="n">persist_options</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="n">s</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</pre></div>
+</td></tr></table></div>
+<p>Let&#8217;s take a closer look on the connection parameters in the <tt class="xref py py-obj docutils literal"><span class="pre">options</span></tt> dictionary:</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">location:</th><td class="field-body">The is the base url of the G-Node REST API installation.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">username:</th><td class="field-body">The user to login with.</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">password:</th><td class="field-body">The password used for authentication.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">cach_dir:</th><td class="field-body">This is the location, that will be used by the client to store cached objects. If this is not provided,
+the client will choose an appropriate system dependent location (e.g. ~/.cache/gnodeclient on Linux).</td>
+</tr>
+</tbody>
+</table>
+<p>The two other parameters passed to the constructor are both related to the configuration of the client.
+The parameter <tt class="xref py py-obj docutils literal"><span class="pre">file_name</span></tt> sets the path to the configuration file, that stores the given connection
+parameters and provides defaults if they are not set. If this parameter is None, the location will be
+chosen by the client. If <tt class="xref py py-obj docutils literal"><span class="pre">persist_options</span></tt> set to is True (default is False) the provided options
+will be stored in the configuration file (except for password).</p>
+<p>Assuming that a configuration file exists, it can be used to complement missing
+connection parameters:</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1</pre></div></td><td class="code"><div class="highlight"><pre><span class="n">s</span> <span class="o">=</span> <span class="n">Session</span><span class="p">({</span><span class="s">&quot;password&quot;</span><span class="p">:</span> <span class="s">&quot;secret&quot;</span><span class="p">},</span> <span class="n">file_name</span><span class="o">=</span><span class="s">&quot;~/gnodeclient/conf&quot;</span><span class="p">)</span>
+</pre></div>
+</td></tr></table></div>
+<p>In the above example the location, username and cache_dir are retrieved from the file ~/gnodeclient/conf and then
+used to establish the session.</p>
+</div>
+<div class="section" id="the-global-session-object">
+<h2>The Global Session Object<a class="headerlink" href="#the-global-session-object" title="Permalink to this headline">¶</a></h2>
+<p>For all use-cases where only one single session object is needed one can use the functions <tt class="xref py py-func docutils literal"><span class="pre">create()</span></tt> and
+<tt class="xref py py-func docutils literal"><span class="pre">close()</span></tt> of the <a class="reference internal" href="#module-gnodeclient.session" title="gnodeclient.session"><tt class="xref py py-mod docutils literal"><span class="pre">gnodeclient.session</span></tt></a> module.
+Both functions operate on a global session object.
+The subsequent example illustrates the use of them:</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6
+7</pre></div></td><td class="code"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">gnodeclient</span> <span class="kn">import</span> <span class="n">session</span>
+
+<span class="n">s1</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="s">&quot;http://predata.g-node.org&quot;</span><span class="p">,</span> <span class="n">username</span><span class="o">=</span><span class="s">&quot;user&quot;</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="s">&quot;secret&quot;</span><span class="p">,</span> <span class="n">persist_options</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="n">s2</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">create</span><span class="p">()</span>
+<span class="nb">id</span><span class="p">(</span><span class="n">s1</span><span class="p">)</span> <span class="o">==</span> <span class="nb">id</span><span class="p">(</span><span class="n">s2</span><span class="p">)</span>           <span class="c"># is True</span>
+
+<span class="n">session</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</pre></div>
+</td></tr></table></div>
+<p>The first call in line 3 creates the global session object and returns it.
+The same object is then returned again by the second call of <tt class="xref py py-func docutils literal"><span class="pre">session.create()</span></tt>.
+In the last line the global session is closed and destroyed, thus invalidating both session objects.</p>
+</div>
+<div class="section" id="caching">
+<h2>Caching<a class="headerlink" href="#caching" title="Permalink to this headline">¶</a></h2>
+<p>The Python G-Node Client performs caching of remote objects.
+Since the cache management is completely handled by the client, there is not much to learn about it for the user.
+However, for some operations it is very useful to have some knowledge about how caching is used in order to understand
+the behaviour of the client.</p>
+<p>Here some general rules:</p>
+<ul class="simple">
+<li>The method <tt class="xref py py-meth docutils literal"><span class="pre">Session.select()</span></tt> always queries the remote server for its results.</li>
+<li>The method <tt class="xref py py-meth docutils literal"><span class="pre">Session.get()</span></tt> always returns results from the cache (if present) unless it is invoked with
+refresh True. In this case it will fetch data from the server if a newer version of the requested object is
+available.</li>
+<li>For performance reasons all lazy loaded objects are always retrieved from the cache and are only requested from
+the server when the object is missing from the cache.</li>
+</ul>
+<p>There are mainly two methods, that give the user some control over the cache:</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5</pre></div></td><td class="code"><div class="highlight"><pre><span class="n">block</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">block</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="n">refresh</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">recursive</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="c"># .. further operations</span>
+
+<span class="n">s</span><span class="o">.</span><span class="n">clear_cache</span><span class="p">()</span>
+<span class="c"># .. further operations</span>
+</pre></div>
+</td></tr></table></div>
+<p>In line one, the <tt class="xref py py-meth docutils literal"><span class="pre">Session.get()</span></tt> method is invoked with both parameters refresh and recursive set to True.
+This causes the block object to be updated and furthermore ensures that all its descendants are now present in
+the cache with their most recent version.
+Another way of making sure that only the most recent versions are used is to purge every cached object.
+This is shown in line 4 of the above example.</p>
+</div>
+<div class="section" id="module-gnodeclient.session">
+<span id="session-reference"></span><h2>Session Reference<a class="headerlink" href="#module-gnodeclient.session" title="Permalink to this headline">¶</a></h2>
+<p>The session module defines the main programming interface of the G-Node Client. It
+provides the Session class which defines all methods, that are necessary to access the
+G-Node REST API. Further the module defines the functions crate() and close(): both
+functions operate on a global, application wide session object.</p>
+<dl class="class">
+<dt id="gnodeclient.session.Session">
+<em class="property">class </em><tt class="descclassname">gnodeclient.session.</tt><tt class="descname">Session</tt><big>(</big><em>options</em>, <em>file_name</em>, <em>persist_options=False</em><big>)</big><a class="headerlink" href="#gnodeclient.session.Session" title="Permalink to this definition">¶</a></dt>
+<dd><p>The session class defines all basic methods, that are necessary to access the the
+G-Node REST API.</p>
+<dl class="method">
+<dt id="gnodeclient.session.Session.close">
+<tt class="descname">close</tt><big>(</big><big>)</big><a class="headerlink" href="#gnodeclient.session.Session.close" title="Permalink to this definition">¶</a></dt>
+<dd><p>Close all connections and opened files used by the session.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="gnodeclient.session.Session.delete">
+<tt class="descname">delete</tt><big>(</big><em>entity</em><big>)</big><a class="headerlink" href="#gnodeclient.session.Session.delete" title="Permalink to this definition">¶</a></dt>
+<dd><p>Delete an object from the G-Node service.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>entity</strong> (<em>object</em>) &#8211; The entity to delete.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="gnodeclient.session.Session.get">
+<tt class="descname">get</tt><big>(</big><em>location</em>, <em>refresh=False</em>, <em>recursive=False</em><big>)</big><a class="headerlink" href="#gnodeclient.session.Session.get" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get a specific object from the G-Node service. The object to obtain is specified by its location.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>location</strong> (<em>str</em>) &#8211; The location of the object.</li>
+<li><strong>refresh</strong> (<em>bool</em>) &#8211; If True and if the object was previously cached, check if it has changed.</li>
+<li><strong>recursive</strong> (<em>bool</em>) &#8211; If True, load all child objects recursively to the cache.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">The requested object (Neo or odML).</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="gnodeclient.session.Session.options">
+<tt class="descname">options</tt><a class="headerlink" href="#gnodeclient.session.Session.options" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read only property for accessing all used options.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">All currently used options.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">Configuration</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="gnodeclient.session.Session.permissions">
+<tt class="descname">permissions</tt><big>(</big><em>entity</em>, <em>permissions=None</em><big>)</big><a class="headerlink" href="#gnodeclient.session.Session.permissions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set or get permissions of an object from the G-Node service.</p>
+<p>The permissions object, that is passed as a second parameter
+contains the following information:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="p">{</span>
+    <span class="s">&quot;safety_level&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="c"># 1-private, 2-friendly, 3-public</span>
+    <span class="s">&quot;shared_with&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s">&quot;bob&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="c"># 1-read-only</span>
+        <span class="s">&quot;jeff&quot;</span><span class="p">,</span> <span class="mi">2</span> <span class="c"># 2-read-write</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>entity</strong> (<em>object</em>) &#8211; The entity to get or set permissions from/to.</li>
+<li><strong>permissions</strong> (<em>dict</em>) &#8211; new permissions to apply.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">actual object permissions</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">dict (see above)</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="gnodeclient.session.Session.select">
+<tt class="descname">select</tt><big>(</big><em>model_name</em>, <em>raw_filters=None</em><big>)</big><a class="headerlink" href="#gnodeclient.session.Session.select" title="Permalink to this definition">¶</a></dt>
+<dd><p>Obtain a list of objects from a certain kind from the G-Node service. In addition
+a set of filters can be applied in order to reduce the returned results.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>model_name</strong> (<em>str</em>) &#8211; The name of the model e.g. &#8216;block&#8217; or &#8216;spike&#8217;.</li>
+<li><strong>raw_filters</strong> (<em>dict</em>) &#8211; A set of filters as used by the G-Node REST API e.g. {&#8216;name_icontains&#8217;: &#8216;foo&#8217;}</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">A list of objects.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">list</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="gnodeclient.session.Session.set">
+<tt class="descname">set</tt><big>(</big><em>entity</em>, <em>avoid_collisions=False</em><big>)</big><a class="headerlink" href="#gnodeclient.session.Session.set" title="Permalink to this definition">¶</a></dt>
+<dd><p>Save a modified or created object on the G-Node service.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>entity</strong> (<em>object</em>) &#8211; The object to store (Neo or odML).</li>
+<li><strong>avoid_collisions</strong> (<em>bool</em>) &#8211; If true, check if the modified object collide with changes on the server.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">The saved entity.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">object</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="gnodeclient.session.create">
+<tt class="descclassname">gnodeclient.session.</tt><tt class="descname">create</tt><big>(</big><em>username=None</em>, <em>password=None</em>, <em>location=None</em>, <em>file_name=None</em>, <em>persist_options=False</em><big>)</big><a class="headerlink" href="#gnodeclient.session.create" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates and returns a main session object. Multiple calls will return always
+the same object unless close() was not called.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="gnodeclient.session.close">
+<tt class="descclassname">gnodeclient.session.</tt><tt class="descname">close</tt><big>(</big><big>)</big><a class="headerlink" href="#gnodeclient.session.close" title="Permalink to this definition">¶</a></dt>
+<dd><p>Close the main session object.</p>
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">General concepts</a><ul>
+<li><a class="reference internal" href="#creating-a-session">Creating a Session</a></li>
+<li><a class="reference internal" href="#the-global-session-object">The Global Session Object</a></li>
+<li><a class="reference internal" href="#caching">Caching</a></li>
+<li><a class="reference internal" href="#module-gnodeclient.session">Session Reference</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="getting_started.html"
+                        title="previous chapter">Getting started</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="retrieval.html"
+                        title="next chapter">Get data from the G-Node</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/general.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="retrieval.html" title="Get data from the G-Node"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="getting_started.html" title="Getting started"
+             >previous</a> |</li>
+        <li><a href="index.html">Python G-Node Client 0.2.0 Beta documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Adrian Stoewer, Andrey Sobolev.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>
