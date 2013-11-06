@@ -236,6 +236,7 @@ class RecordingChannelModel(Model):
     model       = Field(field_type=str, default=Model.RECORDINGCHANNEL)
     name        = Field(field_type=str)
     description = Field(field_type=str)
+    index       = Field(field_type=int, default=0)
 
     metadata                  = FChildren(type_info=Model.VALUE, name_mapping="metadata")
     recordingchannelgroups    = FChildren(type_info=Model.RECORDINGCHANNELGROUP, name_mapping="recordingchannelgroup")
