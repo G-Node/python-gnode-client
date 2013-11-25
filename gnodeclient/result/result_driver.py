@@ -194,8 +194,6 @@ class NativeDriver(ResultDriver):
                 field = obj.get_field(field_name)
                 if field.is_parent:
                     if field_val is not None:
-                        #import ipdb
-                        #ipdb.set_trace()
                         proxy = LazyProxy(lazy_value_loader(field_val, self.store, self))
                         if obj.model == Model.VALUE and field_name == "parent":
                             setattr(native, "_property", proxy)
