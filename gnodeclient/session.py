@@ -108,7 +108,7 @@ class Session(object):
             res = None
         return res
 
-    def set(self, entity, avoid_collisions=False):
+    def set(self, entity, avoid_collisions=False, recursive=False, fail=True):
         """
         Save a modified or created object on the G-Node service.
 
@@ -116,14 +116,67 @@ class Session(object):
         :type entity: object
         :param avoid_collisions: If true, check if the modified object collide with changes on the server.
         :type avoid_collisions: bool
+        :param recursive: apply to all children recursively
+        :type recursive: bool
 
         :returns: The saved entity.
         :rtype: object
         """
-        obj = self.__driver.to_model(entity)
-        mod = self.__store.set(obj, avoid_collisions)
-        res = self.__driver.to_result(mod)
-        return res
+        todo = [entity]  # a stack of objects to submit
+        processed = []  # collector of locations of processed objects
+        to_clean = []  # collector of ?? ids of objects to delete
+        exceptions = []  # collector of exceptions
+        object_failed = False  # indicates success of the set operation
+
+        while len(todo) > 0:
+            local_native = todo[0]
+            local_model = self.__driver.to_model(local_native)
+            if local_model.location in processed:
+                continue  # workaround to avoid duplicate processing for Neo
+
+            try:
+                remote_model = self.__store.set(local_model, avoid_collisions)
+                processed.append(remote_model.location)
+                # below is a "side-effect" needed to have correct parents for children
+                # and to avoid processing the same object twice, in case of a non-tree
+                # hierarchies
+                local_native.location = remote_model.location
+
+            except Exception, e:
+                if fail:
+                    raise e
+                else:
+                    exceptions.append(e)
+                    if len(local_model.child_fields) > 0:
+                        continue
+            finally:
+                todo.remove(local_native)  # not to forget to remove processed object
+
+            if not recursive:
+                break
+
+            for field_name in local_model.child_fields:
+                # set difference between the actual remote and local children
+                # references determines the list of children to delete
+                local_children = local_model[field_name] or []
+                remote_children = remote_model[field_name] or []
+                to_clean += list(set(remote_children) - set(local_children))
+
+                if hasattr(local_native, field_name):
+                    children = getattr(local_native, field_name, [])
+                    for obj in children:
+                        loc = getattr(obj, 'location', None)
+                        if not (loc is not None and loc in processed):
+                            todo.append(obj)
+
+        # cleaning removed objects
+        for location in to_clean:
+            self.__store.delete(location)
+
+        for e in exceptions:
+            print(e)
+
+        return entity  # self.get(entity.location)
 
     def delete(self, entity):
         """

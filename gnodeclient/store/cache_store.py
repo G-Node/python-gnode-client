@@ -133,9 +133,12 @@ class CacheStore(BasicStore):
 
         return location
 
-    def delete(self, entity, temporary=False):
-        if entity is not None:
-            self.__cache.delete(entity.location, temporary)
+    def delete(self, entity_or_location, temporary=False):
+        if entity_or_location is not None:
+            if type(entity_or_location) == str:
+                self.__cache.delete(entity_or_location, temporary)
+            else:
+                self.__cache.delete(entity_or_location.location, temporary)
 
     def delete_file(self, location, temporary=False):
         self.__cache.delete_file(location, temporary)

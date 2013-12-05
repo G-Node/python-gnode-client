@@ -306,15 +306,15 @@ class CachingRestStore(BasicStore):
 
         return location
 
-    def delete(self, entity):
+    def delete(self, entity_or_location):
         """
         Delete an entity from the G-Node REST API and from the cache.
 
-        :param entity: The entity to delete.
-        :type entity: Model
+        :param entity_or_location: The entity or location to delete.
+        :type entity_or_location: Model or string
         """
-        self.cache_store.delete(entity)
-        self.rest_store.delete(entity)
+        self.cache_store.delete(entity_or_location)
+        self.rest_store.delete(entity_or_location)
 
     def permissions(self, entity, permissions=None):
         """
