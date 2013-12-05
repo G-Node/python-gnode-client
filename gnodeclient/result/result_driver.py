@@ -194,11 +194,12 @@ class NativeDriver(ResultDriver):
                 field = obj.get_field(field_name)
                 if field.is_parent:
                     if field_val is not None:
+                        proxy = LazyProxy(lazy_value_loader(field_val, self.store, self))
                         if obj.model == Model.VALUE and field_name == "parent":
-                            proxy = LazyProxy(lazy_value_loader(field_val, self.store, self))
                             setattr(native, "_property", proxy)
+                        elif obj.model == Model.PROPERTY and field_name == "parent":
+                            setattr(native, "_section", proxy)
                         else:
-                            proxy = LazyProxy(lazy_value_loader(field_val, self.store, self))
                             setattr(native, field_name, proxy)
 
                 elif field.is_child:

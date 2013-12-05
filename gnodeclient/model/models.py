@@ -113,7 +113,7 @@ class PropertyModel(Model):
     model       = Field(field_type=str, default=Model.PROPERTY)
     name        = Field(field_type=str, obligatory=True)
 
-    parent      = FParent(type_info=Model.SECTION, name_mapping="parent_section")
+    parent      = FParent(type_info=Model.SECTION, name_mapping="section")
     values      = FChildren(type_info=Model.VALUE, obligatory=True)
 
 Model._MODEL_MAP[Model.PROPERTY] = PropertyModel
