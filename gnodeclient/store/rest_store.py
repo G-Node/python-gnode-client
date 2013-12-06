@@ -255,9 +255,13 @@ class RestStore(BasicStore):
 
         future = self.__session.post(url, data=data, headers=headers)
         response = future.result()
-        response.raise_for_status()
 
-        result = convert.collections_to_model(convert.json_to_collections(response.content))
+        if response.status_code == 304:
+            result = entity
+        else:
+            response.raise_for_status()
+            result = convert.collections_to_model(convert.json_to_collections(response.content))
+
         return result
 
     def set_file(self, data):
