@@ -367,7 +367,8 @@ class CachingRestStore(BasicStore):
                 for field_name in obj.child_fields:
                     field_val = obj[field_name]
 
-                    if field_val is not None and len(field_val) > 0:
+                    if field_val is not None and len(field_val) > 0 and\
+                       not (field_name == 'recordingchannelgroups' and obj.model == 'recordingchannel'):
                         for val in field_val:
                             val = urlparse.urlparse(val).path.strip("/")
                             if val not in locations_done:
