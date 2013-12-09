@@ -77,7 +77,7 @@ class WithBlock(object):
         try:
             return self.__blocks
         except AttributeError:
-            self.__blocks = None
+            self.__blocks = []
             return self.__blocks
 
     @blocks.setter
