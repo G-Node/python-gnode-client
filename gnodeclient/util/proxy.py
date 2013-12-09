@@ -22,8 +22,15 @@ _NAMES = [
 
 # Some names the proxy uses internally
 _PROXY_NAMES = [
-    "_value", "_loader", "_cache"
+    "_value", "_loader", "_cache", "_is_loaded"
 ]
+
+
+def _proxy_is_loaded(self):
+    """
+    A function that executes the lazy load. It is used to create a read only property.
+    """
+    return self._cache is not None
 
 
 def _proxy_load(self):
@@ -84,6 +91,7 @@ class LazyProxyMeta(type):
     def __new__(mcs, name, bases, dct):
 
         dct["_cache"] = None
+        dct["_is_loaded"] = property(_proxy_is_loaded)
         dct["_value"] = property(_proxy_load)
 
         for method_name in _NAMES:
