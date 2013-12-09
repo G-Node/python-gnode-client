@@ -265,12 +265,12 @@ class NativeDriver(ResultDriver):
         # iterate over fields and set them on the model
         for field_name in model_obj:
             field = model_obj.get_field(field_name)
-            if field.type_info != "datafile":
+            if field.type_info != "datafile":  # non-data fields
                 if hasattr(obj, field_name):
                     field_val = getattr(obj, field_name, field.default)
 
                     # special treatment for the location field
-                    if field_name == "location":
+                    if field_name == "location" and field_val is not None:
                         model_obj.location = field_val
                         model_obj.id = field_val.split("/")[-1]
                     # process all child relationships
@@ -297,8 +297,8 @@ class NativeDriver(ResultDriver):
                         if isinstance(field_val, numpy.ndarray):
                             field_val = list(field_val)
                         model_obj[field_name] = field_val
-            # datafile fields
-            else:
+
+            else:  # datafile fields
                 if field_name == "signal" and model_obj.model in (Model.ANALOGSIGNAL, Model.ANALOGSIGNALARRAY,
                                                                   Model.IRREGULARLYSAMPLEDSIGNAL):
                     units = obj.dimensionality.string
