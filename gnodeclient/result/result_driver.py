@@ -302,12 +302,12 @@ class NativeDriver(ResultDriver):
                 if field_name == "signal" and model_obj.model in (Model.ANALOGSIGNAL, Model.ANALOGSIGNALARRAY,
                                                                   Model.IRREGULARLYSAMPLEDSIGNAL):
                     units = obj.dimensionality.string
-                    datafiel_location = self.store.set_array(obj, temporary=True)
-                    model_obj[field_name] = {"units": units, "data": datafiel_location}
+                    datafile_location = self.store.set_array(obj, temporary=True)
+                    model_obj[field_name] = {"units": units, "data": datafile_location}
                 elif field_name == "times" and model_obj.model == Model.SPIKETRAIN:
                     units = obj.dimensionality.string
-                    datafiel_location = self.store.set_array(obj, temporary=True)
-                    model_obj[field_name] = {"units": units, "data": datafiel_location}
+                    datafile_location = self.store.set_array(obj, temporary=True)
+                    model_obj[field_name] = {"units": units, "data": datafile_location}
                 elif hasattr(obj, field_name):
                     field_val = getattr(obj, field_name, field.default)
                     if field_val is not None:
@@ -315,7 +315,7 @@ class NativeDriver(ResultDriver):
                             units = field_val.dimensionality.string
                         else:
                             units = None
-                        datafiel_location = self.store.set_array(field_val, temporary=True)
-                        model_obj[field_name] = {"units": units, "data": datafiel_location}
+                        datafile_location = self.store.set_array(field_val, temporary=True)
+                        model_obj[field_name] = {"units": units, "data": datafile_location}
 
         return model_obj
