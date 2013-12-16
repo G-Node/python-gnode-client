@@ -14,10 +14,9 @@ some common procedures.
 
 from __future__ import print_function, absolute_import, division
 
-import odml
-from odml.section import BaseSection
-
+import copy
 import neo
+from odml.section import BaseSection
 
 from gnodeclient import Session
 
@@ -69,18 +68,18 @@ def upload_odml_tree(session, section):
             sec_uploaded = session.set(sec_uploaded)
 
         for prop in section.properties:
+            prop = copy.deepcopy(prop)
+            sec_uploaded.append(prop)
+
             prop_uploaded = session.set(prop)
             created_objects.append(prop_uploaded)
 
-            sec_uploaded.append(prop_uploaded)
-            prop_uploaded = session.set(prop_uploaded)
-
             for value in prop.values:
+                value = copy.deepcopy(value)
+                prop_uploaded.append(value)
+
                 val_uploaded = session.set(value)
                 created_objects.append(val_uploaded)
-
-                prop_uploaded.append(val_uploaded)
-                session.set(val_uploaded)
 
         for child_section in section.sections:
             upload_section_recursive(child_section, sec_uploaded)
@@ -90,7 +89,7 @@ def upload_odml_tree(session, section):
     # start recursive upload
     try:
         sec_uploaded = upload_section_recursive(section, None)
-        return session.get(sec_uploaded, recursive=True, refresh=True)
+        return session.get(sec_uploaded.location, recursive=True, refresh=True)
     except RuntimeError as e:
         delete_all(session, created_objects)
         raise e
