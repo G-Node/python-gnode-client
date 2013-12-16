@@ -30,8 +30,19 @@ def delete_all(session, entities):
     :type session: Session
     :param entities:
     :type entities: list
+
+    :returns: A list of deleted objects.
+    :rtype: list
     """
-    pass
+    for ent in entities:
+        if hasattr(ent, "location"):
+            deleted = []
+            try:
+                session.delete(ent)
+                deleted.append(ent)
+            except RuntimeError as e:
+                # TODO logging
+                pass
 
 
 def upload_odml_tree(session, section):
@@ -106,10 +117,10 @@ def upload_neo_structure(session, neo_object):
             processed[block] = block_uploaded
 
             for segment in block.segments:
-                upload_segment(segment, block)
+                upload_segment(segment, block_uploaded)
 
-            for channel_group in block.segments:
-                upload_recording_channel_group(channel_group, block)
+            for channel_group in block.recordingchannelgroups:
+                upload_recording_channel_group(channel_group, block_uploaded)
 
             return block_uploaded
 
@@ -132,8 +143,8 @@ def upload_neo_structure(session, neo_object):
             for spike in spikes:
                 upload_spike(spike, seg_uploaded)
 
-            events_and_epochs = ((segment.events or []) + (segment.eventarrays or [])
-                                 (segment.opochs or []) + (segment.epocharrays or []))
+            events_and_epochs = (segment.events or []) + (segment.eventarrays or [])
+            events_and_epochs += (segment.epochs or []) + (segment.epocharrays or [])
             for obj in events_and_epochs:
                 upload_event_or_epoch(obj, seg_uploaded)
 
@@ -314,7 +325,7 @@ def upload_neo_structure(session, neo_object):
         else:
             raise RuntimeError("Not compatible type: " + str(type(neo_object)))
 
-        return session.get(uploaded, recursive=True, refresh=True)
+        return session.get(uploaded.location, recursive=True, refresh=True)
     except RuntimeError as e:
         if len(processed) > 0:
             delete_all(session, processed.keys())
