@@ -124,8 +124,10 @@ The parameter refresh controls whether or not the client should check for update
 found in the cache.
 
 The next code example demonstrates how to upload data to the G-Node server via REST API.
-First a new :py:class:`neo.Segment` is created and in a second step the segment is added to the segments of an existing
-block.
+The :py:meth:`Session.set` method can be used to upload a new neo or odML object to the server or to update the
+state of an existing object.
+The code in the listing first creates a new :py:class:`neo.Segment` and adds this segment to
+the to the segment list of an existing block before it is uploaded to the server using :py:meth:`Session.set`.
 
 .. code-block:: python
     :linenos:
@@ -139,11 +141,12 @@ block.
 
 The above example reveals some design principles of the G-Node API and the client library:
 
-1. Associations between objects can only be changed on the one-side of the one-to-many relationship.
-2. All functions of the client interface are free of side-effects.
-   This means, that existing objects are never changed by subsequent function calls.
-   In this example the content of :py:attr:`block.segments` changes when the segment was saved using :py:meth:`Session.set`.
-   Since the original block object is not changed by this call, the block has to be updated (line 6).
+1. Associations between objects can only be changed on the child side of the one-to-many relationship.
+2. All functions of the client interface have pure input parameters.
+   Further more previously returned objects are never changed by subsequent function calls.
+   In this example the content of :py:attr:`block.segments` changes on the server when the segment was saved
+   using :py:meth:`Session.set`. But since the local :py:attr`block` object was not changed, it block has to
+   be updated (see line 6).
 
 
 
