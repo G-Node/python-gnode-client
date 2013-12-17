@@ -3,6 +3,8 @@ try:
 except ImportError:
     from distutils.core import setup
 
+from gnodeclient import GNODECLIENT_VERSION, GNODECLIENT_RELEASE
+
 with open("README.rst") as file:
     long_description = file.read()
 
@@ -27,7 +29,7 @@ requires = [
 
 setup(
     name="gnodeclient",
-    version="0.2.0",
+    version=GNODECLIENT_VERSION,
     author="A. Stoewer, A. Sobolev",
     author_email="adrian.stoewer@rz.ifi.lmu.de",
     packages=packages,

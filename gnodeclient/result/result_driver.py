@@ -194,11 +194,12 @@ class NativeDriver(ResultDriver):
                 field = obj.get_field(field_name)
                 if field.is_parent:
                     if field_val is not None:
+                        proxy = LazyProxy(lazy_value_loader(field_val, self.store, self))
                         if obj.model == Model.VALUE and field_name == "parent":
-                            proxy = LazyProxy(lazy_value_loader(field_val, self.store, self))
                             setattr(native, "_property", proxy)
+                        elif obj.model == Model.PROPERTY and field_name == "parent":
+                            setattr(native, "_section", proxy)
                         else:
-                            proxy = LazyProxy(lazy_value_loader(field_val, self.store, self))
                             setattr(native, field_name, proxy)
 
                 elif field.is_child:
@@ -264,12 +265,12 @@ class NativeDriver(ResultDriver):
         # iterate over fields and set them on the model
         for field_name in model_obj:
             field = model_obj.get_field(field_name)
-            if field.type_info != "datafile":
+            if field.type_info != "datafile":  # non-data fields
                 if hasattr(obj, field_name):
                     field_val = getattr(obj, field_name, field.default)
 
                     # special treatment for the location field
-                    if field_name == "location":
+                    if field_name == "location" and field_val is not None:
                         model_obj.location = field_val
                         model_obj.id = field_val.split("/")[-1]
                     # process all child relationships
@@ -296,17 +297,17 @@ class NativeDriver(ResultDriver):
                         if isinstance(field_val, numpy.ndarray):
                             field_val = list(field_val)
                         model_obj[field_name] = field_val
-            # datafile fields
-            else:
+
+            else:  # datafile fields
                 if field_name == "signal" and model_obj.model in (Model.ANALOGSIGNAL, Model.ANALOGSIGNALARRAY,
                                                                   Model.IRREGULARLYSAMPLEDSIGNAL):
                     units = obj.dimensionality.string
-                    datafiel_location = self.store.set_array(obj, temporary=True)
-                    model_obj[field_name] = {"units": units, "data": datafiel_location}
+                    datafile_location = self.store.set_array(obj, temporary=True)
+                    model_obj[field_name] = {"units": units, "data": datafile_location}
                 elif field_name == "times" and model_obj.model == Model.SPIKETRAIN:
                     units = obj.dimensionality.string
-                    datafiel_location = self.store.set_array(obj, temporary=True)
-                    model_obj[field_name] = {"units": units, "data": datafiel_location}
+                    datafile_location = self.store.set_array(obj, temporary=True)
+                    model_obj[field_name] = {"units": units, "data": datafile_location}
                 elif hasattr(obj, field_name):
                     field_val = getattr(obj, field_name, field.default)
                     if field_val is not None:
@@ -314,7 +315,7 @@ class NativeDriver(ResultDriver):
                             units = field_val.dimensionality.string
                         else:
                             units = None
-                        datafiel_location = self.store.set_array(field_val, temporary=True)
-                        model_obj[field_name] = {"units": units, "data": datafiel_location}
+                        datafile_location = self.store.set_array(field_val, temporary=True)
+                        model_obj[field_name] = {"units": units, "data": datafile_location}
 
         return model_obj
