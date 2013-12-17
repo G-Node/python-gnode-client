@@ -15,5 +15,4 @@ from gnodeclient.session import Session, close, create, GNODECLIENT_VERSION, GNO
 from gnodeclient.model.models import Model
 from gnodeclient.result import Native
 
-__all__ = ("session", "model", "store", "conf", "test", "Native",
-           "Model", "GNODECLIENT_VERSION", "GNODECLIENT_RELEASE")
+__all__ = ("session", "model", "store", "conf", "test", "tools", "Model", "GNODECLIENT_VERSION", "GNODECLIENT_RELEASE")

@@ -23,7 +23,7 @@ from gnodeclient.result.result_driver import NativeDriver
 __all__ = ("GNODECLIENT_VERSION", "GNODECLIENT_RELEASE", "Session", "create", "close")
 
 # The version and release status of the client
-GNODECLIENT_VERSION = "0.2.0"
+GNODECLIENT_VERSION = "0.3.0"
 GNODECLIENT_RELEASE = "Beta"
 
 # A global session object.
