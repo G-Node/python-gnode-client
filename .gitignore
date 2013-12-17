@@ -1,0 +1,24 @@
+# python files and dirs
+*.pyc
+*.pyo
+*.egg
+*.egg-info
+dist
+build
+eggs
+parts
+
+# installer logs
+pip-log.txt
+
+# Unit test / coverage reports
+.coverage
+.tox
+
+# temp files
+*~
+*.log
+
+# idea / pycharm files
+.idea
+*.iml
