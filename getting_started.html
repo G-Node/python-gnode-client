@@ -232,7 +232,7 @@ the to the segment list of an existing block before it is uploaded to the server
 <li>All functions of the client interface have pure input parameters.
 Further more previously returned objects are never changed by subsequent function calls.
 In this example the content of <tt class="xref py py-attr docutils literal"><span class="pre">block.segments</span></tt> changes on the server when the segment was saved
-using <tt class="xref py py-meth docutils literal"><span class="pre">Session.set()</span></tt>. But since the local :py:attr`block` object was not changed, it block has to
+using <tt class="xref py py-meth docutils literal"><span class="pre">Session.set()</span></tt>. But since the local variable <tt class="xref py py-obj docutils literal"><span class="pre">block</span></tt> was not changed, it has to
 be updated (see line 6).</li>
 </ol>
 </div>
