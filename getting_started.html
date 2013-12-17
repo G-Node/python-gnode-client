@@ -1,0 +1,297 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Getting started &mdash; Python G-Node Client 0.3.0 Beta documentation</title>
+    
+    <link rel="stylesheet" href="static/default.css" type="text/css" />
+    <link rel="stylesheet" href="static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.3.0 Beta',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="static/jquery.js"></script>
+    <script type="text/javascript" src="static/underscore.js"></script>
+    <script type="text/javascript" src="static/doctools.js"></script>
+    <link rel="top" title="Python G-Node Client 0.3.0 Beta documentation" href="index.html" />
+    <link rel="next" title="General concepts" href="general.html" />
+    <link rel="prev" title="Installation guide" href="install.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="general.html" title="General concepts"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="install.html" title="Installation guide"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">Python G-Node Client 0.3.0 Beta documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="getting-started">
+<h1>Getting started<a class="headerlink" href="#getting-started" title="Permalink to this headline">¶</a></h1>
+<p>The <a class="reference external" href="http://g-node.github.io/g-node-portal/">G-Node REST-API</a> uses the odML data model for metadata and the neo data model for electrophysiology data.
+Therefore those models are also used in this client library.
+In order to get a better understanding about both concepts it is recommended to familiarize yourself with the
+<a class="reference external" href="http://neo.readthedocs.org/en/0.3.0/">neo documentation</a> and the publication about odML: <a class="reference external" href="http://www.frontiersin.org/neuroinformatics/10.3389/fninf.2011.00016/abstract">A bottom-up approach to data annotation in neurophysiology</a>.</p>
+<p>The best way to follow this getting started guide ist to start python in interactive mode or ipython and try out
+the following code examples.</p>
+<p>Before you can use the G-Node client, you have import the <tt class="xref py py-mod docutils literal"><span class="pre">gnodeclient</span></tt> package and connect to an instance of
+a G-Node server.
+If you don&#8217;t have a local installation you may use credentials from the example below.
+Since we need the neo package later on, we also include this.</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4</pre></div></td><td class="code"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">neo</span>
+<span class="kn">from</span> <span class="nn">gnodeclient</span> <span class="kn">import</span> <span class="n">session</span><span class="p">,</span> <span class="n">Model</span>
+
+<span class="n">s</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="s">&quot;http://predata.g-node.org&quot;</span><span class="p">,</span> <span class="n">username</span><span class="o">=</span><span class="s">&quot;user&quot;</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="s">&quot;secret&quot;</span><span class="p">)</span>
+</pre></div>
+</td></tr></table></div>
+<p>Once you have a session object and the session object is open, you can retrieve some data from the G-Node server.</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1</pre></div></td><td class="code"><div class="highlight"><pre><span class="n">blocks</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Model</span><span class="o">.</span><span class="n">BLOCK</span><span class="p">,</span> <span class="p">{</span><span class="s">&quot;max_results&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">})</span>
+</pre></div>
+</td></tr></table></div>
+<p>The variable blocks now contains the first ten <tt class="xref py py-class docutils literal"><span class="pre">neo.Block</span></tt> objects that are owned by or shared with you.
+The method <tt class="xref py py-meth docutils literal"><span class="pre">Session.select()</span></tt> is used to query the G-Node REST API for objects of a certain type.
+The type is determined by passing the model name of the object as first parameter to the <tt class="xref py py-meth docutils literal"><span class="pre">Session.select()</span></tt> method.
+Furthermore select accepts filters, which can be used filter the results by certain criteria.</p>
+<p>The class <tt class="xref py py-class docutils literal"><span class="pre">Model</span></tt> provides a set of constants representing each model name. The following table contains
+all supported types with their respective names and constants.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="30%" />
+<col width="28%" />
+<col width="43%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Type</th>
+<th class="head">Name</th>
+<th class="head">Constant</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>odml.Section</td>
+<td>&#8220;section&#8221;</td>
+<td><tt class="xref py py-attr docutils literal"><span class="pre">Model.SECTION</span></tt></td>
+</tr>
+<tr class="row-odd"><td>odml.Property</td>
+<td>&#8220;property&#8221;</td>
+<td><tt class="xref py py-attr docutils literal"><span class="pre">Model.PROPERTY</span></tt></td>
+</tr>
+<tr class="row-even"><td>odml.Value</td>
+<td>&#8220;value&#8221;</td>
+<td><tt class="xref py py-attr docutils literal"><span class="pre">Model.VALUE</span></tt></td>
+</tr>
+<tr class="row-odd"><td>neo.Block</td>
+<td>&#8220;block&#8221;</td>
+<td><tt class="xref py py-attr docutils literal"><span class="pre">Model.BLOCK</span></tt></td>
+</tr>
+<tr class="row-even"><td>neo.Segment</td>
+<td>&#8220;segment&#8221;</td>
+<td><tt class="xref py py-attr docutils literal"><span class="pre">Model.SEGMENT</span></tt></td>
+</tr>
+<tr class="row-odd"><td>neo.EventArray</td>
+<td>&#8220;eventarray&#8221;</td>
+<td><tt class="xref py py-attr docutils literal"><span class="pre">Model.EVENTARRAY</span></tt></td>
+</tr>
+<tr class="row-even"><td>neo.Event</td>
+<td>&#8220;event&#8221;</td>
+<td><tt class="xref py py-attr docutils literal"><span class="pre">Model.EVENT</span></tt></td>
+</tr>
+<tr class="row-odd"><td>neo.EpochArray</td>
+<td>&#8220;epocharray&#8221;</td>
+<td><tt class="xref py py-attr docutils literal"><span class="pre">Model.EPOCHARRAY</span></tt></td>
+</tr>
+<tr class="row-even"><td>neo.Epoch</td>
+<td>&#8220;epoch&#8221;</td>
+<td><tt class="xref py py-attr docutils literal"><span class="pre">Model.EPOCH</span></tt></td>
+</tr>
+<tr class="row-odd"><td>neo.RecordingChannelGroup</td>
+<td>&#8220;recordingchannelgroup&#8221;</td>
+<td><tt class="xref py py-attr docutils literal"><span class="pre">Model.RECORDINGCHANNELGROUP</span></tt></td>
+</tr>
+<tr class="row-even"><td>neo.RecordingChannel</td>
+<td>&#8220;recordingchannel&#8221;</td>
+<td><tt class="xref py py-attr docutils literal"><span class="pre">Model.RECORDINGCHANNEL</span></tt></td>
+</tr>
+<tr class="row-odd"><td>neo.Unit</td>
+<td>&#8220;unit&#8221;</td>
+<td><tt class="xref py py-attr docutils literal"><span class="pre">Model.UNIT</span></tt></td>
+</tr>
+<tr class="row-even"><td>neo.SpikeTrain</td>
+<td>&#8220;spiketrain&#8221;</td>
+<td><tt class="xref py py-attr docutils literal"><span class="pre">Model.SPIKETRAIN</span></tt></td>
+</tr>
+<tr class="row-odd"><td>neo.Spike</td>
+<td>&#8220;spike&#8221;</td>
+<td><tt class="xref py py-attr docutils literal"><span class="pre">Model.SPIKE</span></tt></td>
+</tr>
+<tr class="row-even"><td>neo.AnalogSignalArray</td>
+<td>&#8220;analogsignalarray&#8221;</td>
+<td><tt class="xref py py-attr docutils literal"><span class="pre">Model.ANALOGSIGNALARRAY</span></tt></td>
+</tr>
+<tr class="row-odd"><td>neo.AnalogSignal</td>
+<td>&#8220;analogsignal&#8221;</td>
+<td><tt class="xref py py-attr docutils literal"><span class="pre">Model.ANALOGSIGNAL</span></tt></td>
+</tr>
+<tr class="row-even"><td>neo.IrregularlySampledSignal</td>
+<td>&#8220;irregularlysampledsignal&#8221;</td>
+<td><tt class="xref py py-attr docutils literal"><span class="pre">Model.IRREGULARLYSAMPLEDSIGNAL</span></tt></td>
+</tr>
+</tbody>
+</table>
+<p>Since the G-Node client returns only slightly extended versions of the native neo and odML objects, working with them is
+quite simple.
+Lets examine the block a bit closer:</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4</pre></div></td><td class="code"><div class="highlight"><pre><span class="n">block</span> <span class="o">=</span> <span class="n">blocks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="k">print</span> <span class="n">block</span><span class="o">.</span><span class="n">name</span>
+<span class="k">print</span> <span class="n">block</span><span class="o">.</span><span class="n">description</span>
+<span class="k">print</span> <span class="n">block</span><span class="o">.</span><span class="n">location</span>
+</pre></div>
+</td></tr></table></div>
+<p>As normal <tt class="xref py py-class docutils literal"><span class="pre">neo.Block</span></tt> object the block returned by the session has a name and a description.
+But in addition it has also a property called location.
+This is one of the minor extensions that are introduced by the client.
+The location is an identifier that allows the client library to identify the corresponding remote entity of the object.</p>
+<p>Additionally to normal properties <tt class="xref py py-class docutils literal"><span class="pre">Block</span></tt> objects have relationships to other objects like <tt class="xref py py-class docutils literal"><span class="pre">Section</span></tt>,
+<tt class="xref py py-class docutils literal"><span class="pre">Segment</span></tt> and <tt class="xref py py-class docutils literal"><span class="pre">RecordingChannelGroup</span></tt>.
+For objects returned by methods of the <tt class="xref py py-class docutils literal"><span class="pre">Session</span></tt> class, properties representing those relationships are
+initialized with lazy-loading proxies.
+This means, that related objects are only downloaded or fetched from the cache, when the respective properties of the
+object are accessed for the first time.
+The following piece of code illustrates this behaviour.</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3</pre></div></td><td class="code"><div class="highlight"><pre><span class="k">print</span> <span class="nb">type</span><span class="p">(</span><span class="n">block</span><span class="o">.</span><span class="n">segments</span><span class="p">)</span>
+<span class="k">print</span> <span class="nb">len</span><span class="p">(</span><span class="n">block</span><span class="o">.</span><span class="n">segments</span><span class="p">)</span>
+<span class="k">print</span> <span class="nb">len</span><span class="p">(</span><span class="n">block</span><span class="o">.</span><span class="n">recordingchannelgroups</span><span class="p">)</span>
+</pre></div>
+</td></tr></table></div>
+<p>The output of line one will show, that <tt class="xref py py-attr docutils literal"><span class="pre">Block.segments</span></tt> is a proxy object.
+As soon as data from the proxy is requested (line 2 and 3) the data will be fetched from the server or the cache.</p>
+<p>The <tt class="xref py py-meth docutils literal"><span class="pre">Session.select()</span></tt> method is used to get data by type and provides the possibility to reduce the results by filter.
+A second method for getting data is <tt class="xref py py-meth docutils literal"><span class="pre">Session.get()</span></tt>.
+This method takes a single object identifier, the location, as first argument.</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1</pre></div></td><td class="code"><div class="highlight"><pre><span class="n">block</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">block</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="n">refresh</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</pre></div>
+</td></tr></table></div>
+<p>The parameter refresh controls whether or not the client should check for updates on the server if the object was
+found in the cache.</p>
+<p>The next code example demonstrates how to upload data to the G-Node server via REST API.
+The <tt class="xref py py-meth docutils literal"><span class="pre">Session.set()</span></tt> method can be used to upload a new neo or odML object to the server or to update the
+state of an existing object.
+The code in the listing first creates a new <tt class="xref py py-class docutils literal"><span class="pre">neo.Segment</span></tt> and adds this segment to
+the to the segment list of an existing block before it is uploaded to the server using <tt class="xref py py-meth docutils literal"><span class="pre">Session.set()</span></tt>.</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6</pre></div></td><td class="code"><div class="highlight"><pre><span class="n">segment</span> <span class="o">=</span> <span class="n">neo</span><span class="o">.</span><span class="n">Segment</span><span class="p">(</span><span class="s">&quot;cool segment&quot;</span><span class="p">)</span>
+<span class="n">segment</span><span class="o">.</span><span class="n">block</span> <span class="o">=</span> <span class="n">block</span>
+
+<span class="n">segment</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">segment</span><span class="p">)</span>
+
+<span class="n">block</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">block</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="n">refresh</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</pre></div>
+</td></tr></table></div>
+<p>The above example reveals some design principles of the G-Node API and the client library:</p>
+<ol class="arabic simple">
+<li>Associations between objects can only be changed on the child side of the one-to-many relationship.</li>
+<li>All functions of the client interface have pure input parameters.
+Further more previously returned objects are never changed by subsequent function calls.
+In this example the content of <tt class="xref py py-attr docutils literal"><span class="pre">block.segments</span></tt> changes on the server when the segment was saved
+using <tt class="xref py py-meth docutils literal"><span class="pre">Session.set()</span></tt>. But since the local :py:attr`block` object was not changed, it block has to
+be updated (see line 6).</li>
+</ol>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="install.html"
+                        title="previous chapter">Installation guide</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="general.html"
+                        title="next chapter">General concepts</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="sources/getting_started.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="general.html" title="General concepts"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="install.html" title="Installation guide"
+             >previous</a> |</li>
+        <li><a href="index.html">Python G-Node Client 0.3.0 Beta documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Adrian Stoewer, Andrey Sobolev.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>
