@@ -10,8 +10,8 @@
     
     <title>Getting started &mdash; Python G-Node Client 0.3.0 Beta documentation</title>
     
-    <link rel="stylesheet" href="static/default.css" type="text/css" />
-    <link rel="stylesheet" href="static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
@@ -22,9 +22,9 @@
         HAS_SOURCE:  true
       };
     </script>
-    <script type="text/javascript" src="static/jquery.js"></script>
-    <script type="text/javascript" src="static/underscore.js"></script>
-    <script type="text/javascript" src="static/doctools.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
     <link rel="top" title="Python G-Node Client 0.3.0 Beta documentation" href="index.html" />
     <link rel="next" title="General concepts" href="general.html" />
     <link rel="prev" title="Installation guide" href="install.html" /> 
@@ -232,9 +232,198 @@ the to the segment list of an existing block before it is uploaded to the server
 <li>All functions of the client interface have pure input parameters.
 Further more previously returned objects are never changed by subsequent function calls.
 In this example the content of <tt class="xref py py-attr docutils literal"><span class="pre">block.segments</span></tt> changes on the server when the segment was saved
-using <tt class="xref py py-meth docutils literal"><span class="pre">Session.set()</span></tt>. But since the local variable <tt class="xref py py-obj docutils literal"><span class="pre">block</span></tt> was not changed, it has to
+using <tt class="xref py py-meth docutils literal"><span class="pre">Session.set()</span></tt>. But since the local :py:attr`block` object was not changed, it block has to
 be updated (see line 6).</li>
 </ol>
+<p>Data on the server can be accessed by type (e.g. time segment, analog signal) with <a class="reference external" href="g-node.github.io/g-node-portal/key_functions/data_api/query.html">filters</a> using model attributes.
+For instance, according to the Neo model, analog signals have the sampling rate as an attribute.
+The following query requests analog signals with a certain sampling rate:</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1</pre></div></td><td class="code"><div class="highlight"><pre><span class="n">signals</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Model</span><span class="o">.</span><span class="n">ANALOGSIGNAL</span><span class="p">,</span> <span class="p">{</span><span class="s">&quot;sampling_rate&quot;</span><span class="p">:</span> <span class="mi">500</span><span class="p">,</span> <span class="s">&quot;max_results&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">})</span>
+</pre></div>
+</td></tr></table></div>
+<p>The &#8220;select&#8221; function of the client library accepts, as a second parameter, filters in a Python dict object.</p>
+<p>Structured data can be accessed by spatial (e.g. recording channel), temporal (segment), or source (unit) criteria.
+The following request finds a certain recording channel and fetches all data coming from it:</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2</pre></div></td><td class="code"><div class="highlight"><pre><span class="n">selection</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Model</span><span class="o">.</span><span class="n">RECORDINGCHANNEL</span><span class="p">,</span> <span class="p">{</span><span class="s">&quot;index&quot;</span><span class="p">:</span> <span class="mi">8</span><span class="p">})</span>
+<span class="n">channel_with_data</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">selection</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="n">recursive</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</pre></div>
+</td></tr></table></div>
+<p>Here the &#8220;select&#8221; function is used to query recording channel objects having &#8220;index&#8221; attribute set to 8.
+Every object, fetched from the server, has a &#8220;location&#8221; attribute which allows the library to determine the corresponding remote entity of the object.
+Then the &#8220;get&#8221; function allows to request the first channel from the previous selection with all related data recursively (analog signals, spike trains).</p>
+<p>Another request finds a certain unit (in this example, a neuron given number 3) and fetches all spike trains detected from it:</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2</pre></div></td><td class="code"><div class="highlight"><pre><span class="n">selection</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Model</span><span class="o">.</span><span class="n">UNIT</span><span class="p">,</span> <span class="p">{</span><span class="s">&quot;name__icontains&quot;</span><span class="p">:</span> <span class="s">&quot;3&quot;</span><span class="p">})</span>
+<span class="n">unit_with_spike_data</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">selection</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="n">recursive</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</pre></div>
+</td></tr></table></div>
+<p>For the organization of metadata, the client library provides an interface to the <a class="reference external" href="github.com/G-Node/python-odml">python-odml</a> library, so that odML objects can be natively manipulated and stored to the central storage.
+Additionally, odML provides terminologies with predefined metadata items.
+Those terminologies can be loaded directly from the odML repository:</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2</pre></div></td><td class="code"><div class="highlight"><pre><span class="n">odml_repository</span> <span class="o">=</span> <span class="s">&quot;http://portal.g-node.org/odml/terminologies/v1.0/terminologies.xml&quot;</span>
+<span class="n">terminologies</span> <span class="o">=</span> <span class="n">odml</span><span class="o">.</span><span class="n">terminology</span><span class="o">.</span><span class="n">terminologies</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">odml_repository</span><span class="p">)</span>
+</pre></div>
+</td></tr></table></div>
+<p>Terminologies can be used as templates to describe certain parts of the experimental protocol.
+Among basic terminologies are templates for experiment, dataset, electrode, hardware configuration, cell etc.
+These terminologies can be accessed as a python “list” or “dict” as python-odml objects, and can be cloned to be used to annotate the current dataset:</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1</pre></div></td><td class="code"><div class="highlight"><pre><span class="n">experiment</span> <span class="o">=</span> <span class="n">terminologies</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;Experiment&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+</pre></div>
+</td></tr></table></div>
+<p>To describe the experiment, appropriate values are assigned to the properties:</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6</pre></div></td><td class="code"><div class="highlight"><pre><span class="n">experiment</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s">&quot;LFP and Spike Data in Saccade and Fixation Tasks&quot;</span>
+<span class="n">experiment</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s">&quot;ProjectName&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="s">&quot;Scale-invariance of receptive field properties ...&quot;</span>
+<span class="n">experiment</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s">&quot;Description&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="s">&quot;description of the project&quot;</span>
+<span class="n">experiment</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s">&quot;Type&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="s">&quot;electrophysiology&quot;</span>
+<span class="n">experiment</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s">&quot;Subtype&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="s">&quot;extracellular&quot;</span>
+<span class="n">experiment</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s">&quot;ProjectID&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="s">&quot;PMC1913534&quot;</span>
+</pre></div>
+</td></tr></table></div>
+<p>Of course, additional properties can be introduced as needed.
+For example, stimulus parameters can be documented using custom odML section with custom properties:</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6
+7</pre></div></td><td class="code"><div class="highlight"><pre><span class="n">stimulus</span> <span class="o">=</span> <span class="n">odml</span><span class="o">.</span><span class="n">Section</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">&quot;Stimulus&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="s">&quot;stimulus&quot;</span><span class="p">)</span>
+<span class="n">stimulus</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">odml</span><span class="o">.</span><span class="n">Property</span><span class="p">(</span><span class="s">&quot;BackgroundLuminance&quot;</span><span class="p">,</span> <span class="s">&quot;25&quot;</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s">&quot;cd/m2&quot;</span><span class="p">))</span>
+<span class="n">stimulus</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">odml</span><span class="o">.</span><span class="n">Property</span><span class="p">(</span><span class="s">&quot;StimulusType&quot;</span><span class="p">,</span> <span class="s">&quot;SquareGrating&quot;</span><span class="p">,</span> <span class="n">stimulus</span><span class="p">))</span>
+<span class="n">stimulus</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">odml</span><span class="o">.</span><span class="n">Property</span><span class="p">(</span><span class="s">&quot;Sizes&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s">&quot;1.2&quot;</span><span class="p">,</span> <span class="s">&quot;2.4&quot;</span><span class="p">,</span> <span class="s">&quot;4.8&quot;</span><span class="p">,</span> <span class="s">&quot;9.6&quot;</span><span class="p">],</span> <span class="n">unit</span><span class="o">=</span><span class="s">&quot;deg&quot;</span><span class="p">))</span>
+<span class="n">stimulus</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">odml</span><span class="o">.</span><span class="n">Property</span><span class="p">(</span><span class="s">&quot;Orientations&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s">&quot;0&quot;</span><span class="p">,</span> <span class="s">&quot;45&quot;</span><span class="p">,</span> <span class="s">&quot;90&quot;</span><span class="p">,</span> <span class="s">&quot;135&quot;</span><span class="p">],</span> <span class="n">unit</span><span class="o">=</span><span class="s">&quot;deg&quot;</span><span class="p">))</span>
+<span class="n">stimulus</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">odml</span><span class="o">.</span><span class="n">Property</span><span class="p">(</span><span class="s">&quot;SpatialFrequencies&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s">&quot;0.4&quot;</span><span class="p">,</span> <span class="s">&quot;0.8&quot;</span><span class="p">,</span> <span class="s">&quot;1.6&quot;</span><span class="p">,</span> <span class="s">&quot;3.2&quot;</span><span class="p">],</span> <span class="n">unit</span><span class="o">=</span><span class="s">&quot;1/deg&quot;</span><span class="p">))</span>
+<span class="n">stimulus</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">odml</span><span class="o">.</span><span class="n">Property</span><span class="p">(</span><span class="s">&quot;NumberOfStimulusConditions&quot;</span><span class="p">,</span> <span class="s">&quot;128&quot;</span><span class="p">))</span>
+</pre></div>
+</td></tr></table></div>
+<p>Note that instead of creating metadata objects in Python, odML metadata structures can be read from file using the standard odML library.
+The odML format allows nested sections to capture the logical strucuture of the experiment.
+For example, a stimulus can be defined as part of an experiment:</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1</pre></div></td><td class="code"><div class="highlight"><pre><span class="n">experiment</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">stimulus</span><span class="p">)</span>
+</pre></div>
+</td></tr></table></div>
+<p>This tree-like structure can be saved with the client library:</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1</pre></div></td><td class="code"><div class="highlight"><pre><span class="n">experiment</span> <span class="o">=</span> <span class="n">tools</span><span class="o">.</span><span class="n">upload_odml_tree</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">experiment</span><span class="p">)</span>
+</pre></div>
+</td></tr></table></div>
+<p>The client library allows searching for metadata of a particular type, using different filters that can be applied for object attributes:</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1</pre></div></td><td class="code"><div class="highlight"><pre><span class="n">sections</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Model</span><span class="o">.</span><span class="n">SECTION</span><span class="p">,</span> <span class="p">{</span><span class="s">&quot;name__icontains&quot;</span><span class="p">:</span> <span class="s">&quot;LFP and Spike Data&quot;</span><span class="p">})</span>
+</pre></div>
+</td></tr></table></div>
+<p>For complex experiments, the entire tree of metadata subsections can be very large.
+Therefore, the &#8220;select&#8221; function does not return the whole tree, instead it returns only the top level section objects with lazy-loaded relationship attributes, which will fetch related objects at the moment when they are first accessed.
+If the user wants to download the entire tree, it can be fetched with the &#8220;get&#8221; function with &#8220;recursive&#8221; parameter:</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1</pre></div></td><td class="code"><div class="highlight"><pre><span class="n">experiment</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">sections</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="n">recursive</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</pre></div>
+</td></tr></table></div>
+<p>If another, similar experiment is performed, the metadata tree can simply be cloned and only the metadata that have changed updated.
+This is highly convenient and saves the time of re-entering parameters that stay the same across a series of experiments.</p>
+<p>To meaningfully annotate data by metadata, the gnodepylib allows to connect datasets with the metadata:</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2</pre></div></td><td class="code"><div class="highlight"><pre><span class="n">block</span><span class="o">.</span><span class="n">section</span> <span class="o">=</span> <span class="n">experiment</span>
+<span class="n">block</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">block</span><span class="p">)</span> <span class="c"># updates relationship on the server</span>
+</pre></div>
+</td></tr></table></div>
+<p>Note an association between objects can only be set on one-side of the one-to-many relationship.
+In this case a section can have many blocks, thus the block has to be changed to establish connection.</p>
+<p>Additionally, the client library allows to connect data and metadata with so-called annotations, to indicate certain specific attributes for any of the Neo-type objects.
+A typical use case for this function is to specify which stimulus was applied in each trial of the experiment.
+This connection is done using the &#8220;metadata&#8221; attribute that uses existing metadata properties and values to &#8220;tag&#8221; a number of data-type objects:</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6
+7</pre></div></td><td class="code"><div class="highlight"><pre><span class="n">stimulus</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">sections</span><span class="p">[</span><span class="s">&quot;Stimulus&quot;</span><span class="p">]</span>
+<span class="n">orientation</span> <span class="o">=</span> <span class="n">stimulus</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s">&quot;Orientations&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+<span class="n">size</span> <span class="o">=</span> <span class="n">stimulus</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s">&quot;Sizes&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+<span class="n">sf</span> <span class="o">=</span> <span class="n">stimulus</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s">&quot;SpatialFrequencies&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+
+<span class="n">segment</span><span class="o">.</span><span class="n">metadata</span> <span class="o">=</span> <span class="p">[</span><span class="n">orientation</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">sf</span><span class="p">]</span>
+<span class="n">segment</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">segment</span><span class="p">)</span> <span class="c"># sends updates to the server</span>
+</pre></div>
+</td></tr></table></div>
+<p>Proper annotation brings more consistency in data and metadata, and allows to select data by metadata in various ways.
+For example, for data analysis it is often necessary to select all data recorded under the same experimental conditions.
+The following example selects all LFP data across all trials with a certain stimulus properties:</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9</pre></div></td><td class="code"><div class="highlight"><pre><span class="n">stimulus</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Model</span><span class="o">.</span><span class="n">SECTION</span><span class="p">,</span> <span class="p">{</span><span class="s">&quot;odml_type__icontains&quot;</span><span class="p">:</span> <span class="s">&quot;stimulus&quot;</span><span class="p">})[</span><span class="mi">0</span><span class="p">]</span>
+
+<span class="n">filters</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="n">filters</span><span class="p">[</span><span class="s">&quot;name__icontains&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&quot;4&quot;</span>
+<span class="n">filters</span><span class="p">[</span><span class="s">&quot;^1metadata&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">stimulus</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s">&quot;Orientations&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">location</span>
+<span class="n">filters</span><span class="p">[</span><span class="s">&quot;^2metadata&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">stimulus</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s">&quot;Sizes&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">location</span>
+
+<span class="n">segment</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">Model</span><span class="o">.</span><span class="n">SEGMENT</span><span class="p">,</span> <span class="n">filters</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">signals</span> <span class="o">=</span> <span class="n">segment</span><span class="o">.</span><span class="n">analogsignals</span>
+</pre></div>
+</td></tr></table></div>
+<p>In this example we select a section describing stimulus, and use certain values of its properties to build a required filter.
+This filter, containing certain stimulus orientation and size can be used to query time segments where this combination was used.
+This type of query makes it straightforward to, for instance, compute averages across trials for a certain stimulus configuration,</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2</pre></div></td><td class="code"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="n">signalaverage</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">signals</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</pre></div>
+</td></tr></table></div>
+<p>or to plot the actual LFP traces for visualization:</p>
+<div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19</pre></div></td><td class="code"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">pylab</span> <span class="k">as</span> <span class="n">pl</span>
+
+<span class="n">s1</span> <span class="o">=</span> <span class="n">signals</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="c"># one of the signals</span>
+<span class="n">fig</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+<span class="n">lfp</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">111</span><span class="p">)</span>
+<span class="n">lfp</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="o">.</span><span class="mi">85</span><span class="p">,</span> <span class="o">.</span><span class="mo">05</span><span class="p">,</span> <span class="n">s1</span><span class="o">.</span><span class="n">segment</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">horizontalalignment</span><span class="o">=</span><span class="s">&quot;center&quot;</span><span class="p">,</span>
+         <span class="n">transform</span><span class="o">=</span><span class="n">lfp</span><span class="o">.</span><span class="n">transAxes</span><span class="p">)</span> <span class="c"># caption from time segment name</span>
+
+<span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">signals</span><span class="p">:</span>
+    <span class="n">lfp</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">times</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">s</span><span class="o">.</span><span class="n">recordingchannel</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+
+<span class="n">pl</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="n">s1</span><span class="o">.</span><span class="n">t_start</span><span class="p">,</span> <span class="n">s1</span><span class="o">.</span><span class="n">t_stop</span><span class="p">])</span> <span class="c"># set X axis range</span>
+
+<span class="n">pl</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s">&quot;time [</span><span class="si">%s</span><span class="s">]&quot;</span> <span class="o">%</span> <span class="n">s1</span><span class="o">.</span><span class="n">times</span><span class="o">.</span><span class="n">units</span><span class="o">.</span><span class="n">dimensionality</span><span class="o">.</span><span class="n">string</span><span class="p">)</span> <span class="c"># set X units</span>
+<span class="n">pl</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s">&quot;voltage [</span><span class="si">%s</span><span class="s">]&quot;</span> <span class="o">%</span> <span class="n">s1</span><span class="o">.</span><span class="n">units</span><span class="o">.</span><span class="n">dimensionality</span><span class="o">.</span><span class="n">string</span><span class="p">)</span> <span class="c"># set Y units</span>
+
+<span class="c"># [...] # commands for axes and legend omitted</span>
+
+<span class="n">pl</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</td></tr></table></div>
+<p>The figure below illustrates the resulting plot.
+Note that the availability of metadata with the data immediately enables meaningful labeling of the axes without having to collect further information from files or hand-written documentation.</p>
+<img alt="_images/analog_signals_plot.jpg" src="_images/analog_signals_plot.jpg" />
 </div>
 
 
@@ -251,7 +440,7 @@ be updated (see line 6).</li>
                         title="next chapter">General concepts</a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
-    <li><a href="sources/getting_started.txt"
+    <li><a href="_sources/getting_started.txt"
            rel="nofollow">Show Source</a></li>
   </ul>
 <div id="searchbox" style="display: none">
