@@ -21,7 +21,7 @@ Since we need the neo package later on, we also include this.
     import neo
     from gnodeclient import session, Model
 
-    s = session.create(location="http://predata.g-node.org", username="user", password="secret")
+    s = session.create(location="http://test.g-node.org", username="demo", password="demo")
 
 Once you have a session object and the session object is open, you can retrieve some data from the G-Node server.
 
