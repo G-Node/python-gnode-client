@@ -152,9 +152,207 @@ The above example reveals some design principles of the G-Node API and the clien
 
 
 
+Data on the server can be accessed by type (e.g. time segment, analog signal) with `filters`_ using model attributes.
+For instance, according to the Neo model, analog signals have the sampling rate as an attribute.
+The following query requests analog signals with a certain sampling rate:
+
+.. code-block:: python
+    :linenos:
+
+    signals = g.select(Model.ANALOGSIGNAL, {"sampling_rate": 500, "max_results": 5})
+
+The "select" function of the client library accepts, as a second parameter, filters in a Python dict object.
+
+Structured data can be accessed by spatial (e.g. recording channel), temporal (segment), or source (unit) criteria.
+The following request finds a certain recording channel and fetches all data coming from it:
+
+.. code-block:: python
+    :linenos:
+
+    selection = g.select(Model.RECORDINGCHANNEL, {"index": 8})
+    channel_with_data = g.get(selection[0].location, recursive=True)
+
+Here the "select" function is used to query recording channel objects having "index" attribute set to 8.
+Every object, fetched from the server, has a "location" attribute which allows the library to determine the corresponding remote entity of the object.
+Then the "get" function allows to request the first channel from the previous selection with all related data recursively (analog signals, spike trains).
+
+Another request finds a certain unit (in this example, a neuron given number 3) and fetches all spike trains detected from it:
+
+.. code-block:: python
+    :linenos:
+
+    selection = g.select(Model.UNIT, {"name__icontains": "3"})
+    unit_with_spike_data = g.get(selection[0].location, recursive=True)
+
+For the organization of metadata, the client library provides an interface to the `python-odml`_ library, so that odML objects can be natively manipulated and stored to the central storage.
+Additionally, odML provides terminologies with predefined metadata items.
+Those terminologies can be loaded directly from the odML repository:
+
+.. code-block:: python
+    :linenos:
+
+    odml_repository = "http://portal.g-node.org/odml/terminologies/v1.0/terminologies.xml"
+    terminologies = odml.terminology.terminologies.load(odml_repository)
+
+Terminologies can be used as templates to describe certain parts of the experimental protocol.
+Among basic terminologies are templates for experiment, dataset, electrode, hardware configuration, cell etc.
+These terminologies can be accessed as a python “list” or “dict” as python-odml objects, and can be cloned to be used to annotate the current dataset:
+
+.. code-block:: python
+    :linenos:
+
+    experiment = terminologies.find("Experiment").clone()
+
+To describe the experiment, appropriate values are assigned to the properties:
+
+.. code-block:: python
+    :linenos:
+
+    experiment.name = "LFP and Spike Data in Saccade and Fixation Tasks"
+    experiment.properties["ProjectName"].value = "Scale-invariance of receptive field properties ..."
+    experiment.properties["Description"].value = "description of the project"
+    experiment.properties["Type"].value = "electrophysiology"
+    experiment.properties["Subtype"].value = "extracellular"
+    experiment.properties["ProjectID"].value = "PMC1913534"
+
+Of course, additional properties can be introduced as needed.
+For example, stimulus parameters can be documented using custom odML section with custom properties:
+
+.. code-block:: python
+    :linenos:
+
+    stimulus = odml.Section(name="Stimulus", type="stimulus")
+    stimulus.append(odml.Property("BackgroundLuminance", "25", unit="cd/m2"))
+    stimulus.append(odml.Property("StimulusType", "SquareGrating", stimulus))
+    stimulus.append(odml.Property("Sizes", ["1.2", "2.4", "4.8", "9.6"], unit="deg"))
+    stimulus.append(odml.Property("Orientations", ["0", "45", "90", "135"], unit="deg"))
+    stimulus.append(odml.Property("SpatialFrequencies", ["0.4", "0.8", "1.6", "3.2"], unit="1/deg"))
+    stimulus.append(odml.Property("NumberOfStimulusConditions", "128"))
+
+Note that instead of creating metadata objects in Python, odML metadata structures can be read from file using the standard odML library.
+The odML format allows nested sections to capture the logical strucuture of the experiment.
+For example, a stimulus can be defined as part of an experiment:
+
+.. code-block:: python
+    :linenos:
+
+    experiment.append(stimulus)
+
+This tree-like structure can be saved with the client library:
+
+.. code-block:: python
+    :linenos:
+
+    experiment = tools.upload_odml_tree(g, experiment)
+
+The client library allows searching for metadata of a particular type, using different filters that can be applied for object attributes:
+
+.. code-block:: python
+    :linenos:
+
+    sections = g.select(Model.SECTION, {"name__icontains": "LFP and Spike Data"})
+
+For complex experiments, the entire tree of metadata subsections can be very large.
+Therefore, the "select" function does not return the whole tree, instead it returns only the top level section objects with lazy-loaded relationship attributes, which will fetch related objects at the moment when they are first accessed.
+If the user wants to download the entire tree, it can be fetched with the "get" function with "recursive" parameter:
+
+.. code-block:: python
+    :linenos:
+
+    experiment = g.get(sections[0].location, recursive=True)
+
+If another, similar experiment is performed, the metadata tree can simply be cloned and only the metadata that have changed updated.
+This is highly convenient and saves the time of re-entering parameters that stay the same across a series of experiments.
+
+
+To meaningfully annotate data by metadata, the \gnodepylib allows to connect datasets with the metadata:
+
+.. code-block:: python
+    :linenos:
+
+    block.section = experiment
+    block = g.set(block) # updates relationship on the server
+
+Note an association between objects can only be set on one-side of the one-to-many relationship.
+In this case a section can have many blocks, thus the block has to be changed to establish connection.
+
+Additionally, the client library allows to connect data and metadata with so-called annotations, to indicate certain specific attributes for any of the Neo-type objects.
+A typical use case for this function is to specify which stimulus was applied in each trial of the experiment.
+This connection is done using the "metadata" attribute that uses existing metadata properties and values to "tag" a number of data-type objects:
+
+.. code-block:: python
+    :linenos:
+
+    stimulus = experiment.sections["Stimulus"]
+    orientation = stimulus.properties["Orientations"].values[3]
+    size = stimulus.properties["Sizes"].values[1]
+    sf = stimulus.properties["SpatialFrequencies"].values[2]
+
+    segment.metadata = [orientation, size, sf]
+    segment = g.set(segment) # sends updates to the server
+
+Proper annotation brings more consistency in data and metadata, and allows to select data by metadata in various ways.
+For example, for data analysis it is often necessary to select all data recorded under the same experimental conditions.
+The following example selects all LFP data across all trials with a certain stimulus properties:
+
+.. code-block:: python
+    :linenos:
+
+    stimulus = g.select(Model.SECTION, {"odml_type__icontains": "stimulus"})[0]
+
+    filters = {}
+    filters["name__icontains"] = "4"
+    filters["^1metadata"] = stimulus.properties["Orientations"].values[0].location
+    filters["^2metadata"] = stimulus.properties["Sizes"].values[0].location
+
+    segment = g.select(Model.SEGMENT, filters)[0]
+    signals = segment.analogsignals
+
+In this example we select a section describing stimulus, and use certain values of its properties to build a required filter.
+This filter, containing certain stimulus orientation and size can be used to query time segments where this combination was used.
+This type of query makes it straightforward to, for instance, compute averages across trials for a certain stimulus configuration,
+
+.. code-block:: python
+    :linenos:
+
+    import numpy as np
+    signalaverage = np.mean(signals, axis=0)
+
+or to plot the actual LFP traces for visualization:
+
+.. code-block:: python
+    :linenos:
+
+    from matplotlib import pylab as pl
+
+    s1 = signals[0] # one of the signals
+    fig = pl.figure()
+    lfp = pl.subplot(111)
+    lfp.text(.85, .05, s1.segment.name, horizontalalignment="center",
+             transform=lfp.transAxes) # caption from time segment name
+
+    for s in signals:
+        lfp.plot(s.times, s, label=s.recordingchannel.index)
+
+    pl.xlim([s1.t_start, s1.t_stop]) # set X axis range
+
+    pl.xlabel("time [%s]" % s1.times.units.dimensionality.string) # set X units
+    pl.ylabel("voltage [%s]" % s1.units.dimensionality.string) # set Y units
+
+    # [...] # commands for axes and legend omitted
+
+    pl.show()
+
+The figure below illustrates the resulting plot.
+Note that the availability of metadata with the data immediately enables meaningful labeling of the axes without having to collect further information from files or hand-written documentation.
+
+.. image:: static/analog_signals_plot.jpg
+
+
 .. external references
 .. _G-Node REST-API: http://g-node.github.io/g-node-portal/
 .. _odML: http://www.g-node.org/projects/odml
 .. _neo documentation: http://neo.readthedocs.org/en/0.3.0/
 .. _A bottom-up approach to data annotation in neurophysiology: http://www.frontiersin.org/neuroinformatics/10.3389/fninf.2011.00016/abstract
-
+.. _filters: g-node.github.io/g-node-portal/key_functions/data_api/query.html
+.. _python-odml: github.com/G-Node/python-odml
