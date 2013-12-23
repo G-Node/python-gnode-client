@@ -1,3 +1,12 @@
+# Python G-Node Client
+#
+# Copyright (C) 2013  A. Stoewer
+#                     A. Sobolev
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License (see LICENSE.txt).
+
 """
 This module defines so called result driver classes. A result driver is used
 in order to generate ready to use result objects from objects returned by a
@@ -185,11 +194,12 @@ class NativeDriver(ResultDriver):
                 field = obj.get_field(field_name)
                 if field.is_parent:
                     if field_val is not None:
+                        proxy = LazyProxy(lazy_value_loader(field_val, self.store, self))
                         if obj.model == Model.VALUE and field_name == "parent":
-                            proxy = LazyProxy(lazy_value_loader(field_val, self.store, self))
                             setattr(native, "_property", proxy)
+                        elif obj.model == Model.PROPERTY and field_name == "parent":
+                            setattr(native, "_section", proxy)
                         else:
-                            proxy = LazyProxy(lazy_value_loader(field_val, self.store, self))
                             setattr(native, field_name, proxy)
 
                 elif field.is_child:

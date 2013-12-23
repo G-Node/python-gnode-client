@@ -1,1 +1,3 @@
-__author__ = 'stoewer'
+"""
+The examples are outdated.
+"""

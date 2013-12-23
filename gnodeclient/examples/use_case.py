@@ -1,4 +1,6 @@
 """
+This examples are outdated and need to be adopted to the new client!!!
+
 Assuming I'm a neuroscientist, having recorded data already, and I want to use 
 G-Node platform and benefit from it. Here is an example use case provided.
 """

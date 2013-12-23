@@ -1,7 +1,15 @@
+# Python G-Node Client
+#
+# Copyright (C) 2013  A. Stoewer
+#                     A. Sobolev
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License (see LICENSE.txt).
+
 from __future__ import print_function, absolute_import, division
 
 import unittest
-from requests.exceptions import HTTPError
 from random import randint
 
 from gnodeclient import *

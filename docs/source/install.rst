@@ -1,13 +1,6 @@
-====================
-Python G-Node Client
-====================
-
-The Python G-Node Client is a library, that provides access to the `G-Node REST-API`_
-for the Python programming language.
-The client provides a high-level interface to this service which includes useful features such as
-lazy loading, caching and the prevention of so called lost updates.
-Further more this client library can handle native neo and odml objects.
-
+==================
+Installation guide
+==================
 
 Dependencies
 ============
@@ -15,7 +8,7 @@ Dependencies
 Using the G-Node Client requires some other python packages to be installed:
 
 - neo_ A package for representing electrophysiology data in Python
-- quantities_ Arithmetic and conversions of physical quantities
+- quantities_ Arithmetic conversions of physical quantities
 - odml_ Open metadata markup language
 - appdirs_ Get appropriate platform-specific user dirs
 - request-futures_ Asynchronous Python HTTP Request
@@ -55,19 +48,6 @@ To install the client invoke the following commands using appropriate permission
     python setup.py install
 
 
-Howto use the client
-====================
-
-If this packages :py:module:`sphinx` and :py:module`setuptools` are installed on the system, the documentation can
-be build from the cloned repository by executing the following command:
-
-.. code-block:: guess
-
-    python setup.py build_sphinx
-
-Afterwards the G-Node Client HOWTO and documentation  can be found under 'docs/build/html'.
-
-
 .. TODO add link to github pages here
 
 .. external references
@@ -80,4 +60,3 @@ Afterwards the G-Node Client HOWTO and documentation  can be found under 'docs/b
 .. _G-Node REST-API: http://g-node.github.io/g-node-portal/
 .. _sphinx: http://sphinx-doc.org/
 .. _setuptools: https://pypi.python.org/pypi/setuptools
-

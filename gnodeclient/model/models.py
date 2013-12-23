@@ -1,3 +1,12 @@
+# Python G-Node Client
+#
+# Copyright (C) 2013  A. Stoewer
+#                     A. Sobolev
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License (see LICENSE.txt).
+
 from __future__ import print_function, absolute_import, division
 
 import gnodeclient.util.declarative_models as dc
@@ -92,7 +101,7 @@ class SectionModel(Model):
     name        = Field(field_type=str, obligatory=True)
     description = Field(field_type=str)
 
-    parent      = FParent(type_info=Model.SECTION, name_mapping="parent_section")
+    parent      = FParent(type_info=Model.SECTION, name_mapping="parent_section", obligatory=True)
     sections    = FChildren(type_info=Model.SECTION)
     properties  = FChildren(type_info=Model.PROPERTY)
     blocks      = FChildren(type_info=Model.BLOCK)
@@ -104,7 +113,7 @@ class PropertyModel(Model):
     model       = Field(field_type=str, default=Model.PROPERTY)
     name        = Field(field_type=str, obligatory=True)
 
-    parent      = FParent(type_info=Model.SECTION, name_mapping="parent_section")
+    parent      = FParent(type_info=Model.SECTION, name_mapping="section")
     values      = FChildren(type_info=Model.VALUE, obligatory=True)
 
 Model._MODEL_MAP[Model.PROPERTY] = PropertyModel

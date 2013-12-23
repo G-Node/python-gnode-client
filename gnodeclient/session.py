@@ -1,30 +1,17 @@
+# Python G-Node Client
+#
+# Copyright (C) 2013  A. Stoewer
+#                     A. Sobolev
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License (see LICENSE.txt).
+
 """
 The session module defines the main programming interface of the G-Node Client. It
-provides Session class which defines all methods, that are necessary to access the
+provides the Session class which defines all methods, that are necessary to access the
 G-Node REST API. Further the module defines the functions crate() and close(): both
 functions operate on a global, application wide session object.
-
-Example usage:
->>> from gnodeclient import session
->>> from gnodeclient.model.models import Model
-
-Create a session and store the connection information in a config file.
->>> s = session.create(location="http://predata.g-node.org", username="bob", password="pass", persist_options=True)
-
-Get a list of all blocks, get all segments from the first block and print the name of
-its first segment.
->>> blocks = s.select(Model.BLOCK)
->>> segments = blocks[0].segments
->>> seg = segments[0]
->>> print(seg.name)
-
-Fetch the whole segment and all its child objects to the cache.
->>> seg = s.get(seg.location, refresh=True, recursive=True)
-
-Since all child objects are now in the cache, the next operations should perform
-quite well.
->>> for sig in seg.analogsignals:
->>>     print(repr(sig))
 """
 
 from __future__ import print_function, absolute_import, division
@@ -33,9 +20,11 @@ from gnodeclient.conf import Configuration
 from gnodeclient.store.caching_rest_store import CachingRestStore
 from gnodeclient.result.result_driver import NativeDriver
 
+__all__ = ("GNODECLIENT_VERSION", "GNODECLIENT_RELEASE", "Session", "create", "close")
 
-# The version of the client
-VERSION = "0.1.0"
+# The version and release status of the client
+GNODECLIENT_VERSION = "0.2.0"
+GNODECLIENT_RELEASE = "Beta"
 
 # A global session object.
 _MAIN_SESSION = None
@@ -150,9 +139,11 @@ class Session(object):
         """
         Set or get permissions of an object from the G-Node service.
 
-        :param entity: The entity to get or set permissions from/to.
-        :type entity: object
-        :param permissions: new permissions to apply. It should look like
+        The permissions object, that is passed as a second parameter
+        contains the following information:
+
+        .. code-block:: python
+
             {
                 "safety_level": 1, # 1-private, 2-friendly, 3-public
                 "shared_with": {
@@ -160,6 +151,11 @@ class Session(object):
                     "jeff", 2 # 2-read-write
                 }
             }
+
+        :param entity: The entity to get or set permissions from/to.
+        :type entity: object
+        :param permissions: new permissions to apply.
+
         :type permissions: dict
 
         :returns: actual object permissions
