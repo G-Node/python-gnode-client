@@ -1,10 +1,10 @@
 import os
 import sys
 
+sys.path.append(os.path.abspath('../../'))
 from gnodeclient import GNODECLIENT_VERSION, GNODECLIENT_RELEASE
 
 # general config
-sys.path.append(os.path.abspath('../../'))
 extensions = ['sphinx.ext.autodoc']
 source_suffix = '.rst'
 master_doc = 'index'
