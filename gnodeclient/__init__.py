@@ -11,7 +11,8 @@
 This package contains the client implementation for the G-Node REST API.
 """
 
-from gnodeclient.session import Session, close, create, GNODECLIENT_VERSION, GNODECLIENT_RELEASE
+from gnodeclient.session import Session, close, create
 from gnodeclient.model.models import Model
+from gnodeclient.result import Native
 
-__all__ = ("session", "model", "store", "conf", "test", "tools", "Model", "GNODECLIENT_VERSION", "GNODECLIENT_RELEASE")
+__all__ = ("session", "model", "store", "conf", "test", "tools", "Model")

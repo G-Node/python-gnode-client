@@ -302,15 +302,17 @@ class RestStore(BasicStore):
         os.remove(tmppath)
         return location
 
-    def delete(self, entity):
+    def delete(self, entity_or_location):
         """
         Delete an entity from the G-Node REST API.
 
-        :param entity: The entity to delete.
-        :type entity: Model
+        :param entity_or_location: The entity to delete.
+        :type entity_or_location: Model or string
         """
-        if hasattr(entity, "location") and entity.location is not None:
-            url = urlparse.urljoin(self.location, entity.location)
+        if type(entity_or_location) == str:
+            url = urlparse.urljoin(self.location, entity_or_location)
+        elif hasattr(entity_or_location, "location") and entity_or_location.location is not None:
+            url = urlparse.urljoin(self.location, entity_or_location.location)
         else:
             raise RuntimeError("The entity has no location and can therefore not be deleted.")
 

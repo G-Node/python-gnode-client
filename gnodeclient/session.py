@@ -20,11 +20,7 @@ from gnodeclient.conf import Configuration
 from gnodeclient.store.caching_rest_store import CachingRestStore
 from gnodeclient.result.result_driver import NativeDriver
 
-__all__ = ("GNODECLIENT_VERSION", "GNODECLIENT_RELEASE", "Session", "create", "close")
-
-# The version and release status of the client
-GNODECLIENT_VERSION = "0.3.0"
-GNODECLIENT_RELEASE = "Beta"
+__all__ = ("Session", "create", "close")
 
 # A global session object.
 _MAIN_SESSION = None
@@ -124,6 +120,76 @@ class Session(object):
         mod = self.__store.set(obj, avoid_collisions)
         res = self.__driver.to_result(mod)
         return res
+
+    def set_all(self, entity, avoid_collisions=False, fail=False):
+        """
+        Saves object with all downstream relationships on the G-Node service.
+        Updates IDs for a given object and all its relationships recursively.
+
+        :param entity: The object to store (Neo or odML).
+        :type entity: object
+        :param avoid_collisions: If true, check if the modified object collide with changes on the server.
+        :type avoid_collisions: bool
+        :param fail: skip objects that failed to sync / fail on first sync failure
+        :type fail: bool
+
+        :returns: list of exceptions that did occur.
+        :rtype: object
+        """
+        todo = [entity]  # a stack of objects to submit
+        processed = []  # collector of locations of processed objects
+        to_clean = []  # collector of locations of objects to delete
+        exceptions = []  # collector of exceptions
+
+        while len(todo) > 0:
+            local_native = todo[0]
+            local_model = self.__driver.to_model(local_native)
+            if local_model.location in processed:
+                continue  # workaround to avoid duplicate processing for Neo
+
+            try:
+                remote_model = self.__store.set(local_model, avoid_collisions)
+                processed.append(remote_model.location)
+                # below is a "side-effect" needed to have correct parents for children
+                # and to avoid processing the same object twice, in case of a non-tree
+                # hierarchies
+                local_native.location = remote_model.location
+
+            except Exception, e:  # some object fails to sync (catch HTTP only?)
+                if fail:
+                    raise e
+                else:
+                    exceptions.append(e)
+                    if len(local_model.child_fields) > 0:
+                        continue
+            finally:
+                todo.remove(local_native)  # not to forget to remove processed object
+
+            for field_name in local_model.child_fields:
+                # set difference between the actual remote and local children
+                # references determines the list of children to delete
+                local_children = local_model[field_name] or []
+                remote_children = remote_model[field_name] or []
+                to_clean += list(set(remote_children) - set(local_children))
+
+                if hasattr(local_native, field_name):
+                    children = getattr(local_native, field_name, [])
+                    # skip empty lazy-loaded proxy relations
+                    if not (hasattr(children, '_is_loaded') and not getattr(children, '_is_loaded')) and\
+                            (children is not None):
+                        for obj in children:
+                            loc = getattr(obj, 'location', None)
+                            if not (loc is not None and loc in processed):
+                                todo.append(obj)
+
+        # cleaning removed objects
+        for location in to_clean:
+            try:
+                self.__store.delete(location)
+            except Exception, e:
+                exceptions.append(e)
+
+        return exceptions
 
     def delete(self, entity):
         """

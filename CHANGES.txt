@@ -1,3 +1,10 @@
+0.3.1, 2014-01-13
+ * Documentation updated
+ * Solved issue with setuptools and packaging
+
+0.3.0, 2013-12-17
+ * Tools module
+
 0.2.0, 2013-10-29
  * Support for lazy loading
  * Native odML and neo output and input
