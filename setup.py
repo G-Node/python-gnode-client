@@ -1,5 +1,4 @@
-from setuptools import setup
-from gnodeclient import GNODECLIENT_VERSION
+from setuptools import setup, find_packages
 
 with open("README.rst") as f:
     description_text = f.read()
@@ -9,25 +8,16 @@ with open("LICENSE.txt") as f:
 
 setup(
     name="gnodeclient",
-    version=GNODECLIENT_VERSION,
+    version="0.3.1",
     author="A. Stoewer, A. Sobolev",
     author_email="adrian.stoewer@rz.ifi.lmu.de",
-    packages=[
-        "gnodeclient",
-        "gnodeclient.model",
-        "gnodeclient.store",
-        "gnodeclient.test",
-        "gnodeclient.util",
-        "gnodeclient.result"
-    ],
+    packages=find_packages(),
     package_dir={"gnodeclient": "gnodeclient"},
-    package_data={"gnodeclient": [license_text, description_text]},
     test_suite="gnodeclient.test.test_all",
-    #scripts=[],
+    scripts=[],
     url="https://github.com/G-Node/python-gnode-client",
     license="LGPL",
     description="Client for the G-Node REST API.",
-    include_package_data=True,
     long_description=description_text,
     install_requires=[
         "setuptools",
@@ -47,5 +37,8 @@ setup(
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.1",
         "Programming Language :: Python :: 3.2",
-    ]
+    ],
+    package_data={"gnodeclient": [license_text, description_text]},
+    include_package_data=True,
+    zip_safe=False,
 )
