@@ -1,7 +1,6 @@
 import os
 import sys
 
-from gnodeclient import GNODECLIENT_VERSION, GNODECLIENT_RELEASE
 
 # general config
 sys.path.append(os.path.abspath('../../'))
@@ -10,8 +9,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 project = 'Python G-Node Client'
 copyright = '2013, Adrian Stoewer, Andrey Sobolev'
-version = GNODECLIENT_VERSION
-release = GNODECLIENT_VERSION + " " + GNODECLIENT_RELEASE
+version = "0.3.1"
+release = "0.3.1 Beta"
 exclude_patterns = []
 pygments_style = 'sphinx'
 
