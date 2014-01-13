@@ -58,19 +58,20 @@ To install the client invoke the following commands using appropriate permission
 Howto use the client
 ====================
 
-If this packages :py:module:`sphinx` and :py:module`setuptools` are installed on the system, the documentation can
-be build from the cloned repository by executing the following command:
+More information about how to use the client can be found in the online documentation_.
+
+If this packages :py:mode:`sphinx` and :py:mod:`setuptools` are installed on your system, the documentation can
+also be build from the cloned repository by executing the following command:
 
 .. code-block:: guess
 
     python setup.py build_sphinx
 
-Afterwards the G-Node Client HOWTO and documentation  can be found under 'docs/build/html'.
-
 
 .. TODO add link to github pages here
 
 .. external references
+.. _documentation: http://g-node.github.io/python-gnode-client/
 .. _neo: http://neuralensemble.org/neo/
 .. _quantities: https://github.com/python-quantities/python-quantities
 .. _odml: https://github.com/G-Node/python-odml
