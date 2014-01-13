@@ -1,9 +1,13 @@
-import os
-import sys
-
+# Python G-Node Client
+#
+# Copyright (C) 2013  A. Stoewer
+#                     A. Sobolev
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License (see LICENSE.txt).
 
 # general config
-sys.path.append(os.path.abspath('../../'))
 extensions = ['sphinx.ext.autodoc']
 source_suffix = '.rst'
 master_doc = 'index'
