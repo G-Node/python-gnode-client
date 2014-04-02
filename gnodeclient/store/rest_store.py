@@ -221,11 +221,12 @@ class RestStore(BasicStore):
         :returns: The raw file data.
         :rtype: numpy.ndarray|list
         """
-        tmphandler, tmppath = tempfile.mkstemp()
+        fd, tmppath = tempfile.mkstemp()
         with open(tmppath, 'w') as f:
             f.write(self.get_file(location))
 
         array_data = read_array_data(tmppath)
+        os.close(fd)
         os.remove(tmppath)
         return array_data
 
@@ -295,10 +296,12 @@ class RestStore(BasicStore):
         :returns: The url to the uploaded file.
         :rtype: str
         """
-        tmphandler, tmppath = tempfile.mkstemp()
+        fd, tmppath = tempfile.mkstemp()
         store_array_data(tmppath, array_data)
         with open(tmppath, 'rb') as f:
             location = self.set_file(f.read())
+
+        os.close(fd)
         os.remove(tmppath)
         return location
 
