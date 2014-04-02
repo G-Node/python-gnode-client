@@ -22,6 +22,7 @@ import gnodeclient.util.helper as helper
 import gnodeclient.store.convert as convert
 from gnodeclient.store.basic_store import BasicStore
 from gnodeclient.util.cache import Cache
+from gnodeclient.conf import Configuration
 
 
 class CacheStore(BasicStore):
@@ -31,11 +32,11 @@ class CacheStore(BasicStore):
 
     def __init__(self, location=None):
         super(CacheStore, self).__init__(location)
-        self.__cache = Cache(self.location)
+        self.__cache = Cache(self.location, Configuration.NAME)
 
     def connect(self):
         if self.__cache is None:
-            self.__cache = Cache(self.location)
+            self.__cache = Cache(self.location, Configuration.NAME)
 
     def is_connected(self):
         return self.__cache is not None

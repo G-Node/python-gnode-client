@@ -26,6 +26,7 @@ class Configuration(dict):
     """
 
     NAME = 'gnodeclient'
+    ATHOR = 'gnode'
 
     def __init__(self, options=None, file_name=None, persist_options=False):
         """
@@ -49,7 +50,7 @@ class Configuration(dict):
 
         # read config from file
         if file_name is None:
-            file_name = os.path.join(appdirs.user_data_dir(appname=Configuration.NAME),
+            file_name = os.path.join(appdirs.user_data_dir(appname=Configuration.NAME, appauthor=Configuration.ATHOR),
                                      Configuration.NAME + '.conf')
 
         fhandle = None
@@ -75,8 +76,10 @@ class Configuration(dict):
         self['username'] = options.get('username', None)
         self['password'] = options.get('password', None)
         self['location'] = options.get('location', 'http://localhost:8000')
-        self['cache_dir'] = options.get('cache_dir', appdirs.user_cache_dir(Configuration.NAME))
-        self['log_dir'] = options.get('log_file', os.path.join(appdirs.user_data_dir(Configuration.NAME),
+        self['cache_dir'] = options.get('cache_dir', appdirs.user_cache_dir(Configuration.NAME,
+                                                                            appauthor=Configuration.ATHOR))
+        self['log_dir'] = options.get('log_file', os.path.join(appdirs.user_data_dir(Configuration.NAME,
+                                                                                     appauthor=Configuration.ATHOR),
                                                                Configuration.NAME + '.log'))
         self['odml_repo'] = options.get('odml_repo',
                                         'http://portal.g-node.org/odml/terminologies/v1.0/terminologies.xml')

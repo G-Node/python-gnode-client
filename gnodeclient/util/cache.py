@@ -24,13 +24,12 @@ class Cache(object):
     A file system based cache that uses pickle to store python objects and file data.
     """
 
-    DEFAUTL_BASE_DIR = 'gnodeclient'
     FILE_DIR = 'files'
     FILE_DIR_TMP = 'files_tmp'
     OBJ_DIR = 'objects'
     OBJ_DIR_TMP = 'objects_tmp'
 
-    def __init__(self, location=None, base_dir=DEFAUTL_BASE_DIR):
+    def __init__(self, location, base_dir):
         """
         Cache initialisation
 
@@ -39,10 +38,7 @@ class Cache(object):
         :param base_dir: The name of the base directory.
         :type base_dir: str
         """
-        if location is None:
-            self.__base_dir = appdirs.user_cache_dir(base_dir)
-        else:
-            self.__base_dir = os.path.join(location, base_dir)
+        self.__base_dir = os.path.join(location, base_dir)
 
         self.__file_dir = os.path.join(self.base_dir, Cache.FILE_DIR)
         self.__file_dir_tmp = os.path.join(self.base_dir, Cache.FILE_DIR_TMP)

@@ -28,7 +28,7 @@ class CachingRestStore(BasicStore):
     a recursive get method, which ensures the presence of all descendants of a certain entity in the cache.
     """
 
-    def __init__(self, location, user, password, cache_location=None):
+    def __init__(self, location, user, password, cache_location):
         """
         Constructor.
 

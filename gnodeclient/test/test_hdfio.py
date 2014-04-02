@@ -11,6 +11,7 @@ import os
 import unittest
 import numpy as np
 import appdirs
+from gnodeclient.conf import Configuration
 
 from gnodeclient.util.hdfio import store_array_data, read_array_data
 
@@ -21,7 +22,7 @@ class TestHDFIO(unittest.TestCase):
     """
 
     def test_hdf5_io(self):
-        basepath = appdirs.user_cache_dir("gnodeclient", "gnodeclient")
+        basepath = appdirs.user_cache_dir(appname=Configuration.NAME, appauthor=Configuration.ATHOR)
         testpath = os.path.join(basepath, 'bla.hdf5')
 
         if not os.path.isdir(basepath):
