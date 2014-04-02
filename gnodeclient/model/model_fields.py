@@ -82,7 +82,7 @@ class FQuantity(Field):
                 if data is not None and not isinstance(data, Number):
                     check_passed = False
                 units = val["units"]
-                if units is not None and not isinstance(units, str):
+                if units is not None and (not isinstance(units, str) and not isinstance(units, unicode)):
                     check_passed = False
             except RuntimeError:
                 check_passed = False
@@ -105,7 +105,7 @@ class FDatafile(Field):
             try:
                 _ = val["data"]
                 units = val["units"]
-                if units is not None and not isinstance(units, str):
+                if units is not None and (not isinstance(units, str) and not isinstance(units, unicode)):
                     check_passed = False
             except RuntimeError:
                 check_passed = False
