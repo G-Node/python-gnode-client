@@ -7,8 +7,10 @@
 # modify it under the terms of the GNU Lesser General Public
 # License (see LICENSE.txt).
 
+import os
 import unittest
 import numpy as np
+import appdirs
 
 from gnodeclient.util.hdfio import store_array_data, read_array_data
 
@@ -19,7 +21,12 @@ class TestHDFIO(unittest.TestCase):
     """
 
     def test_hdf5_io(self):
-        testpath = '/tmp/bla.hdf5'
+        basepath = appdirs.user_cache_dir("gnodeclient", "gnodeclient")
+        testpath = os.path.join(basepath, 'bla.hdf5')
+
+        if not os.path.isdir(basepath):
+            os.makedirs(basepath, 0o0750)
+
         testlist = [1, 2, 3, 4, 5, 6, 7, 8, 9]
         testarray = np.array(testlist)
 
