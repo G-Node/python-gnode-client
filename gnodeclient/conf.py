@@ -73,6 +73,8 @@ class Configuration(dict):
 
         # set defaults
         self['version'] = "0.1.0"
+        self['api_prefix'] = "api"
+        self['api_name'] = "v1"
         self['username'] = options.get('username', None)
         self['password'] = options.get('password', None)
         self['location'] = options.get('location', 'http://localhost:8000')

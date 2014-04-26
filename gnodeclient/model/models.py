@@ -78,12 +78,7 @@ class Model(dc.Model):
         :returns: The location prefix.
         :rtype: str
         """
-        if type_name == cls.DATAFILE:
-            return 'datafiles/datafile'
-        elif type_name in (cls.SECTION, cls.PROPERTY, cls.VALUE):
-            return 'metadata/' + type_name
-        else:
-            return 'electrophysiology/' + type_name
+        return "/api/v1/" + type_name + "/"  # TODO move API params to reststore
 
     #
     # Fields

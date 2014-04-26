@@ -12,10 +12,7 @@ except ImportError:
 
 
 def id_from_location(location):
-    if location.strip("/").endswith("/data"):
-        location = location[0:len(location) - 5]
-    ident = urlparse.urlparse(location).path.strip("/").split("/")[-1]
-    return ident
+    return urlparse.urlparse(location).path.strip("/").split("/")[3]
 
 
 def random_str(length=16, prefix=None, separator="_", alphabet=None):

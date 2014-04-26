@@ -8,7 +8,12 @@
 # License (see LICENSE.txt).
 
 from __future__ import print_function, absolute_import, division
-import urlparse
+
+try:
+    import urlparse
+except ImportError:
+    import urllib.parse as urlparse
+
 import gnodeclient.util.helper as helper
 from gnodeclient.model.models import Model
 
@@ -48,7 +53,7 @@ def collections_to_model(collection, as_list=False):
         if 'resource_uri' not in obj:
             raise ValueError("Object identifier is missing")
 
-        location = urlparse.urlparse(obj['resource_uri'])
+        location = urlparse.urlparse(obj['resource_uri']).path
         api, version, model_name, obj_id = location.strip('/').split('/')
         model_obj = Model.create(model_name)
 
@@ -74,7 +79,8 @@ def collections_to_model(collection, as_list=False):
             else:
                 field_val = obj[obj_field_name]
 
-            model_obj[field_name] = field_val
+            if field_val is not None:
+                model_obj[field_name] = field_val
 
         models.append(model_obj)
 

@@ -155,7 +155,7 @@ class BasicStore(object):
         """
         raise NotImplementedError()
 
-    def set_file(self, data):
+    def set_file(self, data, *args, **kwargs):
         """
         Save raw file data in the store.
 
@@ -167,7 +167,7 @@ class BasicStore(object):
         """
         raise NotImplementedError()
 
-    def set_array(self, array_data):
+    def set_array(self, array_data, *args, **kwargs):
         """
         Save array data in the store.
 

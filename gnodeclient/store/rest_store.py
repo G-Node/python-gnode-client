@@ -23,7 +23,6 @@ from requests_futures.sessions import FuturesSession
 import gnodeclient.store.convert as convert
 from gnodeclient.model.models import Model
 from gnodeclient.store.basic_store import BasicStore
-from gnodeclient.util.helper import id_from_location
 from gnodeclient.util.hdfio import store_array_data, read_array_data
 
 
@@ -36,7 +35,7 @@ class RestStore(BasicStore):
     URL_LOGIN = 'account/authenticate/'
     URL_LOGOUT = 'account/logout/'
 
-    def __init__(self, location, user, password):
+    def __init__(self, location, user, password, api_prefix, api_name):
         """
         Constructor.
 
@@ -49,6 +48,8 @@ class RestStore(BasicStore):
         """
         super(RestStore, self).__init__(location, user, password)
         self.__session = None
+        self.api_prefix = api_prefix
+        self.api_name = api_name
 
     #
     # Methods
@@ -202,8 +203,11 @@ class RestStore(BasicStore):
         :returns: The raw file data.
         :rtype: str
         """
-        fid = id_from_location(location)
-        url = urlparse.urljoin(self.location, '%s/%s/%s/' % ('datafiles/datafile', fid, 'data'))
+        #fid = id_from_location(location)
+        url = urlparse.urljoin(self.location, location)
+
+        import ipdb
+        ipdb.set_trace()
 
         future = self.__session.get(url)
         response = future.result()
@@ -265,45 +269,38 @@ class RestStore(BasicStore):
 
         return result
 
-    def set_file(self, data):
+    def set_file(self, data, location):
         """
         Save raw file data on the G-Node REST API.
 
         :param data: The raw data of the file.
         :type data: str
-
-        :returns: The url to the uploaded file.
-        :rtype: str
         """
         files = {'raw_file': data}
-        url = urlparse.urljoin(self.location, 'datafiles/datafile/')
+        #url = urlparse.urljoin(self.location, 'datafiles/datafile/')
 
-        future = self.__session.post(url, files=files)
+        future = self.__session.put(location, files=files)
         response = future.result()
         response.raise_for_status()
 
-        datafile = convert.json_to_collections(response.content)
-        return datafile['location']
+        #datafile = convert.json_to_collections(response.content)
+        #return location
 
-    def set_array(self, array_data):
+    def set_array(self, array_data, location):
         """
         Create a temporary HDF5 file with the array data and upload the file
         data to the G-Node REST API.
 
         :param array_data: The raw data to store.
         :type array_data: numpy.ndarray|list
-
-        :returns: The url to the uploaded file.
-        :rtype: str
         """
         fd, tmppath = tempfile.mkstemp()
         store_array_data(tmppath, array_data)
         with open(tmppath, 'rb') as f:
-            location = self.set_file(f.read())
+            self.set_file(f.read(), location)
 
         os.close(fd)
         os.remove(tmppath)
-        return location
 
     def delete(self, entity_or_location):
         """

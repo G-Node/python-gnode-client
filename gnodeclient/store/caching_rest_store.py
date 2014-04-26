@@ -28,7 +28,7 @@ class CachingRestStore(BasicStore):
     a recursive get method, which ensures the presence of all descendants of a certain entity in the cache.
     """
 
-    def __init__(self, location, user, password, cache_location):
+    def __init__(self, location, user, password, cache_location, api_prefix="api", api_name="v1"):
         """
         Constructor.
 
@@ -45,7 +45,7 @@ class CachingRestStore(BasicStore):
         super(CachingRestStore, self).__init__(location, user, password)
 
         self.__cache_location = cache_location
-        self.__rest_store = RestStore(location, user, password)
+        self.__rest_store = RestStore(location, user, password, api_prefix, api_name)
         self.__cache_store = CacheStore(cache_location)
 
     #
@@ -237,35 +237,40 @@ class CachingRestStore(BasicStore):
         else:
             old_entity = None
 
-        # handle temporal datafiles here (array data)
-        for field_name in entity:
-            field = entity.get_field(field_name)
-            field_val = entity[field_name]
-
-            if field.type_info == "datafile" and field_val is not None and field_val["data"] is not None:
-                array_location = field_val["data"]
-                array = self.cache_store.get_array(array_location, temporary=True)
-                if array is not None:
-                    # TODO check if file upload is really needed (optimization)
-                    new_array_location = self.rest_store.set_array(array)
-                    self.cache_store.set_array(array, new_array_location)
-                    self.cache_store.delete_file(array_location, temporary=True)
-                    entity[field_name]["data"] = new_array_location
-
         # handle the entity itself
         if old_entity is not None and avoid_collisions:
             entity.guid = old_entity.guid
 
         obj = self.rest_store.set(entity, avoid_collisions)
+
+        # handle temporal datafiles here (array data)
+        for field_name in entity:
+            field = entity.get_field(field_name)
+            field_val = entity[field_name]
+
+            if field.type_info == "datafile" and field_val is not None and \
+                            field_val["data"] is not None:
+                array_location = field_val["data"]
+                array = self.cache_store.get_array(array_location, temporary=True)
+                if array is not None:
+                    # TODO check if file upload is really needed (optimization)
+                    new_array_location = obj[field_name]
+                    self.rest_store.set_array(array, new_array_location)
+                    self.cache_store.set_array(array, new_array_location)
+                    self.cache_store.delete_file(array_location, temporary=True)
+                    entity[field_name]["data"] = new_array_location
+
         obj = self.cache_store.set(obj)
         return obj
 
-    def set_file(self, data, old_location=None, temporary=False):
+    def set_file(self, data, location=None, old_location=None, temporary=False):
         """
         Save raw file data in the store.
 
         :param data: The raw data of the file.
         :type data: str
+        :param location: Where to store the file, like /api/v1/spike/3648/waveform
+        :type location: str
         :param old_location: The old location of the file.
         :type old_location: str
 
@@ -276,14 +281,17 @@ class CachingRestStore(BasicStore):
             self.cache_store.delete_file(old_location)
 
         if not temporary:
-            location = self.rest_store.set_file(data)
+            if not location:
+                raise ValueError('Need a location for permanent file storage')
+
+            self.rest_store.set_file(data, location)
             self.cache_store.set_file(data, location)
         else:
             location = self.cache_store.set_file(data, temporary=True)
 
         return location
 
-    def set_array(self, array_data, old_location=None, temporary=False):
+    def set_array(self, array_data, location=None, old_location=None, temporary=False):
         """
         Save array data in the store.
 
@@ -299,7 +307,10 @@ class CachingRestStore(BasicStore):
             self.cache_store.delete_file(old_location)
 
         if not temporary:
-            location = self.rest_store.set_array(array_data)
+            if not location:
+                raise ValueError('Need a location for permanent data storage')
+
+            self.rest_store.set_array(array_data, location)
             self.cache_store.set_array(array_data, location)
         else:
             location = self.cache_store.set_array(array_data, temporary=True)
