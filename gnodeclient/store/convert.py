@@ -8,7 +8,7 @@
 # License (see LICENSE.txt).
 
 from __future__ import print_function, absolute_import, division
-
+import urlparse
 import gnodeclient.util.helper as helper
 from gnodeclient.model.models import Model
 
@@ -45,10 +45,11 @@ def collections_to_model(collection, as_list=False):
 
     # convert
     for obj in objects:
-        if 'id' not in obj or 'location' not in obj or 'model' not in obj:
-            raise ValueError("Unable to convert json into a model!")
+        if 'resource_uri' not in obj:
+            raise ValueError("Object identifier is missing")
 
-        category, model_name, obj_id = obj['location'].strip('/').split('/')
+        location = urlparse.urlparse(obj['resource_uri'])
+        api, version, model_name, obj_id = location.strip('/').split('/')
         model_obj = Model.create(model_name)
 
         for field_name in model_obj:
@@ -59,21 +60,21 @@ def collections_to_model(collection, as_list=False):
             else:
                 obj_field_name = field.name_mapping or field_name
 
-            if obj_field_name in obj:
-                field_val = obj[obj_field_name]
-            elif 'fields' in obj and obj_field_name in obj['fields']:
-                field_val = obj['fields'][obj_field_name]
-            else:
-                field_val = None
+            if not obj_field_name in obj:
+                continue
 
-            if field_val is not None:
-                if field.type_info == 'data' and field_val['data'] is not None:
-                    field_val['data'] = float(field_val['data'])
-                if model_name in (Model.EPOCHARRAY, Model.EPOCHARRAY) and field_name == "labels":
-                    field_val = {"units": None, "data": field_val}
-                elif field_name == 'model':
-                    field_val = model_name
-                model_obj[field_name] = field_val
+            if field.type_info in ['data', 'datafile']:
+                value = obj[obj_field_name]
+                field_val = {
+                    "units": obj.get(obj_field_name + '__unit', None),
+                    "data": float(value) if field.type_info == 'data' else value
+                }
+            elif field_name == 'model':
+                field_val = model_name
+            else:
+                field_val = obj[obj_field_name]
+
+            model_obj[field_name] = field_val
 
         models.append(model_obj)
 
