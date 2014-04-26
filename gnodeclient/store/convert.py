@@ -117,7 +117,7 @@ def model_to_collections(model):
     return result
 
 
-def model_to_json_response(model, exclude=("location", "model", "guid", "permalink", "id")):
+def model_to_json_response(model, exclude=("location", "model", "guid", "resource_uri", "id")):
     """
     Converts a single model into a json encodes string that can be used as a
     response body for the G-Node REST API.
@@ -140,15 +140,16 @@ def model_to_json_response(model, exclude=("location", "model", "guid", "permali
                 if value is None:
                     result[field_name] = None
                 else:
-                    result[field_name] = {"units": value["units"], "data": value["data"]}
+                    result[field_name] = value["data"]
+                    result[field_name + '__unit'] = value["units"]
 
             elif field.type_info == "datafile":
-                if value is not None:
-                    if model.model in (Model.EPOCHARRAY, Model.EPOCHARRAY) and field_name == "labels":
-                        new_value = helper.id_from_location(value["data"])
-                    else:
-                        new_value = {"units": value["units"], "data": helper.id_from_location(value["data"])}
-                    result[field_name] = new_value
+                if value is not None:  # TODO clean this up
+                    #if model.model in (Model.EPOCHARRAY, Model.EPOCHARRAY) and field_name == "labels":
+                    #    new_value = helper.id_from_location(value["data"])
+                    #else:
+                    #    new_value = {"units": value["units"], "data": helper.id_from_location(value["data"])}
+                    result[field_name + '__unit'] = value["units"]
 
             elif field.is_child:
                 if model.model == Model.RECORDINGCHANNEL and field_name == "recordingchannelgroups":

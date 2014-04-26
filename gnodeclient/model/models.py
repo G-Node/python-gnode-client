@@ -91,7 +91,7 @@ class Model(dc.Model):
 
     id          = Field(field_type=str)
     guid        = Field(field_type=str)
-    permalink   = Field(field_type=str)
+    resource_uri= Field(field_type=str)
     location    = Field(field_type=str)
     model       = Field(field_type=str)
 

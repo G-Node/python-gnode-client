@@ -39,7 +39,7 @@ class ResultDriver(object):
     A result driver is used to convert internally used model objects into
     objects that are returned and handled by the Session class of the client
     API. The result driver is further more responsible for the creation of
-    proxy objects from permalink or location stings.
+    proxy objects from resource URL or location stings.
     """
 
     def __init__(self, store):
