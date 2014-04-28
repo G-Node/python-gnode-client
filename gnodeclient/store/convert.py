@@ -70,10 +70,14 @@ def collections_to_model(collection, as_list=False):
 
             if field.type_info in ['data', 'datafile']:
                 value = obj[obj_field_name]
-                field_val = {
-                    "units": obj.get(obj_field_name + '__unit', None),
-                    "data": float(value) if field.type_info == 'data' else value
-                }
+                try:
+                    field_val = {
+                        "units": obj.get(obj_field_name + '__unit', None),
+                        "data": float(value) if field.type_info == 'data' else value
+                    }
+                except:
+                    import ipdb
+                    ipdb.set_trace()
             elif field_name == 'model':
                 field_val = model_name
             else:
@@ -113,6 +117,9 @@ def model_to_collections(model):
         elif model.model in (Model.EVENTARRAY, Model.EPOCHARRAY) and field_name == "labels":
             if value is not None:
                 value = value["data"]
+        elif field.type_info in ["data", "datafile"]:
+            result[field_name + '__unit'] = value["units"]
+            value = value["data"]
 
         if field.is_child:
             field_name = field.name_mapping or field.type_info + "_set"

@@ -206,9 +206,6 @@ class RestStore(BasicStore):
         #fid = id_from_location(location)
         url = urlparse.urljoin(self.location, location)
 
-        import ipdb
-        ipdb.set_trace()
-
         future = self.__session.get(url)
         response = future.result()
         response.raise_for_status()
