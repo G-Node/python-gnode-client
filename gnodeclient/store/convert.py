@@ -54,7 +54,7 @@ def collections_to_model(collection, as_list=False):
             raise ValueError("Object identifier is missing")
 
         location = urlparse.urlparse(obj['resource_uri']).path
-        api, version, model_name, obj_id = location.strip('/').split('/')
+        api, version, category, model_name, obj_id = location.strip('/').split('/')
         model_obj = Model.create(model_name)
 
         for field_name in model_obj:

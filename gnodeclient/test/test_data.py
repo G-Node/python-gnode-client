@@ -19,7 +19,7 @@ import quantities as pq
 from neo import Block, Segment, EventArray, Event, EpochArray, Epoch, RecordingChannelGroup, \
     RecordingChannel, Unit, SpikeTrain, Spike, AnalogSignalArray, AnalogSignal, IrregularlySampledSignal
 
-from gnodeclient.util.helper import random_str
+from gnodeclient.util.helper import random_str, random_base32
 from gnodeclient.model.models import Model
 
 
@@ -80,84 +80,84 @@ class TestDataCollection(object):
         self.__data_sets = {}
 
         loc = "/electrophysiology/block/"
-        miss = random_str()
+        miss = random_base32()
         data = Block(name=r_str("block"), description=r_str("desc"))
         self[Model.BLOCK] = TestData(loc, miss, data)
 
         loc = "/electrophysiology/segment/"
-        miss = random_str()
+        miss = random_base32()
         data = Segment(name=r_str("segment"), description=r_str("desc"))
         self[Model.SEGMENT] = TestData(loc, miss, data)
 
         loc = "/electrophysiology/eventarray/"
         leng = r_length()
-        miss = random_str()
+        miss = random_base32()
         data = EventArray(times=r_times(leng), labels=r_labels(leng), name=r_str("eventarray"),
                           description=r_str("desc"))
         self[Model.EVENTARRAY] = TestData(loc, miss, data)
 
         loc = "/electrophysiology/event/"
-        miss = random_str()
+        miss = random_base32()
         data = Event(time=random() * 100 * pq.s, label=r_str("label"), name=r_str("event"),
                      description=r_str("description"))
         self[Model.EVENT] = TestData(loc, miss, data)
 
         loc = "/electrophysiology/epocharray/"
         leng = r_length()
-        miss = random_str()
+        miss = random_base32()
         data = EpochArray(times=r_times(leng), durations=r_times(leng), labels=r_labels(leng),
                           name=r_str("epocharray"), description=r_str("description"))
         self[Model.EPOCHARRAY] = TestData(loc, miss, data)
 
         loc = "/electrophysiology/epoch/"
-        miss = random_str()
+        miss = random_base32()
         data = Epoch(time=random() * 100 * pq.s, duration=random() * 100 * pq.s, label=r_str("label"),
                      name=r_str("epoch"), description=r_str("description"))
         self[Model.EPOCH] = TestData(loc, miss, data)
 
         loc = "/electrophysiology/recordingchannelgroup/"
         leng = r_length()
-        miss = random_str()
+        miss = random_base32()
         data = RecordingChannelGroup(channel_names=r_labels(leng, "chan"), channel_indexes=range(leng),
                                      name=r_str("recordingchannelgroup"), description="description")
         self[Model.RECORDINGCHANNELGROUP] = TestData(loc, miss, data)
 
         loc = "/electrophysiology/recordingchannel/"
-        miss = random_str()
+        miss = random_base32()
         data = RecordingChannel(index=randint(1, 100), name=r_str("recordingchannel"), description="description")
         data.recordingchannelgroups = []
         self[Model.RECORDINGCHANNEL] = TestData(loc, miss, data)
 
         loc = "/electrophysiology/unit/"
-        miss = random_str()
+        miss = random_base32()
         data = Unit(name=r_str("unit"), description="description")
         self[Model.UNIT] = TestData(loc, miss, data)
 
         loc = "/electrophysiology/spiketrain/"
-        miss = random_str()
+        miss = random_base32()
         data = SpikeTrain(times=r_times(), t_stop=1000 * pq.s, name=r_str("spiketrain"), description="description")
         self[Model.SPIKETRAIN] = TestData(loc, miss, data)
 
         loc = "/electrophysiology/spike/"
-        miss = random_str()
+        miss = random_base32()
         data = Spike(time=random() * 100 * pq.s, name=r_str("spike"), description="description", left_sweep=1 * pq.ms,
                      sampling_rate=1 * pq.kHz)
         self[Model.SPIKE] = TestData(loc, miss, data)
 
         loc = "/electrophysiology/analogsignalarray/"
-        miss = random_str()
+        miss = random_base32()
         data = AnalogSignalArray(signal=pq.Quantity(np.random.rand(3, 3), 'mV'), t_start=random() * 100 * pq.s,
                                  sampling_rate=1 * pq.kHz, name=r_str("analogsignalarray"), description="description")
         self[Model.ANALOGSIGNALARRAY] = TestData(loc, miss, data)
 
         loc = "/electrophysiology/analogsignal/"
-        miss = random_str()
+        miss = random_base32()
         data = AnalogSignal(signal=pq.Quantity(np.random.rand(100), 'mV'), t_start=random() * 100 * pq.s,
                             sampling_rate=1 * pq.kHz, name=r_str("analogsignal"), description="description")
         self[Model.ANALOGSIGNAL] = TestData(loc, miss, data)
 
         loc = "/electrophysiology/irregularlysampledsignal/"
-        miss = random_str()
+        miss = random_base32()
         leng = r_length()
         data = IrregularlySampledSignal(signal=pq.Quantity(np.random.rand(leng), 'mV'), times=r_times(leng),
                                         name=r_str("analogsignal"), description="description", t_start=0 * pq.s)

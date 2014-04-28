@@ -28,7 +28,7 @@ class TestRemote(unittest.TestCase):
     #
 
     def setUp(self):
-        self.session = session.create(location="http://predata.g-node.org", username="bob", password="pass")
+        self.session = session.create(location="http://localhost:8000", username="bob", password="pass")
         self.session.clear_cache()
         self.data = TestDataCollection()
 
@@ -69,7 +69,7 @@ class TestRemote(unittest.TestCase):
     def test_03_get_missing_by_id(self):
         for name in self.data:
             data = self.data[name]
-            location = Model.get_location(name) + "/" + data.missing_id
+            location = Model.get_location(name) + data.missing_id + "/"
             result = self.session.get(location)
 
             msg = "The result of get(%s) should be None!" % location
@@ -78,7 +78,11 @@ class TestRemote(unittest.TestCase):
     def test_04_set_delete(self):
         for name in self.data:
             data = self.data[name]
-            first_result = self.session.set(data.test_data)
+            try:
+                first_result = self.session.set(data.test_data)
+            except:
+                import ipdb
+                ipdb.set_trace()
 
             msg = "Unable to save object %s" % str(data.test_data)
             self.assertTrue(hasattr(first_result, 'location'), msg)

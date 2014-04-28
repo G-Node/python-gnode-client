@@ -3,6 +3,7 @@ Miscellaneous helper functions.
 """
 
 import random
+import string
 
 try:
     import urlparse
@@ -22,3 +23,11 @@ def random_str(length=16, prefix=None, separator="_", alphabet=None):
     if prefix is not None and len(prefix) > 0:
         rnd = prefix + separator + rnd
     return rnd
+
+
+def random_base32(length=10):
+    alphabet = tuple(list('0123456789' + string.ascii_uppercase)[:32])
+    uid = random.choice(alphabet[1:])
+    for i in range(length - 1):
+        uid += random.choice(alphabet)
+    return uid

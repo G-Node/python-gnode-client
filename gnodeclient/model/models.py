@@ -23,7 +23,7 @@ class Model(dc.Model):
     >>> signal.id = "id"
     """
 
-    DATAFILE = "datafile"
+    DOCUMENT = "document"
     SECTION = "section"
     PROPERTY = "property"
     VALUE = "value"
@@ -78,7 +78,10 @@ class Model(dc.Model):
         :returns: The location prefix.
         :rtype: str
         """
-        return "/api/v1/" + type_name + "/"  # TODO move API params to reststore
+        if type_name in (cls.SECTION, cls.PROPERTY, cls.VALUE):
+            return "/api/v1/metadata/" + type_name + "/"
+        else:
+            return "/api/v1/electrophysiology/" + type_name + "/"
 
     #
     # Fields
@@ -91,12 +94,33 @@ class Model(dc.Model):
     model       = Field(field_type=str)
 
 
+class DocumentModel(Model):
+    model       = Field(field_type=str, default=Model.DOCUMENT)
+    author      = Field(field_type=str)
+    date        = Field(field_type=str)
+    version     = Field(field_type=str)
+    repository  = Field(field_type=str)
+
+    sections    = FChildren(type_info=Model.SECTION)
+
+
+Model._MODEL_MAP[Model.DOCUMENT] = DocumentModel
+
+
 class SectionModel(Model):
     model       = Field(field_type=str, default=Model.SECTION)
-    name        = Field(field_type=str, obligatory=True)
+    name        = Field(field_type=str)
+    type        = Field(field_type=str, obligatory=True)
+    reference = Field(field_type=str)
     description = Field(field_type=str)
+    definition = Field(field_type=str)
+    link = Field(field_type=str)
+    include = Field(field_type=str)
+    repository = Field(field_type=str)
+    mapping = Field(field_type=str)
 
-    parent      = FParent(type_info=Model.SECTION, name_mapping="parent_section", obligatory=True)
+    document    = FParent(type_info=Model.DOCUMENT)
+    section     = FParent(type_info=Model.SECTION)
     sections    = FChildren(type_info=Model.SECTION)
     properties  = FChildren(type_info=Model.PROPERTY)
     blocks      = FChildren(type_info=Model.BLOCK)
@@ -107,6 +131,10 @@ Model._MODEL_MAP[Model.SECTION] = SectionModel
 class PropertyModel(Model):
     model       = Field(field_type=str, default=Model.PROPERTY)
     name        = Field(field_type=str, obligatory=True)
+    definition  = Field(field_type=str)
+    mapping     = Field(field_type=str)
+    dependency  = Field(field_type=str)
+    dependencyvalue = Field(field_type=str)
 
     parent      = FParent(type_info=Model.SECTION, name_mapping="section")
     values      = FChildren(type_info=Model.VALUE, obligatory=True)
@@ -116,7 +144,14 @@ Model._MODEL_MAP[Model.PROPERTY] = PropertyModel
 
 class ValueModel(Model):
     model       = Field(field_type=str, default=Model.VALUE)
-    data       = Field(field_type=str, obligatory=True)
+    data        = Field(field_type=str, obligatory=True)
+    uncertainty     = Field(field_type=str)
+    unit            = Field(field_type=str)
+    reference       = Field(field_type=str)
+    definition      = Field(field_type=str)
+    filename        = Field(field_type=str)
+    encoder         = Field(field_type=str)
+    checksum        = Field(field_type=str)
 
     parent      = FParent(type_info=Model.PROPERTY, name_mapping="parent_property")
 
