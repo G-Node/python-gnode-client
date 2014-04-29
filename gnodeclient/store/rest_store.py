@@ -250,13 +250,18 @@ class RestStore(BasicStore):
             url = urlparse.urljoin(self.location, entity.location)
         else:
             url = urlparse.urljoin(self.location, Model.get_location(entity.model))
+
         data = convert.model_to_json_response(entity)
-        headers = {}
+        headers = {'Content-Type': 'application/json'}
         if avoid_collisions and entity.guid is not None:
             headers['If-match'] = entity.guid
 
         future = self.__session.post(url, data=data, headers=headers)
         response = future.result()
+
+        if response.status_code in [400, 404, 500]:
+            import ipdb
+            ipdb.set_trace()
 
         if response.status_code == 304:
             result = entity
@@ -274,14 +279,10 @@ class RestStore(BasicStore):
         :type data: str
         """
         files = {'raw_file': data}
-        #url = urlparse.urljoin(self.location, 'datafiles/datafile/')
 
-        future = self.__session.put(location, files=files)
+        future = self.__session.post(location, files=files)
         response = future.result()
         response.raise_for_status()
-
-        #datafile = convert.json_to_collections(response.content)
-        #return location
 
     def set_array(self, array_data, location):
         """

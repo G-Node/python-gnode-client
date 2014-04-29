@@ -13,116 +13,127 @@ import unittest
 from random import randint
 
 from gnodeclient import *
-from gnodeclient.test.test_data import TestDataCollection
+from gnodeclient.test.test_data import TestAssets
 
 
-class TestRemote(unittest.TestCase):
+class TestRestAPI(unittest.TestCase):
     """
     Unit tests for the session object.
     """
 
-    data = None
-
-    #
-    # Test setup
-    #
-
     def setUp(self):
-        self.session = session.create(location="http://localhost:8000", username="bob", password="pass")
+        self.session = session.create(
+            location="http://localhost:8000", username="bob", password="pass"
+        )
         self.session.clear_cache()
-        self.data = TestDataCollection()
+
+        self.local_assets = TestAssets.generate()
+        self.remote_assets = TestAssets.generate()
+        for obj in self.remote_assets['document'] + self.remote_assets['block']:
+            self.session.set_all(obj, fail=True)
 
     def tearDown(self):
+        for obj in self.remote_assets['document'] + self.remote_assets['block']:
+            self.session.delete(obj)
+
         session.close()
 
-    #
-    # Tests
-    #
+    def get_remote_objs(self, model_name):
+        """ this assumes that 'select' method already works. in case of any
+        bugs in 'select' operation this method will also fail """
+        assets = self.remote_assets[model_name]
+        filters = {
+            'limit': 10,
+            'id__in': ",".join([x.location for x in assets])
+        }
+        return self.session.select(model_name, filters)
 
-    def test_01_select(self):
-        for name in self.data:
-            data = self.data[name]
-            results = self.session.select(name, {'max_results': 5})
+    def get_local_objs(self, model_name):
+        return self.local_assets[model_name]
 
-            msg = "No results for select('%s')!" % name
+    def build_dummy_obj(self, model_name):
+        template = self.get_local_objs(model_name)[0]
+
+        model_obj = Model.create(model_name)
+        fields = filter(
+            lambda x: model_obj.get_field(x).is_parent(),
+            [field_name for field_name in model_obj]
+        )
+
+        if not fields:
+            return template
+
+        if model_name == 'section':
+            template.document = self.get_remote_objs('document')[0]
+
+        elif model_name in ['property', 'value']:
+            parent = self.get_remote_objs(model_name)[0]
+            parent.append(template)
+
+        else:
+            for field_name in fields:
+                parent = self.get_remote_objs(field_name)[0]
+                setattr(template, field_name, parent)
+
+        return template
+
+    def test_select(self):
+        for model_name in self.remote_assets.keys():
+            data = self.remote_assets[model_name][0]
+            results = self.session.select(model_name, {'limit': 5})
+
+            msg = "No results for select('%s')!" % model_name
             self.assertTrue(len(results) > 0, msg)
 
             elem = results[randint(0, len(results) - 1)]
 
             msg = "Result has wrong type (%s)!" % type(elem)
-            self.assertTrue(isinstance(elem, type(data.test_data)), msg)
+            self.assertTrue(isinstance(elem, type(data)), msg)
 
-            data.existing_data = elem
+    def test_get_by_id(self):
+        for model_name, objects in self.remote_assets.items():
 
-    def test_02_get_by_id(self):
-        for name in self.data:
-            data = self.data[name]
-            if data.existing_data is not None:
-                location = data.existing_data.location
-                result = self.session.get(location)
-
-                msg = "The result of get(%s) should not be None!" % data.existing_data.location
-                self.assertIsNotNone(result, msg)
-            else:
-                self.assertIsNotNone(data.existing_data, "No existing data for %s" % name)
-
-    def test_03_get_missing_by_id(self):
-        for name in self.data:
-            data = self.data[name]
-            location = Model.get_location(name) + data.missing_id + "/"
+            location = objects[0].location
             result = self.session.get(location)
 
-            msg = "The result of get(%s) should be None!" % location
-            self.assertIsNone(result, msg)
+            msg = "The result of get(%s) should not be None!" % location
+            self.assertIsNotNone(result, msg)
+            self.assertEqual(result.location, location)
 
-    def test_04_set_delete(self):
-        for name in self.data:
-            data = self.data[name]
-            try:
-                first_result = self.session.set(data.test_data)
-            except:
-                import ipdb
-                ipdb.set_trace()
+    def test_create(self):
+        for model_name in self.local_assets.keys():
 
-            msg = "Unable to save object %s" % str(data.test_data)
-            self.assertTrue(hasattr(first_result, 'location'), msg)
+            obj = self.build_dummy_obj(model_name)
+            result = self.session.set(obj)
 
-            second_result = self.session.get(first_result.location)
-            msg = "Unable to retrieve saved object from location: %s" % first_result.location
-            self.assertIsNotNone(second_result, msg)
+            msg = "Create for the %s failed" % model_name
+            self.assertTrue(hasattr(result, 'location'), msg)
 
-            self.session.delete(second_result)
-            second_result = self.session.get(first_result.location)
+    def test_update_fields(self):
+        for model_name in self.local_assets.keys():
+            pass
 
-            msg = "The result of get(%s) should be None!" % first_result.location
-            self.assertIsNone(second_result, msg)
+    def test_update_parent(self):
+        for model_name in self.local_assets.keys():
+            pass
 
-    def test_05_permissions(self):
-        default_perms = {
-            "safety_level": 1,
-            "shared_with": {
-                "anita": 1,
-                "jeff": 2
-            }
-        }
-        for name in self.data:
-            data = self.data[name]
-            obj = self.session.set(data.test_data)
+    def test_update_data(self):
+        for model_name in self.local_assets.keys():
+            pass
 
-            old_perms = self.session.permissions(obj)
+    def test_delete(self):
+        for model_name, objects in self.remote_assets.keys():
 
-            new_perms = self.session.permissions(obj, default_perms)
-            msg = "Permissions do not match, before: %s, after: %s" % \
-                  (default_perms, new_perms)
-            self.assertEqual(default_perms, new_perms, msg)
+            dead = objects[-1]
+            self.session.delete(dead)
 
-            new_perms = self.session.permissions(obj, old_perms)
-            msg = "Permissions do not match, before: %s, after: %s" % \
-                  (old_perms, new_perms)
-            self.assertEqual(old_perms, new_perms, msg)
+            msg = "Object of type %s was not deleted" % model_name
+            self.assertIsNone(self.session.get(dead.location), msg)
 
+    def test_permissions(self):
+        pass
 
 if __name__ == "__main__":
     suite = unittest.TestSuite()
-    suite.addTests(unittest.makeSuite(TestRemote))
+    suite.addTests(unittest.makeSuite(TestRestAPI))
     unittest.TextTestRunner(verbosity=2).run(suite)

@@ -105,7 +105,7 @@ class CacheStore(BasicStore):
         :rtype: str
         """
         if location is None:
-            location = "datafiles/datafile/" + helper.random_str()
+            location = "/api/v1/temp/datafile/" + helper.random_base32() + "/"
 
         self.__cache.set_file(location, data, temporary)
 
@@ -124,8 +124,8 @@ class CacheStore(BasicStore):
         :rtype: str
         """
         if location is None:
-            ident = helper.random_str()
-            location = "datafiles/datafile/" + ident
+            ident = helper.random_base32()
+            location = "/api/v1/temp/datafile/" + ident + "/"
         else:
             ident = helper.id_from_location(location)
 

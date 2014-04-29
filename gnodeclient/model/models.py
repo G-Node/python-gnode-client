@@ -78,7 +78,7 @@ class Model(dc.Model):
         :returns: The location prefix.
         :rtype: str
         """
-        if type_name in (cls.SECTION, cls.PROPERTY, cls.VALUE):
+        if type_name in (cls.DOCUMENT, cls.SECTION, cls.PROPERTY, cls.VALUE):
             return "/api/v1/metadata/" + type_name + "/"
         else:
             return "/api/v1/electrophysiology/" + type_name + "/"
@@ -111,13 +111,13 @@ class SectionModel(Model):
     model       = Field(field_type=str, default=Model.SECTION)
     name        = Field(field_type=str)
     type        = Field(field_type=str, obligatory=True)
-    reference = Field(field_type=str)
+    reference   = Field(field_type=str)
     description = Field(field_type=str)
-    definition = Field(field_type=str)
-    link = Field(field_type=str)
-    include = Field(field_type=str)
-    repository = Field(field_type=str)
-    mapping = Field(field_type=str)
+    definition  = Field(field_type=str)
+    link        = Field(field_type=str)
+    include     = Field(field_type=str)
+    repository  = Field(field_type=str)
+    mapping     = Field(field_type=str)
 
     document    = FParent(type_info=Model.DOCUMENT)
     section     = FParent(type_info=Model.SECTION)
@@ -153,7 +153,7 @@ class ValueModel(Model):
     encoder         = Field(field_type=str)
     checksum        = Field(field_type=str)
 
-    parent      = FParent(type_info=Model.PROPERTY, name_mapping="parent_property")
+    parent      = FParent(type_info=Model.PROPERTY, name_mapping="property")
 
 Model._MODEL_MAP[Model.VALUE] = ValueModel
 

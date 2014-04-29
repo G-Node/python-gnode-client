@@ -254,7 +254,7 @@ class CachingRestStore(BasicStore):
                 array = self.cache_store.get_array(array_location, temporary=True)
                 if array is not None:
                     # TODO check if file upload is really needed (optimization)
-                    new_array_location = obj[field_name]
+                    new_array_location = obj[field_name]['data']
                     self.rest_store.set_array(array, new_array_location)
                     self.cache_store.set_array(array, new_array_location)
                     self.cache_store.delete_file(array_location, temporary=True)

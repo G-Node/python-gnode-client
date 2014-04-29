@@ -13,7 +13,7 @@ except ImportError:
 
 
 def id_from_location(location):
-    return urlparse.urlparse(location).path.strip("/").split("/")[3]
+    return urlparse.urlparse(location).path.strip("/").split("/")[4]
 
 
 def random_str(length=16, prefix=None, separator="_", alphabet=None):

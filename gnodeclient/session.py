@@ -157,6 +157,8 @@ class Session(object):
 
             except Exception, e:  # some object fails to sync (catch HTTP only?)
                 if fail:
+                    if hasattr(e, 'response'):
+                        raise Exception(e.response.content)
                     raise e
                 else:
                     exceptions.append(e)

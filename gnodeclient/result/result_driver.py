@@ -25,7 +25,7 @@ import odml.property
 import odml.value
 import neo
 
-from gnodeclient.result.adapt_odml import Section, Property, Value
+from gnodeclient.result.adapt_odml import Document, Section, Property, Value
 from gnodeclient.result.adapt_neo import Block, Segment, EventArray, Event, EpochArray, Epoch, \
     RecordingChannelGroup, RecordingChannel, Unit, SpikeTrain, Spike, AnalogSignalArray, \
     AnalogSignal, IrregularlySampledSignal
@@ -119,6 +119,7 @@ class NativeDriver(ResultDriver):
         Model.ANALOGSIGNALARRAY: AnalogSignalArray,
         Model.ANALOGSIGNAL: AnalogSignal,
         Model.IRREGULARLYSAMPLEDSIGNAL: IrregularlySampledSignal,
+        Model.DOCUMENT: Document,
         Model.SECTION: Section,
         Model.PROPERTY: Property,
         Model.VALUE: Value,
@@ -139,6 +140,7 @@ class NativeDriver(ResultDriver):
         Model.ANALOGSIGNALARRAY: neo.AnalogSignalArray,
         Model.ANALOGSIGNAL: neo.AnalogSignal,
         Model.IRREGULARLYSAMPLEDSIGNAL: neo.IrregularlySampledSignal,
+        Model.DOCUMENT: odml.doc.Document,
         Model.SECTION: odml.section.Section,
         Model.PROPERTY: odml.property.Property,
         Model.VALUE: odml.value.Value,
