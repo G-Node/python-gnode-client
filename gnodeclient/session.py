@@ -167,6 +167,7 @@ class Session(object):
             finally:
                 todo.remove(local_native)  # not to forget to remove processed object
 
+            todo_ids = [id(obj) for obj in todo]
             for field_name in local_model.child_fields:
                 # set difference between the actual remote and local children
                 # references determines the list of children to delete
@@ -181,7 +182,8 @@ class Session(object):
                             (children is not None):
                         for obj in children:
                             loc = getattr(obj, 'location', None)
-                            if not (loc is not None and loc in processed):
+                            if not (loc is not None and loc in processed) and \
+                                    not id(obj) in todo_ids:
                                 todo.append(obj)
 
         # cleaning removed objects

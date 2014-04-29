@@ -38,6 +38,11 @@ def collections_to_model(collection, as_list=False):
 
     :raises: ValueError
     """
+    def clean(ref):
+        if ref.lower().startswith('http'):
+            return urlparse.urlparse(ref).path
+        return ref
+
     models = []
 
     # adjust json object
@@ -76,6 +81,8 @@ def collections_to_model(collection, as_list=False):
                 }
             elif field_name == 'model':
                 field_val = model_name
+            elif field.is_child and obj[obj_field_name] is not None:
+                field_val = [clean(ref) for ref in obj[obj_field_name]]
             else:
                 field_val = obj[obj_field_name]
 

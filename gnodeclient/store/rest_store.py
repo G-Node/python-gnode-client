@@ -247,8 +247,10 @@ class RestStore(BasicStore):
         :raises: RuntimeError If the changes collide with remote changes of the entity.
         """
         if hasattr(entity, "location") and entity.location is not None:
+            method = 'put'
             url = urlparse.urljoin(self.location, entity.location)
         else:
+            method = 'post'
             url = urlparse.urljoin(self.location, Model.get_location(entity.model))
 
         data = convert.model_to_json_response(entity)
@@ -256,7 +258,7 @@ class RestStore(BasicStore):
         if avoid_collisions and entity.guid is not None:
             headers['If-match'] = entity.guid
 
-        future = self.__session.post(url, data=data, headers=headers)
+        future = getattr(self.__session, method)(url, data=data, headers=headers)
         response = future.result()
 
         if response.status_code in [400, 404, 500]:
