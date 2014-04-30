@@ -121,16 +121,21 @@ class Session(object):
         res = self.__driver.to_result(mod)
         return res
 
-    def set_all(self, entity, avoid_collisions=False, fail=False):
+    def __set_all(self, entity, avoid_collisions=False, fail=False):
         """
+
+        --- PROTOTYPE ---
+
         Saves object with all downstream relationships on the G-Node service.
         Updates IDs for a given object and all its relationships recursively.
 
         :param entity: The object to store (Neo or odML).
         :type entity: object
-        :param avoid_collisions: If true, check if the modified object collide with changes on the server.
+        :param avoid_collisions:    If true, check if the modified object
+                                    collide with changes on the server.
         :type avoid_collisions: bool
-        :param fail: skip objects that failed to sync / fail on first sync failure
+        :param fail: skip objects that failed to sync / fail on first sync
+                     failure
         :type fail: bool
 
         :returns: list of exceptions that did occur.
@@ -150,9 +155,9 @@ class Session(object):
             try:
                 remote_model = self.__store.set(local_model, avoid_collisions)
                 processed.append(remote_model.location)
-                # below is a "side-effect" needed to have correct parents for children
-                # and to avoid processing the same object twice, in case of a non-tree
-                # hierarchies
+                # below is a "side-effect" needed to have correct parents for
+                # children and to avoid processing the same object twice, in
+                # case of a non-tree hierarchies
                 local_native.location = remote_model.location
 
             except Exception, e:  # some object fails to sync (catch HTTP only?)
@@ -165,7 +170,7 @@ class Session(object):
                     if len(local_model.child_fields) > 0:
                         continue
             finally:
-                todo.remove(local_native)  # not to forget to remove processed object
+                todo.remove(local_native)  # remove processed object
 
             todo_ids = [id(obj) for obj in todo]
             for field_name in local_model.child_fields:
@@ -178,8 +183,9 @@ class Session(object):
                 if hasattr(local_native, field_name):
                     children = getattr(local_native, field_name, [])
                     # skip empty lazy-loaded proxy relations
-                    if not (hasattr(children, '_is_loaded') and not getattr(children, '_is_loaded')) and\
-                            (children is not None):
+                    if not (hasattr(children, '_is_loaded') and
+                                not getattr(children, '_is_loaded')) and \
+                                    (children is not None):
                         for obj in children:
                             loc = getattr(obj, 'location', None)
                             if not (loc is not None and loc in processed) and \

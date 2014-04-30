@@ -119,7 +119,7 @@ class SectionModel(Model):
     repository  = Field(field_type=str)
     mapping     = Field(field_type=str)
 
-    document    = FParent(type_info=Model.DOCUMENT)
+    document      = FParent(type_info=Model.DOCUMENT)
     section     = FParent(type_info=Model.SECTION)
     sections    = FChildren(type_info=Model.SECTION)
     properties  = FChildren(type_info=Model.PROPERTY)

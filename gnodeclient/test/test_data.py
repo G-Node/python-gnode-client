@@ -193,17 +193,24 @@ class TestDataCollection(object):
 class TestAssets(object):
 
     @classmethod
-    def generate(cls):
-        return dict(cls.fake_ephys().items() + cls.fake_metadata().items())
+    def generate(cls, session=None):
+        return dict(cls.fake_ephys(session).items() +
+                    cls.fake_metadata(session).items())
 
     @staticmethod
-    def fake_metadata():
+    def fake_metadata(session=None):
         def assign_dummy_properties(section):
             for j in range(randint(1, 2)):
                 p = Property(name="prop %d" % j, value="value %d" % j)
+                p._section = section
+                v = p.value
+                if session:
+                    p = session.set(p)
+                    v._property = p
+                    v = session.set(v)
                 section.append(p)
                 metadata["property"].append(p)
-                metadata["value"].append(p.value)
+                metadata["value"].append(v)
 
         metadata = {"document": [], "section": [], "property": [], "value": []}
         
@@ -216,7 +223,10 @@ class TestAssets(object):
                 'version': 1.0,
                 'repository': url,
             }
-            metadata['document'].append(Document(**params))
+            obj = Document(**params)
+            if session:
+                obj = session.set(obj)
+            metadata['document'].append(obj)
 
         # sections first level
         for i in range(4):
@@ -228,6 +238,8 @@ class TestAssets(object):
                 'parent': doc,
             }
             obj = Section(**params)
+            if session:
+                obj = session.set(obj)
             doc.append(obj)
             assign_dummy_properties(obj)
             metadata["section"].append(obj)
@@ -242,6 +254,8 @@ class TestAssets(object):
                 'parent': sec,
             }
             obj = Section(**params)
+            if session:
+                obj = session.set(obj)
             sec.append(obj)
             assign_dummy_properties(obj)
             metadata["section"].append(obj)
@@ -249,7 +263,7 @@ class TestAssets(object):
         return metadata
 
     @staticmethod
-    def fake_ephys():
+    def fake_ephys(session=None):
         
         ephys = {"block": [], "segment": [], "eventarray": [], "event": [],
                  "epocharray": [], "epoch": [], "recordingchannelgroup": [], 
@@ -262,7 +276,10 @@ class TestAssets(object):
             params = {
                 'name': "Local Field Potential and Spike Data %d" % (i + 1),
             }
-            ephys["block"].append(Block(**params))
+            obj = Block(**params)
+            if session:
+                obj = session.set(obj)
+            ephys["block"].append(obj)
 
         # RCGs
         for i in range(2):
@@ -271,6 +288,8 @@ class TestAssets(object):
             }
             obj = RecordingChannelGroup(**params)
             obj.block = ephys['block'][0]
+            if session:
+                obj = session.set(obj)
             ephys["recordingchannelgroup"].append(obj)
             ephys['block'][0].recordingchannelgroups.append(obj)
 
@@ -282,8 +301,10 @@ class TestAssets(object):
             }
             obj = RecordingChannel(**params)
             obj.recordingchannelgroups.append(ephys["recordingchannelgroup"][0])
-            ephys["recordingchannelgroup"][0].recordingchannels.append(obj)
+            if session:
+                obj = session.set(obj)
             ephys["recordingchannel"].append(obj)
+            ephys["recordingchannelgroup"][0].recordingchannels.append(obj)
 
         # units
         for i in range(2):
@@ -292,6 +313,8 @@ class TestAssets(object):
             }
             obj = Unit(**params)
             obj.recordingchannelgroup = ephys["recordingchannelgroup"][0]
+            if session:
+                obj = session.set(obj)
             ephys["recordingchannelgroup"][0].units.append(obj)
             ephys["unit"].append(obj)
 
@@ -302,6 +325,8 @@ class TestAssets(object):
             }
             obj = Segment(**params)
             obj.block = ephys['block'][0]
+            if session:
+                obj = session.set(obj)
             ephys['block'][0].segments.append(obj)
             ephys["segment"].append(obj)
 
@@ -315,6 +340,8 @@ class TestAssets(object):
             }
             obj = EventArray(**params)
             obj.segment = parent
+            if session:
+                obj = session.set(obj)
             parent.eventarrays.append(obj)
             ephys["eventarray"].append(obj)
 
@@ -328,6 +355,8 @@ class TestAssets(object):
             }
             obj = Event(**params)
             obj.segment = parent
+            if session:
+                obj = session.set(obj)
             parent.events.append(obj)
             ephys["event"].append(obj)
 
@@ -342,6 +371,8 @@ class TestAssets(object):
             }
             obj = EpochArray(**params)
             obj.segment = parent
+            if session:
+                obj = session.set(obj)
             parent.epocharrays.append(obj)
             ephys["epocharray"].append(obj)
 
@@ -356,6 +387,8 @@ class TestAssets(object):
             }
             obj = Epoch(**params)
             obj.segment = parent
+            if session:
+                obj = session.set(obj)
             parent.epochs.append(obj)
             ephys["epoch"].append(obj)
 
@@ -372,6 +405,8 @@ class TestAssets(object):
             obj = SpikeTrain(**params)
             obj.segment = segment
             obj.unit = unit
+            if session:
+                obj = session.set(obj)
             segment.spiketrains.append(obj)
             unit.spiketrains.append(obj)
             ephys["spiketrain"].append(obj)
@@ -389,6 +424,8 @@ class TestAssets(object):
             obj = AnalogSignalArray(**params)
             obj.segment = segment
             obj.recordingchannelgroup = rcg
+            if session:
+                obj = session.set(obj)
             segment.analogsignalarrays.append(obj)
             rcg.analogsignalarrays.append(obj)
             ephys["analogsignalarray"].append(obj)
@@ -406,6 +443,8 @@ class TestAssets(object):
             obj = AnalogSignal(**params)
             obj.segment = segment
             obj.recordingchannel = rc
+            if session:
+                obj = session.set(obj)
             segment.analogsignals.append(obj)
             rc.analogsignals.append(obj)
             ephys["analogsignal"].append(obj)
@@ -423,6 +462,8 @@ class TestAssets(object):
             obj = IrregularlySampledSignal(**params)
             obj.segment = segment
             obj.recordingchannel = rc
+            if session:
+                obj = session.set(obj)
             segment.irregularlysampledsignals.append(obj)
             rc.irregularlysampledsignals.append(obj)
             ephys["irregularlysampledsignal"].append(obj)
@@ -441,6 +482,8 @@ class TestAssets(object):
             obj = Spike(**params)
             obj.segment = segment
             obj.unit = unit
+            if session:
+                obj = session.set(obj)
             segment.spikes.append(obj)
             unit.spikes.append(obj)
             ephys["spike"].append(obj)

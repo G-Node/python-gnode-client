@@ -276,7 +276,16 @@ class NativeDriver(ResultDriver):
         for field_name in model_obj:
             field = model_obj.get_field(field_name)
             if field.type_info != "datafile":  # non-data fields
-                if hasattr(obj, field_name):
+                if model_obj.model == 'section' and field_name \
+                    in ['document', 'section']:
+                    parent = getattr(obj, 'parent')
+                    if parent is not None and hasattr(parent, 'location'):
+                        if isinstance(parent, Document):
+                            model_obj['document'] = parent.location
+                        elif isinstance(parent, Section):
+                            model_obj['section'] = parent.location
+
+                elif hasattr(obj, field_name):
                     field_val = getattr(obj, field_name, field.default)
 
                     # special treatment for the location field

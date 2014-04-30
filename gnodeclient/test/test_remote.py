@@ -29,16 +29,14 @@ class TestRestAPI(unittest.TestCase):
         self.session.clear_cache()
 
         self.local_assets = TestAssets.generate()
-        self.remote_assets = TestAssets.generate()
-        for obj in self.remote_assets['document'] + self.remote_assets['block']:
-            self.session.set_all(obj, fail=True)
+        self.remote_assets = TestAssets.generate(self.session)
 
     def tearDown(self):
         for obj in self.remote_assets['document'] + self.remote_assets['block']:
             try:
                 self.session.delete(obj)
             except HTTPError, e:
-                if not e.response.status_code == 404: # object already deleted
+                if not e.response.status_code == 404:  # object already deleted
                     raise e
 
         session.close()
