@@ -201,6 +201,9 @@ class NativeDriver(ResultDriver):
                             setattr(native, "_property", proxy)
                         elif obj.model == Model.PROPERTY and field_name == "parent":
                             setattr(native, "_section", proxy)
+                        elif obj.model == Model.SECTION and field_name in \
+                                ["document", "section"]:
+                            setattr(native, "_parent", proxy)
                         else:
                             setattr(native, field_name, proxy)
 
@@ -232,6 +235,11 @@ class NativeDriver(ResultDriver):
                         data = self.store.get_array(field_val["data"])
                         q = pq.Quantity(data, units)
                         setattr(native, field_name, q)
+
+                elif obj.model == 'value' and field_name in \
+                        ['checksum', 'encoder'] and field_val is None:
+                    # special case for odML Value
+                    continue
 
                 elif hasattr(native, field_name):
                     setattr(native, field_name, field_val)

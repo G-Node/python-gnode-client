@@ -5,6 +5,8 @@
 *.egg-info
 dist
 build
+.buildinfo
+.doctrees
 eggs
 parts
 

@@ -345,9 +345,10 @@ class RestStore(BasicStore):
         else:
             raise ValueError("Please submit object "
                              "to the server before changing permissions")
-        if permissions:
+        if permissions is not None:
             data = convert.permissions_to_json(permissions)
-            future = self.__session.post(url, data=data)
+            headers = {'Content-Type': 'application/json'}
+            future = self.__session.put(url, data=data, headers=headers)
         else:
             future = self.__session.get(url)
 

@@ -199,7 +199,7 @@ class TestAssets(object):
     @staticmethod
     def fake_metadata():
         def assign_dummy_properties(section):
-            for j in range(randint(1, 6)):
+            for j in range(randint(1, 2)):
                 p = Property(name="prop %d" % j, value="value %d" % j)
                 section.append(p)
                 metadata["property"].append(p)
@@ -210,7 +210,7 @@ class TestAssets(object):
         # documents
         url = "http://portal.g-node.org/odml/terminologies/v1.0/" \
               + "terminologies.xml"
-        for i in range(3):
+        for i in range(2):
             params = {
                 'author': "mister %d" % i,
                 'version': 1.0,
@@ -221,7 +221,7 @@ class TestAssets(object):
         # sections first level
         for i in range(4):
             doc = metadata['document'][0] if i < 2 else \
-                metadata['document'][2]
+                metadata['document'][1]
             params = {
                 'name': "%d-th section" % i,
                 'type': "level #1",
@@ -233,7 +233,7 @@ class TestAssets(object):
             metadata["section"].append(obj)
 
         # sections second level
-        for i in range(5):
+        for i in range(4):
             sec = metadata["section"][0] if i < 2 else \
                 metadata["section"][1]
             params = {
@@ -242,6 +242,7 @@ class TestAssets(object):
                 'parent': sec,
             }
             obj = Section(**params)
+            sec.append(obj)
             assign_dummy_properties(obj)
             metadata["section"].append(obj)
 
@@ -251,9 +252,10 @@ class TestAssets(object):
     def fake_ephys():
         
         ephys = {"block": [], "segment": [], "eventarray": [], "event": [],
-                 "epocharray": [], "epoch": [], "rcg": [], "rc": [], "unit": [],
-                 "spiketrain": [], "analogsignalarray": [], "analogsignal": [],
-                 "irsa": [], "spike": []}
+                 "epocharray": [], "epoch": [], "recordingchannelgroup": [], 
+                 "recordingchannel": [], "unit": [], "spiketrain": [], 
+                 "analogsignalarray": [], "analogsignal": [], 
+                 "irregularlysampledsignal": [], "spike": []}
 
         # blocks
         for i in range(2):
@@ -269,32 +271,32 @@ class TestAssets(object):
             }
             obj = RecordingChannelGroup(**params)
             obj.block = ephys['block'][0]
-            ephys["rcg"].append(obj)
+            ephys["recordingchannelgroup"].append(obj)
             ephys['block'][0].recordingchannelgroups.append(obj)
 
         # recording channels
-        for i in range(4):
+        for i in range(2):
             params = {
                 'name': "Electrode %d" % (i + 1),
                 'index': (i + 1),
             }
             obj = RecordingChannel(**params)
-            obj.recordingchannelgroups.append(ephys["rcg"][0])
-            ephys["rcg"][0].recordingchannels.append(obj)
-            ephys["rc"].append(obj)
+            obj.recordingchannelgroups.append(ephys["recordingchannelgroup"][0])
+            ephys["recordingchannelgroup"][0].recordingchannels.append(obj)
+            ephys["recordingchannel"].append(obj)
 
         # units
-        for i in range(3):
+        for i in range(2):
             params = {
                 'name': "SUA-LFP-unit %d" % (i + 1),
             }
             obj = Unit(**params)
-            obj.recordingchannelgroup = ephys['rcg'][0]
-            ephys['rcg'][0].units.append(obj)
+            obj.recordingchannelgroup = ephys["recordingchannelgroup"][0]
+            ephys["recordingchannelgroup"][0].units.append(obj)
             ephys["unit"].append(obj)
 
         # segments
-        for i in range(10):
+        for i in range(4):
             params = {
                 'name': "Segment %d" % (i + 1),
             }
@@ -304,7 +306,7 @@ class TestAssets(object):
             ephys["segment"].append(obj)
 
         # event arrays
-        for i in range(4):
+        for i in range(2):
             parent = ephys['segment'][0] if i < 2 else ephys['segment'][1]
             params = {
                 'name': "Event array %d" % (i + 1),
@@ -317,7 +319,7 @@ class TestAssets(object):
             ephys["eventarray"].append(obj)
 
         # events
-        for i in range(4):
+        for i in range(2):
             parent = ephys['segment'][0] if i < 2 else ephys['segment'][1]
             params = {
                 'name': "Event %d" % (i + 1),
@@ -330,7 +332,7 @@ class TestAssets(object):
             ephys["event"].append(obj)
 
         # epoch arrays
-        for i in range(4):
+        for i in range(2):
             parent = ephys['segment'][0] if i < 2 else ephys['segment'][1]
             params = {
                 'name': "Epoch array %d" % (i + 1),
@@ -344,7 +346,7 @@ class TestAssets(object):
             ephys["epocharray"].append(obj)
 
         # epochs
-        for i in range(4):
+        for i in range(2):
             parent = ephys['segment'][0] if i < 2 else ephys['segment'][1]
             params = {
                 'name': "Epoch %d" % (i + 1),
@@ -358,7 +360,7 @@ class TestAssets(object):
             ephys["epoch"].append(obj)
 
         # spike trains
-        for i in range(4):
+        for i in range(2):
             segment = ephys['segment'][0] if i < 2 else ephys['segment'][1]
             unit = ephys['unit'][0] if i < 2 else ephys['unit'][1]
             params = {
@@ -375,9 +377,9 @@ class TestAssets(object):
             ephys["spiketrain"].append(obj)
 
         # analog signal arrays
-        for i in range(4):
+        for i in range(2):
             segment = ephys['segment'][0] if i < 2 else ephys['segment'][1]
-            rcg = ephys['rcg'][0] if i < 3 else ephys['rcg'][1]
+            rcg = ephys['recordingchannelgroup'][0] if i < 3 else ephys['recordingchannelgroup'][1]
             params = {
                 'name': "ASA %d" % (i + 1),
                 't_start': 1.56 * pq.ms,
@@ -392,9 +394,9 @@ class TestAssets(object):
             ephys["analogsignalarray"].append(obj)
 
         # analog signals
-        for i in range(4):
+        for i in range(2):
             segment = ephys['segment'][0] if i < 2 else ephys['segment'][1]
-            rc = ephys['rc'][0] if i < 3 else ephys['rc'][1]
+            rc = ephys['recordingchannel'][0] if i < 3 else ephys['recordingchannel'][1]
             params = {
                 'name': "Analog signal %d" % (i + 1),
                 't_start': 1.56 * pq.ms,
@@ -409,9 +411,9 @@ class TestAssets(object):
             ephys["analogsignal"].append(obj)
 
         # irsa-s
-        for i in range(4):
+        for i in range(2):
             segment = ephys['segment'][0] if i < 2 else ephys['segment'][1]
-            rc = ephys['rc'][0] if i < 3 else ephys['rc'][1]
+            rc = ephys['recordingchannel'][0] if i < 3 else ephys['recordingchannel'][1]
             params = {
                 'name': "Irregular signal %d" % (i + 1),
                 't_start': 1.56 * pq.ms,
@@ -423,10 +425,10 @@ class TestAssets(object):
             obj.recordingchannel = rc
             segment.irregularlysampledsignals.append(obj)
             rc.irregularlysampledsignals.append(obj)
-            ephys["irsa"].append(obj)
+            ephys["irregularlysampledsignal"].append(obj)
 
         # spikes
-        for i in range(4):
+        for i in range(2):
             segment = ephys['segment'][0] if i < 2 else ephys['segment'][1]
             unit = ephys['unit'][0] if i < 2 else ephys['unit'][1]
             params = {

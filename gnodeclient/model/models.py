@@ -109,8 +109,8 @@ Model._MODEL_MAP[Model.DOCUMENT] = DocumentModel
 
 class SectionModel(Model):
     model       = Field(field_type=str, default=Model.SECTION)
-    name        = Field(field_type=str)
-    type        = Field(field_type=str, obligatory=True)
+    name        = Field(field_type=str, obligatory=True)
+    type        = Field(field_type=str)
     reference   = Field(field_type=str)
     description = Field(field_type=str)
     definition  = Field(field_type=str)
@@ -153,7 +153,7 @@ class ValueModel(Model):
     encoder         = Field(field_type=str)
     checksum        = Field(field_type=str)
 
-    parent      = FParent(type_info=Model.PROPERTY, name_mapping="property")
+    parent          = FParent(type_info=Model.PROPERTY, name_mapping="property")
 
 Model._MODEL_MAP[Model.VALUE] = ValueModel
 
@@ -186,7 +186,9 @@ class SegmentModel(Model):
     spiketrains               = FChildren(type_info=Model.SPIKETRAIN)
     spikes                    = FChildren(type_info=Model.SPIKE)
     events                    = FChildren(type_info=Model.EVENT)
+    eventarrays               = FChildren(type_info=Model.EVENTARRAY)
     epochs                    = FChildren(type_info=Model.EPOCH)
+    epocharrays               = FChildren(type_info=Model.EPOCHARRAY)
 
 Model._MODEL_MAP[Model.SEGMENT] = SegmentModel
 
