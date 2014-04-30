@@ -229,14 +229,15 @@ def json_to_collections(string, as_list=False):
 def permissions_to_json(permissions):
     """
     :param permissions: permission settings to convert, like
+        [{
+           "user": "/api/v1/user/user/neo/",
+           "access_level": 1  # 1-read-only
+        },
         {
-            "safety_level": 1, # 1-private, 2-friendly, 3-public
-            "shared_with": {
-                "bob": 1, # 1-read-only
-                "jeff", 2 # 2-read-write
-            }
-        }
-    :type permissions: dict
+           "user": "/api/v1/user/user/bob/",
+           "access_level": 2  # 2-read-write
+        }]
+    :type permissions: list
 
     :return: string with permissions ready to be sent to the G-Node service
     :rtype: string
@@ -249,18 +250,15 @@ def json_to_permissions(string):
     :param string: The json encoded string from the REST API.
     :type string: str
 
-    :return: a dict representing permissions
-            {
-            "safety_level": 1, # 1-private, 2-friendly, 3-public
-            "shared_with": {
-                "bob": 1, # 1-read-only
-                "jeff", 2 # 2-read-write
-            }
-        }
-    :rtype: dict
+    :return: a list representing permissions
+        [{
+           "user": "/api/v1/user/user/neo/",
+           "access_level": 1  # 1-read-only
+        },
+        {
+           "user": "/api/v1/user/user/bob/",
+           "access_level": 2  # 2-read-write
+        }]
+    :rtype: list
     """
-    collection = json.loads(string, encoding='UTF-8')
-    return {
-        "safety_level": collection["safety_level"],
-        "shared_with": collection["shared_with"]
-    }
+    return json.loads(string, encoding='UTF-8')

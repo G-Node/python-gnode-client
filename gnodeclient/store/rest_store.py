@@ -261,10 +261,6 @@ class RestStore(BasicStore):
         future = getattr(self.__session, method)(url, data=data, headers=headers)
         response = future.result()
 
-        if response.status_code in [400, 404, 500]:
-            import ipdb
-            ipdb.set_trace()
-
         if response.status_code == 304:
             result = entity
         else:
@@ -327,14 +323,16 @@ class RestStore(BasicStore):
         :param entity: The entity to get or set permissions from/to.
         :type entity: object
         :param permissions: new permissions to apply. It should look like
+            [{
+               "user": "/api/v1/user/user/neo/",
+               "access_level": 1  # 1-read-only
+            },
             {
-                "safety_level": 1, # 1-private, 2-friendly, 3-public
-                "shared_with": {
-                    "bob": 1, # 1-read-only
-                    "jeff", 2 # 2-read-write
-                }
-            }
-        :type permissions: dict
+               "user": "/api/v1/user/user/bob/",
+               "access_level": 2  # 2-read-write
+            }]
+
+        :type permissions: list
 
         :returns: actual object permissions
         :rtype: dict (see above)

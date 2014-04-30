@@ -214,19 +214,20 @@ class Session(object):
 
         .. code-block:: python
 
+            [{
+               "user": "/api/v1/user/user/neo/",
+               "access_level": 1  # 1-read-only
+            },
             {
-                "safety_level": 1, # 1-private, 2-friendly, 3-public
-                "shared_with": {
-                    "bob": 1, # 1-read-only
-                    "jeff", 2 # 2-read-write
-                }
-            }
+               "user": "/api/v1/user/user/bob/",
+               "access_level": 2  # 2-read-write
+            }]
 
         :param entity: The entity to get or set permissions from/to.
         :type entity: object
         :param permissions: new permissions to apply.
 
-        :type permissions: dict
+        :type permissions: list
 
         :returns: actual object permissions
         :rtype: dict (see above)
