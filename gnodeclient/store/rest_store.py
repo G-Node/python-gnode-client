@@ -19,6 +19,7 @@ except ImportError:
     import urllib.parse as urlparse
 
 from requests_futures.sessions import FuturesSession
+from requests.exceptions import HTTPError
 
 import gnodeclient.store.convert as convert
 from gnodeclient.model.models import Model
@@ -51,6 +52,11 @@ class RestStore(BasicStore):
         self.api_prefix = api_prefix
         self.api_name = api_name
 
+    def raise_for_status(self, response):
+        """Raises stored :class:`HTTPError`, if one occurred."""
+
+        if 400 <= response.status_code < 600:
+            raise HTTPError(response.content, response=response)
     #
     # Methods
     #
@@ -66,7 +72,7 @@ class RestStore(BasicStore):
 
         future = session.post(url, {'username': self.user, 'password': self.password})
         response = future.result()
-        response.raise_for_status()
+        self.raise_for_status(response)
 
         if not session.cookies:
             raise RuntimeError("Unable to authenticate for user '%s' (status: %d)!"
@@ -90,7 +96,7 @@ class RestStore(BasicStore):
 
         future = self.__session.get(url)
         response = future.result()
-        response.raise_for_status()
+        self.raise_for_status(response)
 
         self.__session = None
 
@@ -117,7 +123,7 @@ class RestStore(BasicStore):
         headers = {}
         future = self.__session.get(url, headers=headers, params=raw_filters)
         response = future.result()
-        response.raise_for_status()
+        self.raise_for_status(response)
 
         raw_results = convert.json_to_collections(response.content, as_list=True)
         for obj in raw_results:
@@ -155,7 +161,7 @@ class RestStore(BasicStore):
         if response.status_code in (304, 404):
             result = None
         else:
-            response.raise_for_status()
+            self.raise_for_status(response)
             result = convert.collections_to_model(convert.json_to_collections(response.content))
 
         return result
@@ -186,7 +192,7 @@ class RestStore(BasicStore):
 
         for future in futures:
             response = future.result()
-            response.raise_for_status()
+            self.raise_for_status(response)
 
             result = convert.collections_to_model(convert.json_to_collections(response.content))
             results.append(result)
@@ -208,7 +214,7 @@ class RestStore(BasicStore):
 
         future = self.__session.get(url)
         response = future.result()
-        response.raise_for_status()
+        self.raise_for_status(response)
         return response.content
 
     def get_array(self, location):
@@ -264,7 +270,7 @@ class RestStore(BasicStore):
         if response.status_code == 304:
             result = entity
         else:
-            response.raise_for_status()
+            self.raise_for_status(response)
             result = convert.collections_to_model(convert.json_to_collections(response.content))
 
         return result
@@ -280,7 +286,7 @@ class RestStore(BasicStore):
 
         future = self.__session.post(location, files=files)
         response = future.result()
-        response.raise_for_status()
+        self.raise_for_status(response)
 
     def set_array(self, array_data, location):
         """
@@ -314,7 +320,7 @@ class RestStore(BasicStore):
 
         future = self.__session.delete(url)
         response = future.result()
-        response.raise_for_status()
+        self.raise_for_status(response)
 
     def permissions(self, entity, permissions=None):
         """
@@ -353,6 +359,6 @@ class RestStore(BasicStore):
             future = self.__session.get(url)
 
         response = future.result()
-        response.raise_for_status()
+        self.raise_for_status(response)
 
         return convert.json_to_permissions(response.content)
