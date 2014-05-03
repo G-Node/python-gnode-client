@@ -15,7 +15,7 @@ some common procedures.
 from __future__ import print_function, absolute_import, division
 
 import copy
-import neo
+import neo, odml
 from odml.section import BaseSection
 
 from gnodeclient import Session
@@ -44,14 +44,14 @@ def delete_all(session, entities):
                 pass
 
 
-def upload_odml_tree(session, section):
+def upload_odml_tree(session, doc_or_section):
     """
     Upload a whole odml tree.
 
     :param session:
     :type session: Session
-    :param section:
-    :type section: BaseSection
+    :param doc_or_section:
+    :type doc_or_section: odml.Document or odml.Section
 
     :return: The root of the uploaded odml tree.
     :rtype: BaseSection
@@ -59,13 +59,9 @@ def upload_odml_tree(session, section):
     created_objects = []
 
     # closure that is used for recursive upload
-    def upload_section_recursive(section, parent):
+    def upload_section_recursive(section):
         sec_uploaded = session.set(section)
         created_objects.append(sec_uploaded)
-
-        if parent is not None:
-            parent.append(sec_uploaded)
-            sec_uploaded = session.set(sec_uploaded)
 
         for prop in section.properties:
             prop = copy.deepcopy(prop)
@@ -82,14 +78,27 @@ def upload_odml_tree(session, section):
                 created_objects.append(val_uploaded)
 
         for child_section in section.sections:
-            upload_section_recursive(child_section, sec_uploaded)
+            child_section._parent = sec_uploaded
+            upload_section_recursive(child_section)
 
         return sec_uploaded
 
-    # start recursive upload
+    if not (isinstance(doc_or_section, odml.doc.BaseDocument) or
+                isinstance(doc_or_section, odml.section.BaseSection)):
+        raise TypeError("Provide odML Document or Section")
+
     try:
-        sec_uploaded = upload_section_recursive(section, None)
-        return session.get(sec_uploaded.location, recursive=True, refresh=True)
+        if isinstance(doc_or_section, odml.doc.BaseDocument):
+            head = session.set(doc_or_section)
+            created_objects.append(head)
+            for sec in doc_or_section.sections:
+                sec._parent = head
+                upload_section_recursive(sec)
+        else:
+            head = upload_section_recursive(doc_or_section)
+
+        return session.get(head.location, refresh=True)
+
     except RuntimeError as e:
         delete_all(session, created_objects)
         raise e
