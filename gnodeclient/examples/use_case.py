@@ -5,217 +5,208 @@ G-Node platform and benefit from it. Here is an example use case provided.
 
 import datetime
 import odml, neo
+import numpy as np
 import quantities as pq
 
 
 class UseCase(object):
 
     @staticmethod
-    def populate_metadata():
-        """ creates odML metadata according to the metadata.txt """
+    def _create_property(where, *args, **kwargs):
+        kwargs.update('section', where)
+        p = odml.Property(*args, **kwargs)
+        where.append(p)
+        
+    @classmethod
+    def populate_session_metadata(cls):
+        """ creates common odML metadata for a recording session according to
+        the metadata<date>.txt """
+
+        create = cls._create_property
 
         # experiment
         session = odml.Section(type="RecordingSession", name="RecordingSession")
 
-        p1 = odml.Property(
-            'ProjectName', "Local Field Potential and Spike Data in Saccade "
-                           "and Fixation Tasks", session
+        create(
+            session, 'ProjectName', "Local Field Potential and Spike Data in "
+                                    "Saccade and Fixation Tasks", 
         )
-        p2 = odml.Property(
-            'Author', ['Markus Wittenberg', 'Thomas Wachtler'], session
+        create(
+            session, 'Author', ['Markus Wittenberg', 'Thomas Wachtler']
         )
-        p3 = odml.Property(
-            'Location', 'Neurophysics, Philipps-Universitaet Marburg', session
+        create(
+            session, 'Location', 'Neurophysics, Philipps-Universitaet Marburg'
         )
-        p4 = odml.Property(
-            'CorrespondingAuthor',
-            'Thomas Wachtler; Dept. Biology II, LMU Munich; wachtler@bio.lmu.de',
-            session
+        create(
+            session, 'CorrespondingAuthor',
+            'Thomas Wachtler; Dept. Biology II, LMU Munich; wachtler@bio.lmu.de'
         )
-        p5 = odml.Property('RecordingDate', datetime.date(2008, 7, 7), session)
-
-        for p in [p1, p2, p3, p4, p5]:
-            session.append(p)
+        create(session, 'RecordingDate', datetime.date(2008, 7, 7))
 
         # subject
         subject = odml.Section(name='Subject', type='Subject')
 
-        p1 = odml.Property('Species', 'Macaca mulatta', subject)
-        p2 = odml.Property('Age', 6, subject)
-        p3 = odml.Property('Name', 'Maoli', subject)
-
-        for p in [p1, p2, p3]:
-            subject.append(p)
+        create(subject, 'Species', 'Macaca mulatta')
+        create(subject, 'Age', 6)
+        create(subject, 'Name', 'Maoli')
 
         # preparation
         preparation = odml.Section(name='Preparation', type='Preparation')
-        p1 = odml.Property('BehavioralStatus', 'Awake behaving', preparation)
-        p2 = odml.Property('BrainRegion', 'V1', preparation)
-
-        for p in [p1, p2]:
-            preparation.append(p)
+        create(preparation, 'BehavioralStatus', 'Awake behaving')
+        create(preparation, 'BrainRegion', 'V1')
 
         # hardware
         hardware = odml.Section(name='Hardware', type='Hardware')
-        p1 = odml.Property('NumberOfElectrodes', '16', preparation)
-        p2 = odml.Property('ElectrodeArrayGeometry', '4x4', preparation)
-        p3 = odml.Property('ElectrodeSpacing', '750 x 750', preparation, unit='um')
-        p4 = odml.Property('LfpDataAcquisition', 'CED 1401', preparation)
-        p5 = odml.Property('LfpBandpassLowCutoff', '1', preparation, unit='Hz')
-        p6 = odml.Property('LfpBandpassHighCutoff', '120', preparation, unit='Hz')
-        p7 = odml.Property('LfpSamplingRate', '500', preparation, unit='Hz')
-        p8 = odml.Property('BroadbandDataAcquisition', 'MultiChannelSystems', preparation)
-        p9 = odml.Property('BroadbandSamplingRate', '25', preparation, unit='kHz')
+        create(preparation, 'NumberOfElectrodes', '16')
+        create(preparation, 'ElectrodeArrayGeometry', '4x4')
+        create(preparation, 'ElectrodeSpacing', '750 x 750', unit='um')
+        create(preparation, 'LfpDataAcquisition', 'CED 1401')
+        create(preparation, 'LfpBandpassLowCutoff', '1', unit='Hz')
+        create(preparation, 'LfpBandpassHighCutoff', '120', unit='Hz')
+        create(preparation, 'LfpSamplingRate', '500', unit='Hz')
+        create(preparation, 'BroadbandDataAcquisition', 'MultiChannelSystems')
+        create(preparation, 'BroadbandSamplingRate', '25', unit='kHz')
 
-        for p in [p1, p2, p3, p4, p5, p6, p7, p8, p9]:
-            hardware.append(p)
-
-        # stimulus
+        # stimulus container
         stimulus = odml.Section(name='Stimulus', type='Stimulus')
-        p1 = odml.Property('BackgroundLuminance', '25', stimulus, unit='cd/m2')
-        p2 = odml.Property('StimulusType', 'SquareGrating', stimulus)
-        p3 = odml.Property('StimulusSize', '1.3', stimulus, unit='deg')
-        p4 = odml.Property('Orientations', ['0', '45', '90', '135'], stimulus, unit='deg')
-        p5 = odml.Property('Colors', ['red', 'green', 'blue', 'yellow'], stimulus)
-        p6 = odml.Property('NumberOfStimulusConditions', '120', stimulus, unit='Hz')
-        p7 = odml.Property('BehavioralConditions', ['Fixation', 'Saccade'], stimulus)
-
-        for p in [p1, p2, p3, p4, p5, p6, p7]:
-            stimulus.append(p)
-
-        # format
-        fmt = odml.Section(name='Format', type='Format')
-
-        p1 = odml.Property(
-            'DataFileStructure',
-            ["TrialDataPoints", "TrialOfGivenCondition", "Colors", "Orientations",
-             "Channels"],
-            fmt
-        )
-        p2 = odml.Property('TotalNumberOfLfpFixationTrials', [500, 11, 4, 4, 12], fmt)
-        p3 = odml.Property('TotalNumberOfLfpSaccadeTrials', [500, 23, 4, 4, 12], fmt)
-        p4 = odml.Property('TotalNumberOfSuaFixationTrials', [500, 11, 4, 4,  5], fmt)
-        p5 = odml.Property('TotalNumberOfSuaSaccadeTrials', [500, 23, 4, 4,  5], fmt)
-
-        for p in [p1, p2, p3, p4, p5]:
-            fmt.append(p)
 
         # add all to experiment
-        for sec in [subject, preparation, hardware, stimulus, fmt]:
+        for sec in [subject, preparation, hardware, stimulus]:
             session.append(sec)
 
         return session
 
-    @staticmethod
-    def populate_data(path):
+    @classmethod
+    def populate_stimulus_metadata(cls, num, size, cond, color, orientation):
+
+        create = cls._create_property
+
+        stimulus = odml.Section(name='Trial %d' % num, type='Stimulus')
+        create(stimulus, 'BackgroundLuminance', '25', unit='cd/m2')
+        create(stimulus, 'StimulusType', 'SquareGrating')
+        create(stimulus, 'NumberOfStimulusConditions', '120', unit='Hz')
+        create(stimulus, 'StimulusSize', size, unit='deg')
+        create(stimulus, 'Orientations', orientation, unit='deg')
+        create(stimulus, 'Colors', color)
+        create(stimulus, 'BehavioralConditions', cond)
+
+        return stimulus
+
+    @classmethod
+    def populate_data(cls, name, paths, lfp_channels, sua_channels, limit=None):
         """
         reads data from LFP/SUA .dat files and builds Neo structure from it
+
+        :param paths    {
+                            'lfp_data': "/foo/bar/lfp080807data.dat",
+                            'lfp_meta': "/foo/bar/lfp080807cond.dat",
+                            'sua_data': "/foo/bar/sua080807data.dat",
+                            'sua_data': "/foo/bar/sua080807cond.dat"
+                        }
         """
 
         def convert_to_timeseries(line):
-            """ Converts a string of tab(?) separated floats into a list. """
-            s = line.split('  ')
-            while '' in s:
+            """ Converts a string of floats into a list. """
+            s = line.split(" ")
+            for i in range(s.count('')):
                 s.remove('')
-            return [float(x) for x in s]
+            return [float(el) for el in s]
 
-        # 1. create a dataset
-        b = neo.core.Block() # LFPs only
-        b.name = "Macaque Monkey Recordings, LFPs, V1"
-        b.section = experiment
+        def convert_to_spikeindexes(line):
+            line = line.replace(' ', '')
+            return [(-300.0 + 2.0*i) for i, e in enumerate(line) if e == '1']
 
-        # 2. create channels
-        indexes = [1, 2, 4, 5, 6, 9, 10, 11, 12, 13, 14, 16]
-        rcg = neo.core.RecordingChannelGroup(name='RCG', channel_indexes=indexes)
-        b.recordingchannelgroups.append(rcg)
-        rcg.block = b
+        conditions = ["Fixation", "Saccade"]
+        colors = ["0 deg (red)", "90 deg (blue)", "180 deg (green)", "270 deg (yellow)"]
+        orientations = ["0 deg", "45 deg", "90 deg", "135 deg"]
 
-        for index in rcg.channel_indexes:
-            r = neo.core.RecordingChannel()
-            r.name = 'Channel %d' % index
-            r.index = index
-            r.recordingchannelgroups.append(rcg)
-            rcg.recordingchannels.append(r)
+        block = neo.Block(name="080707.dat")
+        rcg = neo.RecordingChannelGroup(name="Electrodes")
+        block.recordingchannelgroups.append(rcg)
+        rcg.block = block
 
+        # channels
+        for ch, electrode in enumerate(lfp_channels):
+            obj = neo.RecordingChannel(
+                name='Electrode %d' % electrode, index=ch
+            )
+            obj.recordingchannelgroups.append(rcg)
+            rcg.recordingchannels.append(obj)
 
-        # 3. create trial segments and signal data
-        with open('/home/andrey/data/080707/lfp_fix080707.dat', 'r') as f:
+        # single units
+        for sua, electrode in enumerate(sua_channels):
+            obj = neo.Unit(name='Single Unit (electrode %d)' % electrode)
+            obj.recordingchannelgroup = rcg
+            rcg.units.append(obj)
 
+        # segments (trials)
+        with open(paths['lfp_meta'], 'r') as f:
             for i, l in enumerate(f):
+                if not i % len(lfp_channels) == 0:
+                    continue
 
-                if i < 176: # create segment every line for first 176 lines
-                    s = neo.core.Segment(name = str(i)) # create new segment
-                    s.block = b
-                    b.segments.append(s)
+                trial, condition, color, orientation, channel = l.split(' ')
+                section = cls.populate_stimulus_metadata(
+                    trial, 1.3, conditions[int(condition)], colors[int(color)],
+                    orientations[int(orientation)]
+                )
+                segment = neo.Segment(
+                    name='Trial %d (%s, %s, %s)' % (
+                        trial, conditions[int(condition)], colors[int(color)],
+                        orientations[int(orientation)])
+                )
+                segment.metadata = section
+                segment.block = block
+                block.segments.append(segment)
 
-                else:
-                    s = b.segments[ i % 176 ]
+        # analog signals (LFP data)
+        metadata = open(paths['lfp_cond'],'r').readlines()
+        dataset = open(paths['lfp_data'],'r').readlines()
 
-                if (i % 176) == 0: # get new channel every 176 lines
-                    r = rcg.recordingchannels[ i / 176 ]
+        for meta, data in zip(metadata, dataset):
 
-                # creating analogsignal
-                data = convert_to_timeseries(l) * pq.mV
+            trial, condition, color, orientation, channel = meta.split(' ')
 
-                kwargs = {}
-                kwargs['name'] = 'Trial %d Ch %d' % (i % 176, i / 176)
-                kwargs['t_start'] = 0 * pq.ms
+            segment = block.segments[int(trial) - 1]
+            rc = rcg.recordingchannels[int(channel) - 1]
+            params = {
+                'name': "LFP Signal (ch %s)" % (channel),
+                't_start': -300.0 * pq.ms,
+                'sampling_rate': 500 * pq.Hz,
+                'signal': np.array(convert_to_timeseries(data)) * pq.mV,
+            }
+            obj = neo.AnalogSignal(**params)
+            obj.segment = segment
+            obj.recordingchannel = rc
+            segment.analogsignals.append(obj)
+            rc.analogsignals.append(obj)
 
-                sr = 500.0 #float(hardware.properties['LfpSamplingRate'].value.data)
-                sr_units = 'Hz' #hardware.properties['LfpSamplingRate'].value.unit
-                kwargs['sampling_rate'] = sr * getattr(pq, sr_units)
+        # spike trains (SUA data)
+        metadata = open(paths['sua_cond'],'r').readlines()
+        dataset = open(paths['sua_data'],'r').readlines()
 
-                signal = neo.core.AnalogSignal(data, **kwargs)
+        for meta, data in zip(metadata, dataset):
 
-                signal.segment = s
-                s.analogsignals.append(signal)
+            trial, condition, color, orientation, unit = meta.split(' ')
 
-                signal.recordingchannel = r
-                r.analogsignals.append(signal)
+            segment = block.segments[int(trial) - 1]
+            unit = rcg.units[int(unit) - 1]
+            params = {
+                'name': "SpikeTrain (SUA %s)" % (unit + 1),
+                't_start': -300.0 * pq.ms,
+                't_stop': 698.0 * pq.ms,
+                'times': np.array(convert_to_spikeindexes(data)) * pq.ms,
+            }
+            obj = neo.SpikeTrain(**params)
+            obj.segment = segment
+            obj.unit = unit
+            segment.spiketrains.append(obj)
+            unit.spiketrains.append(obj)
 
-        # TODO import LFP SAC
-
-        # TODO import SUA FIX
-
-        # TODO import SUA SAC
-
-        return b
-
-
-
-# select synced experiment
-#experiments = g.select('section', {'parent_section__isnull': 1})
-#experiments.sort(key=lambda x: x.location, reverse=True)
-#experiment = experiments[0]
-
-#sections = g.select('section', {'parent_section__id': experiment._gnode['id'], 'name': 'Stimulus'})
-#stimulus = g.pull(sections[0]._gnode['location'])
-
-#blocks = g.select('block')
-#blocks.sort(key=lambda x: x._gnode['id'], reverse=True)
-#b = g.pull(blocks[0]._gnode['location'])
-
+        return block
 
 
 if 0: # not implemented yet
-
-    # 3. annotate
-    #-------------------------------------------------------------------------------
-
-    for i, s in enumerate(b.segments):
-        color_index = (i / 48) % 4
-        orient_index = (i / 12) % 4
-        cond_index = 0
-
-        color = stimulus.properties['Colors'].values[ color_index ]
-        orient = stimulus.properties['Orientations'].values[ orient_index ]
-        cond = stimulus.properties['BehavioralConditions'].values[ cond_index ]
-
-        g.annotate([s], [color, orient, cond])
-
-
-        # 4. use case
-        #-------------------------------------------------------------------------------
 
     # STEP 1 - 2
     """ First, the spike times should be scaled because sampling rate 
