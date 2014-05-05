@@ -54,7 +54,6 @@ class RestStore(BasicStore):
 
     def raise_for_status(self, response):
         """Raises stored :class:`HTTPError`, if one occurred."""
-
         if 400 <= response.status_code < 600:
             raise HTTPError(response.content, response=response)
     #

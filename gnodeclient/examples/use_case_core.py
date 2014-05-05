@@ -8,10 +8,9 @@ from gnodeclient.tools import upload_neo_structure, upload_odml_tree
 class UseCase(object):
 
     @staticmethod
-    def _create_property(where, *args, **kwargs):
-        kwargs.update('section', where)
-        p = odml.Property(*args, **kwargs)
-        where.append(p)
+    def _create_property(where, name, value, **kwargs):
+        prop = odml.Property(name, odml.Value(value, **kwargs))
+        where.append(prop)
 
     @classmethod
     def populate_session_metadata(cls, date):
@@ -85,7 +84,7 @@ class UseCase(object):
         """
         create = cls._create_property
 
-        stimulus = odml.Section(name='Trial %d' % num, type='Stimulus')
+        stimulus = odml.Section(name='Trial %s' % num, type='Stimulus')
         create(stimulus, 'BackgroundLuminance', '25', unit='cd/m2')
         create(stimulus, 'StimulusType', 'SquareGrating')
         create(stimulus, 'NumberOfStimulusConditions', '120', unit='Hz')
@@ -168,8 +167,8 @@ class UseCase(object):
         """
 
         def convert_to_spikeindexes(line):
-            line = line.replace(' ', '')
-            return [(-300.0 + 2.0*i) for i, e in enumerate(line) if e == '1']
+            spike_times = line.split(" ")[1:]
+            return [int(x) - 300 for x in spike_times]
 
         metadata = open(paths['sua_cond'], 'r').readlines()
         dataset = open(paths['sua_data'], 'r').readlines()
@@ -179,7 +178,7 @@ class UseCase(object):
             trial, condition, color, orientation, unit = meta.split(' ')
 
             params = {
-                'name': "SpikeTrain (SUA %s)" % (unit + 1),
+                'name': "SpikeTrain (SUA %s)" % (unit),
                 't_start': -300.0 * pq.ms,
                 't_stop': 698.0 * pq.ms,
                 'times': np.array(convert_to_spikeindexes(data)) * pq.ms,
@@ -190,7 +189,7 @@ class UseCase(object):
 
     @classmethod
     def upload_session(cls, connection, doc, date, paths, lfp_channels,
-                       sua_channels, conditions, colors, orientations):
+                   sua_channels, conditions, colors, orientations, limit=None):
         """
         Uploads complete experimental recording session.
 
@@ -203,16 +202,17 @@ class UseCase(object):
                                     'sua_data': "/foo/bar/sua080807data.dat",
                                     'sua_cond': "/foo/bar/sua080807cond.dat"
                                 }
-        :param lfp_channels:    list of electrode numbers
-        :param sua_channels:    list of SUA numbers
-        :param conditions:      list of behavioural conditions
-        :param colors:          list of stimulus colors
-        :param orientations:    list of stimulus orientations
+        :param lfp_channels:    list of electrode numbers (int)
+        :param sua_channels:    list of SUA numbers (int)
+        :param conditions:      list of behavioural conditions (str)
+        :param colors:          list of stimulus colors (str)
+        :param orientations:    list of stimulus orientations (str)
+        :param limit:           limit the number of trials (int)
         :return:
         """
 
         # create common metadata
-        metadata = cls.populate_session_metadata(date)
+        metadata = cls.populate_session_metadata(date.strftime("%B %d, %Y"))
         metadata._parent = doc
         metadata = upload_odml_tree(connection, metadata)
 
@@ -221,24 +221,29 @@ class UseCase(object):
             "%s.dat" % date.strftime("%y%m%d"), lfp_channels, sua_channels
         )
         stimulus = filter(lambda x: x.type == 'Stimulus', metadata.sections)[0]
-        with open(paths['lfp_meta'], 'r') as f:
+        with open(paths['lfp_cond'], 'r') as f:
             for i, l in enumerate(f):
+
                 if not i % len(lfp_channels) == 0:  # len(lfp_channels)
                     continue
 
                 trial, condition, color, orientation, channel = l.split(' ')
+                if int(trial) > limit:
+                    break
+
                 section = cls.populate_stimulus_metadata(
                     trial, 1.3, conditions[int(condition)],
-                    colors[int(color)], orientations[int(orientation)]
+                    colors[int(color) - 1], orientations[int(orientation) - 1]
                 )
                 section._parent = stimulus
                 stimulus.append(section)
                 section = connection.set(section)
 
                 segment = neo.Segment(
-                    name='Trial %d (%s, %s, %s)' % (
-                        trial, conditions[int(condition)], colors[int(color)],
-                        orientations[int(orientation)])
+                    name='Trial %s (%s, %s, %s)' % (
+                        trial, conditions[int(condition)],
+                        colors[int(color) - 1],
+                        orientations[int(orientation) - 1])
                 )
                 segment.metadata = section
                 segment.block = block
@@ -246,6 +251,9 @@ class UseCase(object):
 
         # read LFP data
         for trial, channel, signal in cls.read_lfp_data(paths):
+            if trial > limit:
+                break
+
             segment = block.segments[trial - 1]
             rc = block.recordingchannelgroups[0].recordingchannels[channel - 1]
             signal.segment = segment
@@ -255,6 +263,9 @@ class UseCase(object):
 
         # read SUA data
         for trial, unit, spiketrain in cls.read_sua_data(paths):
+            if trial > limit:
+                break
+
             segment = block.segments[trial - 1]
             unit = block.recordingchannelgroups[0].units[unit - 1]
             spiketrain.segment = segment

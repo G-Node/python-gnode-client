@@ -136,6 +136,8 @@ def upload_neo_structure(session, neo_object):
             return processed[block]
 
     def upload_segment(segment, block=None):
+        import ipdb
+        ipdb.set_trace()
         if segment not in processed:
             seg_uploaded = session.set(segment)
             processed[segment] = seg_uploaded
