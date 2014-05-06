@@ -89,9 +89,9 @@ class UseCase(object):
         create(stimulus, 'StimulusType', 'SquareGrating')
         create(stimulus, 'NumberOfStimulusConditions', '120', unit='Hz')
         create(stimulus, 'StimulusSize', size, unit='deg')
-        create(stimulus, 'Orientations', orientation, unit='deg')
-        create(stimulus, 'Colors', color)
-        create(stimulus, 'BehavioralConditions', cond)
+        create(stimulus, 'Orientation', orientation, unit='deg')
+        create(stimulus, 'Color', color)
+        create(stimulus, 'BehavioralCondition', cond)
 
         return stimulus
 
@@ -242,7 +242,7 @@ class UseCase(object):
                 )
                 section._parent = stimulus
                 stimulus.append(section)
-                section = connection.set(section)
+                sync_obj_tree(connection, section, fail=True)
 
                 segment = neo.Segment(
                     name='Trial %s (%s, %s, %s)' % (
