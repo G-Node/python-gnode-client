@@ -399,8 +399,6 @@ def sync_obj_tree(session, entity, avoid_collisions=False, fail=False):
             local_native.location = remote_native.location
 
         except HTTPError, e:  # some object fails to sync
-            import ipdb
-            ipdb.set_trace()
             if fail:
                 if hasattr(e, 'response'):
                     raise Exception(e.response.content)

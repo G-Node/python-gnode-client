@@ -20,7 +20,7 @@ g = session.create(
     location="http://localhost:8000", username="bob", password="pass"
 )
 
-doc = g.set(odml.Document(author='Thomas Wachtler'))
+doc = g.set(odml.Document(author='Thomas Wachtler', version="1.0"))
 
 # session 080707
 date = datetime.date(2008, 7, 7)

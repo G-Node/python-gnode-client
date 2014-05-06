@@ -165,9 +165,9 @@ class BlockModel(Model):
     description = Field(field_type=str)
 
     section                = FParent(type_info=Model.SECTION)
-    metadata               = FChildren(type_info=Model.VALUE, name_mapping="metadata")
     recordingchannelgroups = FChildren(type_info=Model.RECORDINGCHANNELGROUP)
     segments               = FChildren(type_info=Model.SEGMENT)
+    metadata               = FParent(type_info=Model.SECTION, name_mapping="metadata")
 
 Model._MODEL_MAP[Model.BLOCK] = BlockModel
 
@@ -179,7 +179,6 @@ class SegmentModel(Model):
 
     block       = FParent(type_info=Model.BLOCK)
 
-    metadata                  = FChildren(type_info=Model.VALUE, name_mapping="metadata")
     analogsignals             = FChildren(type_info=Model.ANALOGSIGNAL)
     irregularlysampledsignals = FChildren(type_info=Model.IRREGULARLYSAMPLEDSIGNAL)
     analogsignalarrays        = FChildren(type_info=Model.ANALOGSIGNALARRAY)
@@ -189,6 +188,7 @@ class SegmentModel(Model):
     eventarrays               = FChildren(type_info=Model.EVENTARRAY)
     epochs                    = FChildren(type_info=Model.EPOCH)
     epocharrays               = FChildren(type_info=Model.EPOCHARRAY)
+    metadata                  = FParent(type_info=Model.SECTION, name_mapping="metadata")
 
 Model._MODEL_MAP[Model.SEGMENT] = SegmentModel
 
@@ -201,7 +201,7 @@ class EventArrayModel(Model):
     times       = FDatafile(obligatory=True)
 
     segment     = FParent(type_info=Model.SEGMENT)
-    metadata    = FChildren(type_info=Model.VALUE, name_mapping="metadata")
+    metadata    = FParent(type_info=Model.SECTION, name_mapping="metadata")
 
 Model._MODEL_MAP[Model.EVENTARRAY] = EventArrayModel
 
@@ -215,7 +215,7 @@ class EventModel(Model):
     time        = FQuantity(obligatory=True)
 
     segment     = FParent(type_info=Model.SEGMENT)
-    metadata    = FChildren(type_info=Model.VALUE, name_mapping="metadata")
+    metadata    = FParent(type_info=Model.SECTION, name_mapping="metadata")
 
 Model._MODEL_MAP[Model.EVENT] = EventModel
 
@@ -230,7 +230,7 @@ class EpochArrayModel(Model):
     durations   = FDatafile(obligatory=True)
 
     segment     = FParent(type_info=Model.SEGMENT)
-    metadata    = FChildren(type_info=Model.VALUE, name_mapping="metadata")
+    metadata    = FParent(type_info=Model.SECTION, name_mapping="metadata")
 
 Model._MODEL_MAP[Model.EPOCHARRAY] = EpochArrayModel
 
@@ -245,7 +245,7 @@ class EpochModel(Model):
     duration    = FQuantity(obligatory=True)
 
     segment     = FParent(type_info=Model.SEGMENT)
-    metadata    = FChildren(type_info=Model.VALUE, name_mapping="metadata")
+    metadata    = FParent(type_info=Model.SECTION, name_mapping="metadata")
 
 Model._MODEL_MAP[Model.EPOCH] = EpochModel
 
@@ -256,10 +256,10 @@ class RecordingChannelGroupModel(Model):
     description = Field(field_type=str)
 
     block       = FParent(type_info=Model.BLOCK)
-    metadata    = FChildren(type_info=Model.VALUE, name_mapping="metadata")
     units       = FChildren(type_info=Model.UNIT)
     recordingchannels   = FChildren(type_info=Model.RECORDINGCHANNEL)
     analogsignalarrays  = FChildren(type_info=Model.ANALOGSIGNALARRAY)
+    metadata    = FParent(type_info=Model.SECTION, name_mapping="metadata")
 
 Model._MODEL_MAP[Model.RECORDINGCHANNELGROUP] = RecordingChannelGroupModel
 
@@ -270,10 +270,10 @@ class RecordingChannelModel(Model):
     description = Field(field_type=str)
     index       = Field(field_type=int, default=0)
 
-    metadata                  = FChildren(type_info=Model.VALUE, name_mapping="metadata")
     recordingchannelgroups    = FChildren(type_info=Model.RECORDINGCHANNELGROUP, name_mapping="recordingchannelgroup")
     analogsignals             = FChildren(type_info=Model.ANALOGSIGNAL)
     irregularlysampledsignals = FChildren(type_info=Model.IRREGULARLYSAMPLEDSIGNAL)
+    metadata                  = FParent(type_info=Model.SECTION, name_mapping="metadata")
 
 Model._MODEL_MAP[Model.RECORDINGCHANNEL] = RecordingChannelModel
 
@@ -284,9 +284,9 @@ class UnitModel(Model):
     description = Field(field_type=str)
 
     recordingchannelgroup   = FParent(type_info=Model.RECORDINGCHANNELGROUP)
-    metadata                = FChildren(type_info=Model.VALUE, name_mapping="metadata")
     spikes                  = FChildren(type_info=Model.SPIKE)
     spiketrains             = FChildren(type_info=Model.SPIKETRAIN)
+    metadata                = FParent(type_info=Model.SECTION, name_mapping="metadata")
 
 Model._MODEL_MAP[Model.UNIT] = UnitModel
 
@@ -303,7 +303,7 @@ class SpikeTrainModel(Model):
 
     unit        = FParent(type_info=Model.UNIT)
     segment     = FParent(type_info=Model.SEGMENT)
-    metadata    = FChildren(type_info=Model.VALUE, name_mapping="metadata")
+    metadata    = FParent(type_info=Model.SECTION, name_mapping="metadata")
 
 Model._MODEL_MAP[Model.SPIKETRAIN] = SpikeTrainModel
 
@@ -320,7 +320,7 @@ class SpikeModel(Model):
 
     unit        = FParent(type_info=Model.UNIT)
     segment     = FParent(type_info=Model.SEGMENT)
-    metadata    = FChildren(type_info=Model.VALUE, name_mapping="metadata")
+    metadata    = FParent(type_info=Model.SECTION, name_mapping="metadata")
 
 Model._MODEL_MAP[Model.SPIKE] = SpikeModel
 
@@ -336,7 +336,7 @@ class AnalogsignalArrayModel(Model):
 
     segment                 = FParent(type_info=Model.SEGMENT)
     recordingchannelgroup   = FParent(type_info=Model.RECORDINGCHANNELGROUP)
-    metadata                = FChildren(type_info=Model.VALUE, name_mapping="metadata")
+    metadata                = FParent(type_info=Model.SECTION, name_mapping="metadata")
 
 Model._MODEL_MAP[Model.ANALOGSIGNALARRAY] = AnalogsignalArrayModel
 
@@ -352,7 +352,7 @@ class AnalogsignalModel(Model):
 
     segment          = FParent(type_info=Model.SEGMENT)
     recordingchannel = FParent(type_info=Model.RECORDINGCHANNEL)
-    metadata         = FChildren(type_info=Model.VALUE, name_mapping="metadata")
+    metadata         = FParent(type_info=Model.SECTION, name_mapping="metadata")
 
 Model._MODEL_MAP[Model.ANALOGSIGNAL] = AnalogsignalModel
 
@@ -368,6 +368,6 @@ class IrregularlySampledSignalModel(Model):
 
     segment          = FParent(type_info=Model.SEGMENT)
     recordingchannel = FParent(type_info=Model.RECORDINGCHANNEL)
-    metadata         = FChildren(type_info=Model.VALUE, name_mapping="metadata")
+    metadata         = FParent(type_info=Model.SECTION, name_mapping="metadata")
 
 Model._MODEL_MAP[Model.IRREGULARLYSAMPLEDSIGNAL] = IrregularlySampledSignalModel
