@@ -17,7 +17,7 @@ orientations = ["0 deg", "45 deg", "90 deg", "135 deg"]
 #-------------------------------------------------------------------------------
 
 g = session.create(
-    location="http://localhost:8000", username="bob", password="pass"
+    location="http://beta.g-node.org", username="demo", password="pass"
 )
 
 doc = g.set(odml.Document(author='Thomas Wachtler', version="1.0"))
