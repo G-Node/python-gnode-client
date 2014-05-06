@@ -296,7 +296,7 @@ class SpikeTrainModel(Model):
     name        = Field(field_type=str)
     description = Field(field_type=str)
 
-    t_start     = FQuantity()
+    t_start     = FQuantity(obligatory=True)
     t_stop      = FQuantity(obligatory=True)
     times       = FDatafile(obligatory=True)
     waveforms   = FDatafile()

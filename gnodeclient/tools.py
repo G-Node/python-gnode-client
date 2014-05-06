@@ -13,12 +13,14 @@ some common procedures.
 """
 
 from __future__ import print_function, absolute_import, division
-
 import copy
-import neo, odml
+import neo
+import odml
 from odml.section import BaseSection
+from requests.exceptions import HTTPError
 
-from gnodeclient import Session
+from gnodeclient.result.result_driver import NativeDriver
+from gnodeclient import session, Model
 
 
 def delete_all(session, entities):
@@ -136,8 +138,6 @@ def upload_neo_structure(session, neo_object):
             return processed[block]
 
     def upload_segment(segment, block=None):
-        import ipdb
-        ipdb.set_trace()
         if segment not in processed:
             seg_uploaded = session.set(segment)
             processed[segment] = seg_uploaded
@@ -340,3 +340,104 @@ def upload_neo_structure(session, neo_object):
         if len(processed) > 0:
             delete_all(session, processed.keys())
         raise e
+
+
+def sync_obj_tree(session, entity, avoid_collisions=False, fail=False):
+    """
+
+    --- PROTOTYPE ---
+
+    Saves object with all downstream relationships on the G-Node service.
+    Updates IDs for a given object and all its relationships recursively.
+
+    :param entity: The object to store (Neo or odML).
+    :type entity: object
+    :param avoid_collisions:    If true, check if the modified object
+                                collide with changes on the server.
+    :type avoid_collisions: bool
+    :param fail: skip objects that failed to sync / fail on first sync
+                 failure
+    :type fail: bool
+
+    :returns: list of exceptions that did occur.
+    :rtype: object
+    """
+    def get_model_by_obj(obj):
+        for model_name in NativeDriver.RW_MAP:
+            cls = NativeDriver.RW_MAP[model_name]
+
+            if isinstance(obj, cls):
+                return Model.create(model_name)
+
+    def compare_objs(local, remote):
+        if remote is None:
+            return []
+        if local is None:
+            return remote
+        locations = [x.location for x in local if hasattr(x, 'location')]
+        return [x for x in remote if x.location not in locations]
+
+    todo = [entity]  # a stack of objects to submit
+    processed = []  # collector of locations of processed objects
+    to_clean = []  # collector of locations of objects to delete
+    exceptions = []  # collector of exceptions
+
+    while len(todo) > 0:
+        local_native = todo[0]
+        local_model = get_model_by_obj(local_native)  # empty model
+        #local_model = session.__driver.to_model(local_native)
+        if hasattr(local_native, 'location') and \
+                    local_native.location in processed:
+            continue  # workaround to avoid duplicate processing for Neo
+
+        try:
+            remote_native = session.set(local_native, avoid_collisions)
+            processed.append(remote_native.location)
+            # below is a "side-effect" needed to have correct parents for
+            # children and to avoid processing the same object twice, in
+            # case of a non-tree hierarchies
+            local_native.location = remote_native.location
+
+        except HTTPError, e:  # some object fails to sync
+            import ipdb
+            ipdb.set_trace()
+            if fail:
+                if hasattr(e, 'response'):
+                    raise Exception(e.response.content)
+                raise e
+            else:
+                exceptions.append(e)
+                if len(local_model.child_fields) > 0:
+                    continue
+        finally:
+            todo.remove(local_native)  # remove processed object
+
+        todo_ids = [id(obj) for obj in todo]
+        for field_name in local_model.child_fields:
+            if hasattr(local_native, field_name) and \
+                    hasattr(remote_native, field_name):
+
+                # set difference between the actual remote and local children
+                # references determines the list of children to delete
+                local_children = getattr(local_native, field_name, [])
+                remote_children = getattr(remote_native, field_name, [])
+                to_clean += compare_objs(local_children, remote_children)
+
+                # skip empty lazy-loaded proxy relations
+                if not (hasattr(local_children, '_is_loaded') and
+                            not getattr(local_children, '_is_loaded')) and \
+                        (local_children is not None):
+                    for obj in local_children:
+                        loc = getattr(obj, 'location', None)
+                        if not (loc is not None and loc in processed) and \
+                                not id(obj) in todo_ids:
+                            todo.append(obj)
+
+    # cleaning removed objects
+    for entity in to_clean:
+        try:
+            session.delete(entity)
+        except Exception, e:
+            exceptions.append(e)
+
+    return exceptions
