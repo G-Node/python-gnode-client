@@ -1,8 +1,8 @@
 
-import odml, neo
-import numpy as np
+import odml
+import neo
 import quantities as pq
-from gnodeclient.tools import upload_neo_structure, upload_odml_tree
+from gnodeclient.tools import sync_obj_tree
 
 
 class UseCase(object):
@@ -150,7 +150,7 @@ class UseCase(object):
                 'name': "LFP Signal (ch %s)" % (channel),
                 't_start': -300.0 * pq.ms,
                 'sampling_rate': 500 * pq.Hz,
-                'signal': np.array(convert_to_timeseries(data)) * pq.mV,
+                'signal': pq.Quantity(convert_to_timeseries(data), units="uV"),
             }
 
             yield (int(trial), int(channel), neo.AnalogSignal(**params))
@@ -166,9 +166,10 @@ class UseCase(object):
         }
         """
 
-        def convert_to_spikeindexes(line):
-            spike_times = line.split(" ")[1:]
-            return [int(x) - 300 for x in spike_times]
+        def convert_to_spikelist(spike_times):
+            if len(spike_times) > 0:
+                return [int(x) for x in spike_times]
+            return [0]
 
         metadata = open(paths['sua_cond'], 'r').readlines()
         dataset = open(paths['sua_data'], 'r').readlines()
@@ -176,15 +177,19 @@ class UseCase(object):
         for meta, data in zip(metadata, dataset):
 
             trial, condition, color, orientation, unit = meta.split(' ')
+            data_split = data.split(" ")
+            spike_times = data_split[1:]
 
-            params = {
-                'name': "SpikeTrain (SUA %s)" % (unit),
-                't_start': -300.0 * pq.ms,
-                't_stop': 698.0 * pq.ms,
-                'times': np.array(convert_to_spikeindexes(data)) * pq.ms,
-            }
+            if int(data_split[0]) > 0:
+                times = convert_to_spikelist(spike_times)
+                params = {
+                    'name': "SpikeTrain (SUA %s)" % (unit),
+                    't_start': pq.Quantity(-300, units='ms', dtype=int),
+                    't_stop': pq.Quantity(698, units='ms', dtype=int),
+                    'times': pq.Quantity(times, units='ms', dtype=int),
+                }
 
-            yield (int(trial), int(unit), neo.SpikeTrain(**params))
+                yield (int(trial), int(unit), neo.SpikeTrain(**params))
 
 
     @classmethod
@@ -214,7 +219,7 @@ class UseCase(object):
         # create common metadata
         metadata = cls.populate_session_metadata(date.strftime("%B %d, %Y"))
         metadata._parent = doc
-        metadata = upload_odml_tree(connection, metadata)
+        sync_obj_tree(connection, metadata, fail=True)
 
         # create trials (Neo Segments with odML Sections)
         block = cls.populate_dataset(
@@ -273,7 +278,7 @@ class UseCase(object):
             segment.spiketrains.append(spiketrain)
             unit.spiketrains.append(spiketrain)
 
-        upload_neo_structure(connection, block)
+        sync_obj_tree(connection, block, fail=True)
 
         return metadata, block
 

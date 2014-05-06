@@ -18,7 +18,7 @@ from __future__ import print_function, absolute_import, division
 import numpy
 import quantities as pq
 
-#import odml
+import odml
 import odml.base
 import odml.section
 import odml.property
@@ -277,12 +277,16 @@ class NativeDriver(ResultDriver):
             field = model_obj.get_field(field_name)
             if field.type_info != "datafile":  # non-data fields
                 if model_obj.model == 'section' and field_name \
-                    in ['document', 'section']:
+                                            in ['document', 'section']:
+                    if model_obj.document is not None or \
+                                    model_obj.section is not None:
+                        continue
+
                     parent = getattr(obj, 'parent')
                     if parent is not None and hasattr(parent, 'location'):
-                        if isinstance(parent, Document):
+                        if isinstance(parent, odml.doc.Document):
                             model_obj['document'] = parent.location
-                        elif isinstance(parent, Section):
+                        elif isinstance(parent, odml.section.BaseSection):
                             model_obj['section'] = parent.location
 
                 elif hasattr(obj, field_name):

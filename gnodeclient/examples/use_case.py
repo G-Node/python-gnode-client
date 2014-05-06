@@ -22,6 +22,7 @@ g = session.create(
 
 doc = g.set(odml.Document(author='Thomas Wachtler'))
 
+"""
 # session 080707
 date = datetime.date(2008, 7, 7)
 paths = path_generator(date.strftime("%y%m%d"))
@@ -41,9 +42,9 @@ UseCase.upload_session(
     g, doc, date, paths, lfp_channels, sua_channels, conditions, colors,
     orientations, limit=10
 )
-
+"""
 # session 080709
-date = datetime.date(2008, 7, 8)
+date = datetime.date(2008, 7, 9)
 paths = path_generator(date.strftime("%y%m%d"))
 lfp_channels = [1, 2, 4, 5, 6, 9, 10, 12, 13, 14, 15]
 sua_channels = [13, 13, 15, 15, 4, 4, 5, 5]
