@@ -150,6 +150,12 @@ class NativeDriver(ResultDriver):
     # Methods
     #
 
+    @classmethod
+    def get_model_by_obj(cls, obj):
+        for model_name, model in cls.RW_MAP.items():
+            if isinstance(obj, model):
+                return Model.create(model_name)
+
     def to_result(self, obj):
         """
         Converts a model into a usable result.
@@ -249,12 +255,14 @@ class NativeDriver(ResultDriver):
         else:
             return obj
 
-    def to_model(self, obj):
+    def to_model(self, obj, in_memory=False):
         """
         Converts a native neo or odml object into model object.
 
-        :param obj: The object to convert.
-        :type obj: object
+        :param obj:         The object to convert.
+        :type obj:          object
+        :param in_memory:   store array data to disk (False) or keep inside the
+                            converted model (True)
 
         :returns: A new model object.
         :rtype: Model
@@ -322,23 +330,33 @@ class NativeDriver(ResultDriver):
                         model_obj[field_name] = field_val
 
             else:  # datafile fields
-                if field_name == "signal" and model_obj.model in (Model.ANALOGSIGNAL, Model.ANALOGSIGNALARRAY,
-                                                                  Model.IRREGULARLYSAMPLEDSIGNAL):
-                    units = obj.dimensionality.string
-                    datafile_location = self.store.set_array(obj, temporary=True)
-                    model_obj[field_name] = {"units": units, "data": datafile_location}
-                elif field_name == "times" and model_obj.model == Model.SPIKETRAIN:
-                    units = obj.dimensionality.string
-                    datafile_location = self.store.set_array(obj, temporary=True)
-                    model_obj[field_name] = {"units": units, "data": datafile_location}
+                is_array_1 = (
+                    field_name == "signal" and model_obj.model in
+                    (Model.ANALOGSIGNAL, Model.ANALOGSIGNALARRAY,
+                     Model.IRREGULARLYSAMPLEDSIGNAL)
+                )
+                is_array_2 = (
+                    field_name == "times" and
+                    model_obj.model == Model.SPIKETRAIN
+                )
+
+                data_array = None
+                units = None
+
+                if is_array_1 or is_array_2:
+                    data_array = obj
                 elif hasattr(obj, field_name):
-                    field_val = getattr(obj, field_name, field.default)
-                    if field_val is not None:
-                        if hasattr(field_val, "dimensionality"):
-                            units = field_val.dimensionality.string
-                        else:
-                            units = None
-                        datafile_location = self.store.set_array(field_val, temporary=True)
-                        model_obj[field_name] = {"units": units, "data": datafile_location}
+                    data_array = getattr(obj, field_name, field.default)
+
+                if data_array is None:
+                    continue
+
+                if hasattr(data_array, "dimensionality"):
+                    units = data_array.dimensionality.string
+                if in_memory:
+                    location_or_obj = data_array.tolist()
+                else:
+                    location_or_obj = self.store.set_array(data_array, temporary=True)
+                model_obj[field_name] = {"units": units, "data": location_or_obj}
 
         return model_obj
