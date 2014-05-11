@@ -263,6 +263,11 @@ class Model(object):
         """Descriptors for all fields of the model, that are obligatory"""
         return self.__inspect_filtered(lambda x: x.obligatory)
 
+    @property
+    def datafile_fields(self):
+        """Descriptors for all data fields of the model, containing array """
+        return self.__inspect_filtered(lambda x: x.type_info == 'datafile')
+
     #
     # Methods
     #

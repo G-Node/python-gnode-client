@@ -55,6 +55,10 @@ class Session(object):
     #
 
     @property
+    def driver(self):
+        return self.__driver
+
+    @property
     def options(self):
         """
         Read only property for accessing all used options.
@@ -102,6 +106,7 @@ class Session(object):
             res = self.__driver.to_result(obj)
         else:
             res = None
+
         return res
 
     def set(self, entity, avoid_collisions=False):
