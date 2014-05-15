@@ -19,6 +19,7 @@ from __future__ import print_function, absolute_import, division
 from gnodeclient.conf import Configuration
 from gnodeclient.store.caching_rest_store import CachingRestStore
 from gnodeclient.result.result_driver import NativeDriver
+from gnodeclient.store.dumper import Dumper
 
 __all__ = ("Session", "create", "close")
 
@@ -49,6 +50,7 @@ class Session(object):
                                         password=self.__options["password"], cache_location=self.options["cache_dir"])
         self.__store.connect()
         self.__driver = NativeDriver(self.__store)
+        self.__dumper = Dumper(self.__driver)
 
     #
     # Properties
@@ -125,6 +127,18 @@ class Session(object):
         mod = self.__store.set(obj, avoid_collisions)
         res = self.__driver.to_result(mod)
         return res
+
+    def set_all(self, entity, avoid_collisions=False):
+        """
+        (FULL) Save a modified or created object on the G-Node service.
+
+        :param entity: The object to store (Neo or odML).
+        :type entity: object
+        :param avoid_collisions: If true, check if the modified object collide with changes on the server.
+        :type avoid_collisions: bool
+        """
+        path = self.__dumper.dump(entity)
+        self.__store.set_delta(path, avoid_collisions=False)
 
     def delete(self, entity):
         """

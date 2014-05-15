@@ -83,10 +83,15 @@ class TestRestAPI(unittest.TestCase):
 
         else:
             for field_name in fields:
+                #if field_name == 'metadata':
+                #    parent = self.get_remote_objs('section')[0]
+                #else:
                 parent = self.get_remote_objs(field_name)[0]
                 setattr(template, field_name, parent)
 
         return template
+
+    # tests --------------------------------------------------------------------
 
     def test_select(self):
         for model_name in self.remote_assets.keys():

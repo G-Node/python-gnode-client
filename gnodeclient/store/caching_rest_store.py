@@ -317,6 +317,25 @@ class CachingRestStore(BasicStore):
 
         return location
 
+    def set_delta(self, path, avoid_collisions=False):
+        """
+        Submits a given Delta file with changes to the Remote.
+
+        :param path:    a path to the Delta file with changes to be submitted
+        """
+        # FIXME at the moment this omits the local cache
+        # FIXME use avoid_collisions
+        self.rest_store.set_delta(path)
+
+    def get_delta(self, location):
+        """
+        Fetches the Delta file with the complete object data.
+
+        :param location:    The location of the object or the whole URL
+        :return: path:      Path of the downloaded Delta file
+        """
+        raise NotImplementedError()
+
     def delete(self, entity_or_location):
         """
         Delete an entity from the G-Node REST API and from the cache.

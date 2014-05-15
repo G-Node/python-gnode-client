@@ -303,6 +303,30 @@ class RestStore(BasicStore):
         os.close(fd)
         os.remove(tmppath)
 
+    def set_delta(self, path):
+        """
+        Submits a given Delta file with changes to the Remote.
+
+        :param path:    a path to the Delta file with changes to be submitted
+        """
+        url = urlparse.urljoin(self.location, "/api/v1/in_bulk/")
+
+        with open(path, 'rb') as f:
+            files = {'raw_file': f.read()}
+            future = self.__session.post(url, files=files)
+            response = future.result()
+
+        self.raise_for_status(response)
+
+    def get_delta(self, location):
+        """
+        Fetches the Delta file with the complete object data.
+
+        :param location:    The location of the object or the whole URL
+        :return: path:      Path of the downloaded Delta file
+        """
+        raise NotImplementedError()
+
     def delete(self, entity_or_location):
         """
         Delete an entity from the G-Node REST API.
