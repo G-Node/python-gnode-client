@@ -147,6 +147,23 @@ class TestRestAPI(unittest.TestCase):
             msg = "Object of type %s was not deleted" % model_name
             self.assertIsNone(self.session.get(dead.location), msg)
 
+    def test_set_all(self):
+        for model_name in ['document', 'block']:
+
+            # create
+            obj = self.local_assets[model_name][0]
+            result = self.session.set_all(obj)
+
+            msg = "Create for the %s failed" % model_name
+            self.assertTrue(hasattr(result, 'location'), msg)
+
+            # update
+            obj = self.remote_assets[model_name][0]
+            result = self.session.set_all(obj)
+
+            msg = "Create for the %s failed" % model_name
+            self.assertTrue(hasattr(result, 'location'), msg)
+
     def test_permissions(self):
         for model_name in ['document', 'block']:
             perms = [{

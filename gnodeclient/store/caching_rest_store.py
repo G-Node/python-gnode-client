@@ -325,7 +325,7 @@ class CachingRestStore(BasicStore):
         """
         # FIXME at the moment this omits the local cache
         # FIXME use avoid_collisions
-        self.rest_store.set_delta(path)
+        return self.rest_store.set_delta(path)
 
     def get_delta(self, location):
         """

@@ -16,6 +16,7 @@ functions operate on a global, application wide session object.
 
 from __future__ import print_function, absolute_import, division
 
+import os
 from gnodeclient.conf import Configuration
 from gnodeclient.store.caching_rest_store import CachingRestStore
 from gnodeclient.result.result_driver import NativeDriver
@@ -138,7 +139,9 @@ class Session(object):
         :type avoid_collisions: bool
         """
         path = self.__dumper.dump(entity)
-        self.__store.set_delta(path, avoid_collisions=False)
+        res = self.__store.set_delta(path, avoid_collisions)
+        os.remove(path)
+        return res
 
     def delete(self, entity):
         """

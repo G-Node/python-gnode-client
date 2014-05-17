@@ -317,6 +317,7 @@ class RestStore(BasicStore):
             response = future.result()
 
         self.raise_for_status(response)
+        return convert.collections_to_model(convert.json_to_collections(response.content))
 
     def get_delta(self, location):
         """
