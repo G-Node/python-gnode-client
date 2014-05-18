@@ -1,3 +1,4 @@
+import tempfile
 import uuid
 import os
 import h5py
@@ -32,7 +33,7 @@ class Dumper(object):
             )
 
         name = uuid.uuid1().hex + ".h5"
-        path = os.path.join("/tmp", name)  # FIXME get proper temppath
+        path = os.path.join(tmp.gettempdir(), name)  # FIXME get proper temppath
 
         f = h5py.File(path)
 
