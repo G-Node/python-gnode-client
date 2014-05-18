@@ -1,4 +1,4 @@
-import tempfile
+import tempfile as tmp
 import uuid
 import os
 import h5py
