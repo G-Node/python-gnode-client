@@ -139,7 +139,8 @@ class Session(object):
         :type avoid_collisions: bool
         """
         path = self.__dumper.dump(entity)
-        res = self.__store.set_delta(path, avoid_collisions)
+        mod = self.__store.set_delta(path, avoid_collisions)
+        res = self.__driver.to_result(mod)
         os.remove(path)
         return res
 

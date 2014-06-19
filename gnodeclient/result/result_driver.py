@@ -354,7 +354,7 @@ class NativeDriver(ResultDriver):
                 if hasattr(data_array, "dimensionality"):
                     units = data_array.dimensionality.string
                 if in_memory:
-                    location_or_obj = data_array.tolist()
+                    location_or_obj = data_array
                 else:
                     location_or_obj = self.store.set_array(data_array, temporary=True)
                 model_obj[field_name] = {"units": units, "data": location_or_obj}
