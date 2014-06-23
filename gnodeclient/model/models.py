@@ -198,6 +198,7 @@ class EventArrayModel(Model):
     name        = Field(field_type=str)
     description = Field(field_type=str)
 
+    labels      = FDatafile(obligatory=True)
     times       = FDatafile(obligatory=True)
 
     segment     = FParent(type_info=Model.SEGMENT)
