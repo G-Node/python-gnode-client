@@ -1,3 +1,8 @@
+0.4.0, 2014-07-15
+ * Extended metadata model with odML Document
+ * Added function for bulk data upload
+ * Aligned with changes of the remote API
+
 0.3.2, 2014-04-23
  * Fix error caused by wrong handling of temporary files
  * Allow unicode in string type checks
