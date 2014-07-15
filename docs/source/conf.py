@@ -13,8 +13,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 project = 'Python G-Node Client'
 copyright = '2013, Adrian Stoewer, Andrey Sobolev'
-version = "0.3.2"
-release = "0.3.2 Beta"
+version = "0.4.0"
+release = "0.4.0 Beta"
 exclude_patterns = []
 pygments_style = 'sphinx'
 

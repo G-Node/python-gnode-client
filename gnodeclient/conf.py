@@ -72,7 +72,7 @@ class Configuration(dict):
         options = tmp
 
         # set defaults
-        self['version'] = "0.1.0"
+        self['version'] = "0.4.0"
         self['api_prefix'] = "api"
         self['api_name'] = "v1"
         self['username'] = options.get('username', None)

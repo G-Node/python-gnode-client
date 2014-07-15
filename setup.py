@@ -8,7 +8,7 @@ with open("LICENSE.txt") as f:
 
 setup(
     name="gnodeclient",
-    version="0.3.2",
+    version="0.4.0",
     author="A. Stoewer, A. Sobolev",
     author_email="adrian.stoewer@rz.ifi.lmu.de",
     packages=find_packages(),
