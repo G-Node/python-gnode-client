@@ -14,15 +14,17 @@
 
 import unittest
 from gnodeclient.test.test_hdfio import TestHDFIO
-from gnodeclient.test.test_remote import TestRemote
+from gnodeclient.test.test_remote import TestRestAPI
+from gnodeclient.test.test_dumper import TestDumper
 
 
 class TestAll(unittest.TestSuite):
 
     def __init__(self):
         super(TestAll, self).__init__()
+        self.addTests(unittest.makeSuite(TestDumper))
         self.addTests(unittest.makeSuite(TestHDFIO))
-        self.addTests(unittest.makeSuite(TestRemote))
+        self.addTests(unittest.makeSuite(TestRestAPI))
 
     def test(self, verbosity=2):
         unittest.TextTestRunner(verbosity=verbosity).run(self)
